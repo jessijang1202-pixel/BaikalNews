@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>제보 및 문의 - 바이칼 뉴스</title>
+  <meta name="description" content="바이칼 뉴스에 기사 제보, 정정 요청, 오보 지적 또는 광고·제휴 문의를 접수할 수 있습니다.">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <div class="header-top">
+        <div class="header-meta">
+          <span id="current-date">2026년 7월 11일 토요일</span>
+          <span class="weather-widget">
+            <span class="weather-dot"></span>
+            바이칼 호수 날씨: <strong id="baikal-temp-val">+17.5°C</strong> (<span id="baikal-temp-desc">맑음</span>)
+          </span>
+        </div>
+        <div class="header-top-links">
+          <a href="about.html">회사 소개</a>
+          <a href="contact.html">제보 및 문의</a>
+        </div>
+      </div>
+      
+      <div class="header-main">
+        <div class="brand-section">
+          <h1 class="logo-main">
+            <a href="index.html">
+              <span>BAIKAL NEWS</span>
+              <span class="logo-kr">바이칼 뉴스</span>
+            </a>
+          </h1>
+          <p class="slogan">“깊이 있는 뉴스, 바이칼 뉴스”</p>
+        </div>
+        
+        <button class="mobile-nav-toggle" aria-label="메뉴 열기" id="mobile-menu-toggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+      <div class="container">
+        <ul class="nav-links">
+          <li id="nav-home"><a href="index.html">HOME</a></li>
+          <li id="nav-culture"><a href="category.html?cat=culture">CULTURE / 문화</a></li>
+          <li id="nav-local"><a href="category.html?cat=local">LOCAL / 평택</a></li>
+          <li id="nav-economy"><a href="category.html?cat=economy">ECONOMY</a></li>
+          <li id="nav-opinion"><a href="category.html?cat=opinion">OPINION</a></li>
+          <li id="nav-tech"><a href="category.html?cat=tech">TECH / MEDIA</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Contact Content Area -->
+  <main class="container section">
+    
+    <div class="breadcrumbs">
+      <a href="index.html">홈</a>
+      <span class="separator"></span>
+      <span>제보 및 문의</span>
+    </div>
+
+    <article class="policy-page">
+      <h1>제보 및 문의 / Contact</h1>
+      <div class="policy-meta-info">귀하의 소중한 의견과 제보는 바이칼 뉴스의 가장 귀중한 자산입니다.</div>
+      
+      <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 32px;">
+        바이칼 뉴스는 권력과 자본으로부터의 완전한 독립과 독자 보호를 위해 제보자의 익명성과 신원을 법률 이상으로 엄격히 보호합니다.
+        보도 오류에 대한 정정 요청, 기사 제보, 제휴 문의는 아래 양식 혹은 이메일을 통해 접수해 주시면 담당 데스크가 24시간 이내에 검토 및 답변 드립니다.
+      </p>
+
+      <div class="contact-grid">
+        
+        <!-- Left: Address & Direct Contact -->
+        <div class="contact-info-block">
+          <div class="contact-method">
+            <h3>기사 제보 (Tips & Reports)</h3>
+            <p>익명이 보장되는 기사 관련 제보는 아래 이메일로 관련 첨부 자료 및 정황 문서를 송부해 주시기 바랍니다.</p>
+            <p style="margin-top: 4px; font-weight: 600; color: var(--accent-cyan);">report@baikalnews.com</p>
+          </div>
+
+          <div class="contact-method">
+            <h3>일반 문의 및 광고/제휴 (Business & General Inquiries)</h3>
+            <p>언론사 제휴, 뉴스 제공 계약 및 광고 관련 문의는 경영관리팀으로 접수해 주십시오.</p>
+            <p style="margin-top: 4px; font-weight: 600; color: var(--accent-blue);">contact@baikalnews.com</p>
+          </div>
+
+          <div class="contact-method">
+            <h3>우편 접수 및 내방 (Address)</h3>
+            <p>경기도 평택시 포승읍 평택항만로 120, 바이칼 뉴스 빌딩 2층 편집국</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">지하철/버스: 평택항 국제여객터미널 인근 하차 도보 5분</p>
+          </div>
+        </div>
+
+        <!-- Right: Contact Form -->
+        <div class="contact-form-wrapper">
+          <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; color: var(--text-primary);">온라인 제보·문의 양식</h3>
+          
+          <form onsubmit="event.preventDefault(); alert('소중한 문의가 정상적으로 접수되었습니다. 신속하게 답변드리겠습니다.'); this.reset();">
+            <div class="form-group">
+              <label for="contact-name">성명 / 단체명</label>
+              <input type="text" id="contact-name" class="form-control" placeholder="성명을 입력하세요 (익명 가능)" required>
+            </div>
+
+            <div class="form-group">
+              <label for="contact-email">답변받을 이메일 주소</label>
+              <input type="email" id="contact-email" class="form-control" placeholder="example@email.com" required>
+            </div>
+
+            <div class="form-group">
+              <label for="contact-type">문의 유형</label>
+              <select id="contact-type" class="form-control" style="background-color: var(--bg-primary);">
+                <option value="report">기사 제보 및 팩트 보완</option>
+                <option value="correction">정정 보도 및 오보 정정 신청</option>
+                <option value="alliance">광고 및 콘텐츠 제휴</option>
+                <option value="other">기타 편집국 문의</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="contact-message">내용</label>
+              <textarea id="contact-message" class="form-control" placeholder="제보 및 문의 내용을 구체적으로 입력해 주십시오. 관련 증빙은 이메일 첨부로 접수 가능합니다." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">제보·문의 전송하기</button>
+          </form>
+        </div>
+
+      </div>
+
+    </article>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo">BAIKAL NEWS</div>
+          <div class="footer-slogan">바이칼 뉴스</div>
+          <p class="footer-principle">“깊이 있고 투명한 보도로 독자를 존중한다.”<br>바이칼 뉴스는 자극적인 흥미 유발을 지양하며, 냉정하고 맑은 눈으로 사회와 일상을 관조하는 저널리즘을 실현합니다.</p>
+        </div>
+        <div class="footer-links-col">
+          <h4>카테고리</h4>
+          <ul>
+            <li><a href="category.html?cat=culture">Culture / 문화</a></li>
+            <li><a href="category.html?cat=local">Local / 평택</a></li>
+            <li><a href="category.html?cat=economy">Economy / 산업</a></li>
+            <li><a href="category.html?cat=opinion">Opinion / 칼럼</a></li>
+            <li><a href="category.html?cat=tech">Tech / 미디어</a></li>
+          </ul>
+        </div>
+        <div class="footer-links-col footer-contact-info">
+          <h4>신뢰 및 투명성 정보</h4>
+          <p><strong>발행·편집인:</strong> 최성진</p>
+          <p><strong>주소:</strong> 경기도 평택시 포승읍 평택항만로 120</p>
+          <p><strong>제보 및 문의:</strong> <a href="mailto:contact@baikalnews.com">contact@baikalnews.com</a></p>
+          <p>본지는 독자의 권리를 지키기 위해 오보 정정 및 정정 보도 이력을 투명하게 상시 게시합니다.</p>
+        </div>
+      </div>
+      
+      <!-- Trust Signals Icons / Badges Area -->
+      <div class="footer-trust-signals">
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>AdSense 및 신뢰성 인증</h5>
+            <p>Google AdSense 심사 규정을 철저히 준수하며 오리지널 취재 기사만을 등록합니다.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>정정 보도 및 수정 이력제</h5>
+            <p>보도 수정 시, 기사 하단에 정정 일시와 사유를 투명하게 공개하는 수정 이력제를 도입했습니다.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>편집 규약 준수</h5>
+            <p>선정적인 자극, 편파성 배제와 균형감 있는 로컬 지성 보도를 선언합니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 바이칼 뉴스 (Baikal News). All rights reserved. Registered Publication No. 경기-아012345.</p>
+        <div class="footer-bottom-links">
+          <a href="about.html">회사 소개</a>
+          <a href="editorial-policy.html">편집 규약</a>
+          <a href="privacy-policy.html" class="privacy-link">개인정보처리방침</a>
+          <a href="terms.html">이용약관</a>
+          <a href="corrections.html">오보정정정책</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/articles.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

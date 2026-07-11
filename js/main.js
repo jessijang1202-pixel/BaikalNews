@@ -1,0 +1,393 @@
+// Baikal News - Main Shared Scripts
+document.addEventListener("DOMContentLoaded", () => {
+  initCommonFeatures();
+  
+  // Determine which page we are on and route accordingly
+  const pathname = window.location.pathname;
+  const page = pathname.substring(pathname.lastIndexOf('/') + 1);
+  
+  if (page === 'index.html' || page === '') {
+    renderHomepage();
+  } else if (page === 'category.html') {
+    renderCategoryPage();
+  } else if (page === 'article.html') {
+    renderArticlePage();
+  }
+});
+
+// 1. Common features (Header, Footer, Mobile menu, Weather Widget)
+function initCommonFeatures() {
+  // Current Date display in Header
+  const dateEl = document.getElementById("current-date");
+  if (dateEl) {
+    const days = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+    const now = new Date();
+    const formatted = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
+    dateEl.textContent = formatted;
+  }
+
+  // Mobile Menu Navigation Toggle
+  const toggleBtn = document.querySelector(".mobile-nav-toggle");
+  const navBar = document.querySelector("nav.nav-bar");
+  if (toggleBtn && navBar) {
+    toggleBtn.addEventListener("click", () => {
+      navBar.classList.toggle("active");
+    });
+  }
+
+  // Baikal Weather Widget Logic
+  // Displays realistic temperature depending on seasonal patterns
+  const tempValEl = document.getElementById("baikal-temp-val");
+  const tempDescEl = document.getElementById("baikal-temp-desc");
+  const sidebarTempValEl = document.getElementById("sidebar-baikal-temp-val");
+  const sidebarTempDescEl = document.getElementById("sidebar-baikal-temp-desc");
+  
+  if (tempValEl || sidebarTempValEl) {
+    const now = new Date();
+    const month = now.getMonth(); // 0-indexed (0 is Jan)
+    let temp = 15;
+    let desc = "맑음";
+    
+    // Simple mock climate model for Irkutsk/Baikal area
+    if (month === 0) { temp = -18.2; desc = "매우 강한 한파"; }
+    else if (month === 1) { temp = -15.4; desc = "맑고 극한 대기"; }
+    else if (month === 2) { temp = -8.1; desc = "쾌청한 빙판 해빙"; }
+    else if (month === 3) { temp = 2.4; desc = "구름 조금, 서리"; }
+    else if (month === 4) { temp = 9.8; desc = "맑고 청량함"; }
+    else if (month === 5) { temp = 15.6; desc = "맑고 화창한 초여름"; }
+    else if (month === 6) { temp = 18.5; desc = "화창한 여름 호숫바람"; }
+    else if (month === 7) { temp = 16.2; desc = "맑고 선선함"; }
+    else if (month === 8) { temp = 10.1; desc = "구름 많고 쌀쌀한 가을"; }
+    else if (month === 9) { temp = 2.0; desc = "첫눈 소식"; }
+    else if (month === 10) { temp = -7.5; desc = "매우 추움, 호수 결빙 시작"; }
+    else if (month === 11) { temp = -14.6; desc = "맑음, 튼튼한 얼음판"; }
+    
+    const formattedTemp = `${temp > 0 ? '+' : ''}${temp.toFixed(1)}°C`;
+    
+    if (tempValEl) tempValEl.textContent = formattedTemp;
+    if (tempDescEl) tempDescEl.textContent = desc;
+    if (sidebarTempValEl) sidebarTempValEl.textContent = formattedTemp;
+    if (sidebarTempDescEl) sidebarTempDescEl.textContent = desc;
+  }
+}
+
+// Helper: Get articles in category
+function getArticlesByCategory(category) {
+  if (!window.ARTICLES) return [];
+  return window.ARTICLES.filter(a => a.category === category);
+}
+
+// Helper: Get URL query parameters
+function getQueryParam(param) {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(param);
+}
+
+// Render Article card HTML
+function createArticleCardHTML(article, mode = 'standard') {
+  const imageUrl = article.image || 'images/placeholder_ice.jpg';
+  
+  if (mode === 'hero') {
+    return `
+      <article class="card card-hero">
+        <a href="article.html?id=${article.id}" class="card-image-wrapper">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+        </a>
+        <div class="card-content">
+          <span class="category-badge">${article.categoryLabel}</span>
+          <h2 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h2>
+          <p class="card-excerpt">${article.lead}</p>
+          <div class="card-meta">
+            <span class="card-author">${article.author.name}</span>
+            <span class="card-date">${article.date}</span>
+          </div>
+        </div>
+      </article>
+    `;
+  } else if (mode === 'row') {
+    return `
+      <article class="card card-row">
+        <a href="article.html?id=${article.id}" class="card-image-wrapper">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+        </a>
+        <div class="card-content">
+          <span class="category-badge">${article.categoryLabel}</span>
+          <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
+          <p class="card-excerpt">${article.lead}</p>
+          <div class="card-meta">
+            <span class="card-author">${article.author.name}</span>
+            <span class="card-date">${article.date}</span>
+          </div>
+        </div>
+      </article>
+    `;
+  } else if (mode === 'minimal') {
+    return `
+      <article class="card card-minimal">
+        <span class="category-badge">${article.categoryLabel}</span>
+        <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
+        <div class="card-meta">
+          <span class="card-author">${article.author.name}</span>
+          <span class="card-date">${article.date}</span>
+        </div>
+      </article>
+    `;
+  } else { // Standard Grid Card
+    return `
+      <article class="card">
+        <a href="article.html?id=${article.id}" class="card-image-wrapper">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+        </a>
+        <div class="card-content">
+          <span class="category-badge">${article.categoryLabel}</span>
+          <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
+          <p class="card-excerpt">${article.lead}</p>
+          <div class="card-meta">
+            <span class="card-author">${article.author.name}</span>
+            <span class="card-date">${article.date}</span>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+}
+
+// 2. Render Homepage
+function renderHomepage() {
+  if (!window.ARTICLES || window.ARTICLES.length === 0) return;
+
+  // Set active state on home nav link
+  const homeLink = document.getElementById("nav-home");
+  if (homeLink) homeLink.parentElement.classList.add("active");
+
+  // Feature #1: Hero/Featured Article (First article in the DB)
+  const heroContainer = document.getElementById("featured-hero-container");
+  if (heroContainer) {
+    heroContainer.innerHTML = createArticleCardHTML(window.ARTICLES[0], 'hero');
+  }
+
+  // Feature #2: Latest Articles Grid (Next 3 articles)
+  const latestContainer = document.getElementById("latest-grid-container");
+  if (latestContainer) {
+    let latestHTML = '';
+    const latestItems = window.ARTICLES.slice(1, 4); // index 1, 2, 3
+    latestItems.forEach(art => {
+      latestHTML += createArticleCardHTML(art, 'standard');
+    });
+    latestContainer.innerHTML = latestHTML;
+  }
+
+  // Feature #3: Editor's Picks (Articles 4, 5, 6 as Minimal Cards)
+  const picksContainer = document.getElementById("editors-picks-container");
+  if (picksContainer) {
+    let picksHTML = '';
+    const picksItems = window.ARTICLES.slice(4, 7);
+    picksItems.forEach(art => {
+      picksHTML += createArticleCardHTML(art, 'minimal');
+    });
+    picksContainer.innerHTML = picksHTML;
+  }
+
+  // Feature #4: Popular Reads (Articles 7, 8, 9 as Minimal Cards)
+  const popularContainer = document.getElementById("popular-reads-container");
+  if (popularContainer) {
+    let popularHTML = '';
+    const popularItems = window.ARTICLES.slice(7, 10);
+    popularItems.forEach(art => {
+      popularHTML += createArticleCardHTML(art, 'minimal');
+    });
+    popularContainer.innerHTML = popularHTML;
+  }
+
+  // Feature #5: Category Rows
+  const cultureRow = document.getElementById("culture-row-container");
+  if (cultureRow) {
+    const cultureArticles = getArticlesByCategory("culture").slice(0, 2);
+    cultureRow.innerHTML = cultureArticles.map(a => createArticleCardHTML(a, 'standard')).join('');
+  }
+
+  const localRow = document.getElementById("local-row-container");
+  if (localRow) {
+    const localArticles = getArticlesByCategory("local").slice(0, 2);
+    localRow.innerHTML = localArticles.map(a => createArticleCardHTML(a, 'standard')).join('');
+  }
+}
+
+// 3. Render Category Archive Page
+function renderCategoryPage() {
+  const cat = getQueryParam("cat");
+  if (!cat) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Map category code to labels
+  const catLabels = {
+    culture: "Culture / 문화",
+    local: "Local / 평택",
+    economy: "Economy / Business",
+    opinion: "Opinion / Columns",
+    tech: "Tech / Media"
+  };
+  
+  const catDescs = {
+    culture: "시베리아 원주민 부랴트인의 구전 신화부터 호수의 영성을 품은 현대 문화 예술에 이르기까지 깊은 사색을 기록합니다.",
+    local: "평택과 시베리아 간의 연계 교류를 축으로 로컬 경제 활성화, 문화 연대, 상생의 소식을 다룹니다.",
+    economy: "자연 보호와 지속 가능한 에코 투어리즘 모델, 친환경 재생 에너지 사업 등 동시베리아와 글로벌 대안 경제를 모색합니다.",
+    opinion: "자극과 속도 중심의 보도를 지양하고, 투명한 호수처럼 세상을 깊이 응시하는 지성적인 성찰을 모읍니다.",
+    tech: "사물인터넷(IoT) 기술을 이용한 수질 모니터링부터 소멸 언어 보존까지 생태와 역사에 숨결을 불어넣는 기술을 보도합니다."
+  };
+
+  const titleText = catLabels[cat] || "Category";
+  const descText = catDescs[cat] || "Baikal News Editorial Archives";
+
+  // Set page titles
+  document.title = `${titleText} - Baikal News`;
+  const catTitleEl = document.getElementById("category-title");
+  const catDescEl = document.getElementById("category-description");
+  if (catTitleEl) catTitleEl.textContent = titleText;
+  if (catDescEl) catDescEl.textContent = descText;
+
+  // Active navigation link styling
+  const navId = `nav-${cat}`;
+  const navEl = document.getElementById(navId);
+  if (navEl) navEl.parentElement.classList.add("active");
+
+  // Get articles
+  const filtered = getArticlesByCategory(cat);
+  const container = document.getElementById("category-articles-container");
+  
+  if (container) {
+    if (filtered.length === 0) {
+      container.innerHTML = `<p class="no-articles" style="grid-column: span 3; text-align: center; color: var(--text-muted); padding: 60px 0;">아직 게재된 기사가 없습니다.</p>`;
+    } else {
+      let cardsHTML = '';
+      filtered.forEach(art => {
+        cardsHTML += createArticleCardHTML(art, 'standard');
+      });
+      container.innerHTML = cardsHTML;
+    }
+  }
+}
+
+// 4. Render Article Template Page
+function renderArticlePage() {
+  const idStr = getQueryParam("id");
+  const id = parseInt(idStr, 10);
+  
+  if (isNaN(id)) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Find article
+  const article = window.ARTICLES.find(a => a.id === id);
+  if (!article) {
+    const container = document.getElementById("article-main-content");
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 100px 0;">
+          <h2 style="font-family: var(--font-serif); margin-bottom: 20px;">기사를 찾을 수 없습니다</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 30px;">요청하신 기사가 삭제되었거나 주소가 올바르지 않습니다.</p>
+          <a href="index.html" class="btn btn-primary">홈으로 돌아가기</a>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // Set Page Title
+  document.title = `${article.title} - Baikal News`;
+
+  // Set active class on navbar category
+  const navId = `nav-${article.category}`;
+  const navEl = document.getElementById(navId);
+  if (navEl) navEl.parentElement.classList.add("active");
+
+  // Inject Breadcrumbs
+  const breadCategoryEl = document.getElementById("bread-category");
+  const breadTitleEl = document.getElementById("bread-title");
+  if (breadCategoryEl) {
+    breadCategoryEl.textContent = article.categoryLabel;
+    breadCategoryEl.href = `category.html?cat=${article.category}`;
+  }
+  if (breadTitleEl) breadTitleEl.textContent = article.title;
+
+  // Inject Header Details
+  const categoryBadgeEl = document.getElementById("article-category-badge");
+  const headlineEl = document.getElementById("article-title-text");
+  const publishDateEl = document.getElementById("article-publish-date-text");
+  const authorNameEl = document.getElementById("article-author-name");
+  
+  if (categoryBadgeEl) {
+    categoryBadgeEl.textContent = article.categoryLabel;
+    categoryBadgeEl.href = `category.html?cat=${article.category}`;
+  }
+  if (headlineEl) headlineEl.textContent = article.title;
+  if (publishDateEl) publishDateEl.textContent = `게재일자: ${article.date}`;
+  if (authorNameEl) authorNameEl.textContent = `${article.author.name} ${article.author.role}`;
+
+  // Featured Image
+  const featuredImg = document.getElementById("article-main-image");
+  const featuredImgCaption = document.getElementById("article-image-caption");
+  if (featuredImg) {
+    featuredImg.src = article.image || 'images/placeholder_ice.jpg';
+    featuredImg.alt = article.title;
+  }
+  if (featuredImgCaption) {
+    featuredImgCaption.innerHTML = `<strong>사진/보도:</strong> ${article.title} 관련 현장 취재 자료. (ⓒ ${article.author.name})`;
+  }
+
+  // Inject Article Content
+  const leadEl = document.getElementById("article-lead-paragraph");
+  const bodyEl = document.getElementById("article-body-text");
+  if (leadEl) leadEl.textContent = article.lead;
+  if (bodyEl) bodyEl.innerHTML = article.content;
+
+  // Inject Reporter Bio Box
+  const reporterAvatarEl = document.getElementById("reporter-avatar-char");
+  const reporterNameBoxEl = document.getElementById("reporter-name-box");
+  const reporterRoleEl = document.getElementById("reporter-role-box");
+  const reporterBioEl = document.getElementById("reporter-bio-text");
+  const reporterEmailEl = document.getElementById("reporter-email-link");
+  
+  if (reporterAvatarEl) reporterAvatarEl.textContent = article.author.name.charAt(0);
+  if (reporterNameBoxEl) reporterNameBoxEl.textContent = article.author.name;
+  if (reporterRoleEl) reporterRoleEl.textContent = article.author.role;
+  if (reporterBioEl) reporterBioEl.textContent = article.author.bio;
+  if (reporterEmailEl) {
+    reporterEmailEl.textContent = article.author.email;
+    reporterEmailEl.href = `mailto:${article.author.email}`;
+  }
+
+  // Inject Revision History Log
+  const revisionHistoryContainer = document.getElementById("revision-history-log");
+  if (revisionHistoryContainer && article.revisionHistory) {
+    let logHTML = '';
+    article.revisionHistory.forEach(rev => {
+      logHTML += `
+        <li class="revision-item">
+          <span class="revision-date">${rev.date}</span>
+          <span class="revision-action">${rev.action}</span>
+        </li>
+      `;
+    });
+    revisionHistoryContainer.innerHTML = logHTML;
+  }
+
+  // Render Related Articles Sidebar (same category, up to 3 articles, excluding current)
+  const relatedContainer = document.getElementById("related-sidebar-container");
+  if (relatedContainer) {
+    const related = getArticlesByCategory(article.category)
+      .filter(a => a.id !== article.id)
+      .slice(0, 3);
+    
+    if (related.length === 0) {
+      // Fallback: get any other articles
+      const other = window.ARTICLES.filter(a => a.id !== article.id).slice(0, 3);
+      relatedContainer.innerHTML = other.map(a => createArticleCardHTML(a, 'minimal')).join('');
+    } else {
+      relatedContainer.innerHTML = related.map(a => createArticleCardHTML(a, 'minimal')).join('');
+    }
+  }
+}

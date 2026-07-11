@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>바이칼 뉴스 (Baikal News) - 깊이 있는 뉴스</title>
+  <meta name="description" content="바이칼 뉴스: 깊이 있고 투명한 보도로 독자를 존중한다. 문화, 경제, 지역, 칼럼 및 과학 기술 전문 보도.">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <div class="header-top">
+        <div class="header-meta">
+          <span id="current-date">2026년 7월 11일 토요일</span>
+          <span class="weather-widget">
+            <span class="weather-dot"></span>
+            바이칼 호수 날씨: <strong id="baikal-temp-val">+17.5°C</strong> (<span id="baikal-temp-desc">맑음</span>)
+          </span>
+        </div>
+        <div class="header-top-links">
+          <a href="about.html">회사 소개</a>
+          <a href="contact.html">제보 및 문의</a>
+        </div>
+      </div>
+      
+      <div class="header-main">
+        <div class="brand-section">
+          <h1 class="logo-main">
+            <a href="index.html">
+              <span>BAIKAL NEWS</span>
+              <span class="logo-kr">바이칼 뉴스</span>
+            </a>
+          </h1>
+          <p class="slogan">“깊이 있는 뉴스, 바이칼 뉴스”</p>
+        </div>
+        
+        <button class="mobile-nav-toggle" aria-label="메뉴 열기" id="mobile-menu-toggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+      <div class="container">
+        <ul class="nav-links">
+          <li id="nav-home"><a href="index.html">HOME</a></li>
+          <li id="nav-culture"><a href="category.html?cat=culture">CULTURE / 문화</a></li>
+          <li id="nav-local"><a href="category.html?cat=local">LOCAL / 평택</a></li>
+          <li id="nav-economy"><a href="category.html?cat=economy">ECONOMY</a></li>
+          <li id="nav-opinion"><a href="category.html?cat=opinion">OPINION</a></li>
+          <li id="nav-tech"><a href="category.html?cat=tech">TECH / MEDIA</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Homepage Grid -->
+  <main class="container section">
+    
+    <!-- Hero featured article container -->
+    <section id="featured-hero-container">
+      <!-- Dynamically loaded via main.js -->
+      <div style="text-align: center; padding: 100px 0; color: var(--text-muted);">
+        기사를 불러오는 중입니다...
+      </div>
+    </section>
+    
+    <!-- Grid section: Latest / Editor's Pick / Popular -->
+    <section class="section" style="border-top: 1px solid var(--border-light); padding-top: 40px;">
+      <div class="grid-main-sidebar">
+        
+        <!-- Left: Latest News Column -->
+        <div>
+          <div class="section-header">
+            <h2 class="section-title">LATEST ARTICLES / 최신 보도</h2>
+          </div>
+          <div class="grid-2" id="latest-grid-container">
+            <!-- Dynamically populated standard cards -->
+          </div>
+        </div>
+        
+        <!-- Right: Sidebar Picks & Popular -->
+        <aside>
+          <!-- Editor's Picks -->
+          <div class="widget">
+            <h3 class="widget-title">EDITOR'S PICKS / 편집자 추천</h3>
+            <div id="editors-picks-container">
+              <!-- Dynamically populated minimal cards -->
+            </div>
+          </div>
+          
+          <!-- Popular Reads -->
+          <div class="widget">
+            <h3 class="widget-title">POPULAR READS / 많이 읽은 기사</h3>
+            <div id="popular-reads-container">
+              <!-- Dynamically populated minimal cards -->
+            </div>
+          </div>
+
+          <!-- Climate Widget -->
+          <div class="widget">
+            <h3 class="widget-title">BAIKAL ENVIRONMENT</h3>
+            <div class="baikal-weather-card">
+              <div class="weather-temp" id="sidebar-baikal-temp-val">+17.5°C</div>
+              <div class="weather-desc" id="sidebar-baikal-temp-desc">맑음</div>
+              <div class="weather-info-row">
+                <div>습도: 54%</div>
+                <div>풍속: 3.2m/s</div>
+                <div>수질: 1등급 청정</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+        
+      </div>
+    </section>
+
+    <!-- Mid-page Category Blocks (Culture & Local) -->
+    <section class="section" style="border-top: 1px solid var(--border-light);">
+      <div class="grid-2">
+        <!-- Culture Highlight Section -->
+        <div>
+          <div class="section-header">
+            <h2 class="section-title">CULTURE / 문화와 사색</h2>
+            <a href="category.html?cat=culture" class="section-link">전체보기</a>
+          </div>
+          <div class="grid-1" id="culture-row-container" style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Dynamically populated cards -->
+          </div>
+        </div>
+
+        <!-- Local Highlight Section -->
+        <div>
+          <div class="section-header">
+            <h2 class="section-title">LOCAL / 평택과 유라시아</h2>
+            <a href="category.html?cat=local" class="section-link">전체보기</a>
+          </div>
+          <div class="grid-1" id="local-row-container" style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Dynamically populated cards -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter Sign up -->
+    <section class="newsletter-block">
+      <h3>바이칼 뉴스레터 구독</h3>
+      <p>한 주간의 깊이 있고 신뢰할 수 있는 문화, 지역 정책, 에코 비즈니스 및 과학 소식을 이메일로 받아보세요. 스팸 없이 오직 투명한 보도만을 전합니다.</p>
+      <form class="newsletter-form" onsubmit="event.preventDefault(); alert('구독해 주셔서 감사합니다! 입력하신 이메일로 메일이 발송됩니다.'); this.reset();">
+        <input type="email" placeholder="이메일 주소를 입력하세요" class="newsletter-input" required aria-label="이메일 주소">
+        <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독 신청</button>
+      </form>
+      <p class="newsletter-disclaimer">구독 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo">BAIKAL NEWS</div>
+          <div class="footer-slogan">바이칼 뉴스</div>
+          <p class="footer-principle">“깊이 있고 투명한 보도로 독자를 존중한다.”<br>바이칼 뉴스는 자극적인 흥미 유발을 지양하며, 냉정하고 맑은 눈으로 사회와 일상을 관조하는 저널리즘을 실현합니다.</p>
+        </div>
+        <div class="footer-links-col">
+          <h4>카테고리</h4>
+          <ul>
+            <li><a href="category.html?cat=culture">Culture / 문화</a></li>
+            <li><a href="category.html?cat=local">Local / 평택</a></li>
+            <li><a href="category.html?cat=economy">Economy / 산업</a></li>
+            <li><a href="category.html?cat=opinion">Opinion / 칼럼</a></li>
+            <li><a href="category.html?cat=tech">Tech / 미디어</a></li>
+          </ul>
+        </div>
+        <div class="footer-links-col footer-contact-info">
+          <h4>신뢰 및 투명성 정보</h4>
+          <p><strong>발행·편집인:</strong> 최성진</p>
+          <p><strong>주소:</strong> 경기도 평택시 포승읍 평택항만로 120</p>
+          <p><strong>제보 및 문의:</strong> <a href="mailto:contact@baikalnews.com">contact@baikalnews.com</a></p>
+          <p>본지는 독자의 권리를 지키기 위해 오보 정정 및 정정 보도 이력을 투명하게 상시 게시합니다.</p>
+        </div>
+      </div>
+      
+      <!-- Trust Signals Icons / Badges Area -->
+      <div class="footer-trust-signals">
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>AdSense 및 신뢰성 인증</h5>
+            <p>Google AdSense 심사 규정을 철저히 준수하며 오리지널 취재 기사만을 등록합니다.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>정정 보도 및 수정 이력제</h5>
+            <p>보도 수정 시, 기사 하단에 정정 일시와 사유를 투명하게 공개하는 수정 이력제를 도입했습니다.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-card-icon">✓</div>
+          <div class="trust-card-content">
+            <h5>편집 규약 준수</h5>
+            <p>선정적인 자극, 편파성 배제와 균형감 있는 로컬 지성 보도를 선언합니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 바이칼 뉴스 (Baikal News). All rights reserved. Registered Publication No. 경기-아012345.</p>
+        <div class="footer-bottom-links">
+          <a href="about.html">회사 소개</a>
+          <a href="editorial-policy.html">편집 규약</a>
+          <a href="privacy-policy.html" class="privacy-link">개인정보처리방침</a>
+          <a href="terms.html">이용약관</a>
+          <a href="corrections.html">오보정정정책</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/articles.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

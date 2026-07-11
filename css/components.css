@@ -1,0 +1,367 @@
+/* Section Title Header */
+.section-header {
+  border-bottom: 2px solid var(--border-dark);
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.section-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.section-link:hover {
+  color: var(--accent-cyan);
+}
+
+/* Category Badge Tags */
+.category-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+}
+
+/* Button styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-primary {
+  background-color: var(--accent-blue);
+  color: var(--text-on-dark);
+  border: 1px solid var(--accent-blue);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-blue-hover);
+  border-color: var(--accent-blue-hover);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-medium);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--text-primary);
+}
+
+/* Article Cards */
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  transition: var(--transition-smooth);
+  overflow: hidden;
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background-color: var(--bg-tertiary);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  margin-bottom: 16px;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.card:hover .card-image {
+  transform: scale(1.03);
+}
+
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.card:hover .card-title {
+  color: var(--accent-cyan);
+}
+
+.card-excerpt {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: auto;
+}
+
+/* Card Hero Layout - Featured Article on top */
+.card-hero {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 32px;
+  margin-bottom: 32px;
+}
+
+.card-hero .card-image-wrapper {
+  margin-bottom: 0;
+  aspect-ratio: 16 / 9;
+}
+
+.card-hero .card-title {
+  font-size: 1.95rem;
+  margin-bottom: 12px;
+}
+
+.card-hero .card-excerpt {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  -webkit-line-clamp: 3;
+}
+
+/* Card Horizontal List Layout (Standard row) */
+.card-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.card-row .card-image-wrapper {
+  margin-bottom: 0;
+  aspect-ratio: 4 / 3;
+}
+
+.card-row .card-title {
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+.card-row .card-excerpt {
+  font-size: 0.85rem;
+  -webkit-line-clamp: 2;
+  margin-bottom: 6px;
+}
+
+/* Card Minimalist - Text Only (for editor picks / popular reads) */
+.card-minimal {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.card-minimal:last-child {
+  border-bottom: none;
+}
+
+.card-minimal .card-title {
+  font-size: 1rem;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.card-minimal .card-meta {
+  font-size: 0.75rem;
+}
+
+/* Newsletter section block - calm cold lake look */
+.newsletter-block {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  padding: 40px;
+  text-align: center;
+  border-radius: var(--border-radius-sm);
+  max-width: 800px;
+  margin: 40px auto 0 auto;
+}
+
+.newsletter-block h3 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.newsletter-block p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.newsletter-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--border-medium);
+  background-color: var(--bg-primary);
+  font-size: 0.9rem;
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+}
+
+.newsletter-input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+.newsletter-disclaimer {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+
+/* Sidebar Widgets */
+.widget {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  padding: 24px;
+  margin-bottom: 32px;
+  border-radius: var(--border-radius-sm);
+}
+
+.widget-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-bottom: 1.5px solid var(--text-primary);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+/* Weather Widget in Sidebar */
+.baikal-weather-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.weather-temp {
+  font-size: 2.2rem;
+  font-weight: 300;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.weather-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.weather-info-row {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-light);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+/* Breadcrumbs navigation */
+.breadcrumbs {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.breadcrumbs a:hover {
+  color: var(--accent-cyan);
+}
+
+.breadcrumbs span.separator::after {
+  content: '/';
+  font-size: 0.75rem;
+}
+
+/* Responsive Rules for Components */
+@media (max-width: 768px) {
+  .card-hero {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+  }
+  .card-hero .card-title {
+    font-size: 1.45rem;
+  }
+  .card-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .card-row .card-image-wrapper {
+    aspect-ratio: 16 / 10;
+  }
+  .newsletter-block {
+    padding: 24px 16px;
+  }
+  .newsletter-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

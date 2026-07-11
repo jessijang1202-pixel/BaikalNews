@@ -1,0 +1,449 @@
+/* Layout container */
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Header style - transparent ice shelf feeling */
+header {
+  border-bottom: 1px solid var(--border-light);
+  background-color: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: var(--transition-smooth);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 48px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--accent-cyan);
+}
+
+.weather-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-cyan);
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.header-top-links {
+  display: flex;
+  gap: 16px;
+}
+
+.header-top-links a:hover {
+  color: var(--accent-cyan);
+}
+
+.header-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 16px 0;
+}
+
+.brand-section {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.logo-main {
+  font-family: var(--font-logo);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.logo-main a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-kr {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  margin-top: 4px;
+  margin-left: 0.35em; /* Center correction for letter-spacing */
+  color: var(--text-secondary);
+}
+
+.slogan {
+  font-family: var(--font-serif);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Navigation - Quiet, spacious and clean */
+nav.nav-bar {
+  width: 100%;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: 8px 0;
+  background-color: var(--bg-primary);
+}
+
+.nav-links {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  gap: 40px;
+}
+
+.nav-links li a {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  position: relative;
+  padding: 4px 0;
+}
+
+.nav-links li a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 1.5px;
+  background-color: var(--accent-cyan);
+  transition: var(--transition-smooth);
+  transform: translateX(-50%);
+}
+
+.nav-links li a:hover {
+  color: var(--accent-cyan);
+}
+
+.nav-links li a:hover::after,
+.nav-links li.active a::after {
+  width: 100%;
+}
+
+.nav-links li.active a {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* Mobile Menu controls */
+.mobile-nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.mobile-nav-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background-color: var(--text-primary);
+  margin: 4px 0;
+  transition: var(--transition-smooth);
+}
+
+.mobile-menu {
+  display: none;
+}
+
+/* Layout Grids */
+.section {
+  padding: 40px 0;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+}
+
+.grid-main-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 48px;
+}
+
+/* Footer style - cold grey tone with comprehensive trust signals */
+footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-light);
+  padding: 60px 0 40px 0;
+  margin-top: 60px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr;
+  gap: 48px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.footer-brand .footer-logo {
+  font-family: var(--font-logo);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.footer-brand .footer-slogan {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.footer-principle {
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  border-left: 2px solid var(--accent-cyan);
+  padding-left: 12px;
+  margin-top: 16px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.footer-links-col h4 {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.footer-links-col ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-links-col ul a:hover {
+  color: var(--accent-cyan);
+  padding-left: 4px;
+}
+
+.footer-contact-info p {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.footer-contact-info strong {
+  color: var(--text-primary);
+}
+
+/* Trust Signals Area */
+.footer-trust-signals {
+  padding: 30px 0;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.trust-card {
+  flex: 1 1 200px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.trust-card-icon {
+  color: var(--accent-cyan);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.trust-card-content h5 {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.trust-card-content p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Footer Bottom: copyright and legal info */
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 30px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-bottom-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-bottom-links a {
+  font-weight: 500;
+}
+
+.footer-bottom-links a.privacy-link {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.footer-bottom-links a:hover {
+  color: var(--accent-cyan);
+}
+
+/* Responsive Rules for Layout */
+@media (max-width: 992px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-main-sidebar {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .footer-top {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-top > div:first-child {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    height: auto;
+    padding: 8px 0;
+    gap: 6px;
+    align-items: center;
+  }
+  .header-main {
+    padding: 16px 0 12px 0;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  .brand-section {
+    text-align: left;
+    margin-bottom: 0;
+  }
+  .logo-main {
+    font-size: 1.8rem;
+    align-items: flex-start;
+  }
+  .logo-main a {
+    align-items: flex-start;
+  }
+  .logo-kr {
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    margin-top: 2px;
+  }
+  .slogan {
+    display: none; /* Hide slogan on mobile to save vertical space */
+  }
+  
+  nav.nav-bar {
+    display: none; /* Hidden by default on mobile, toggled with JS */
+  }
+  
+  /* Mobile menu open state classes */
+  nav.nav-bar.active {
+    display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    border-bottom: 2px solid var(--border-medium);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    z-index: 99;
+  }
+  
+  nav.nav-bar.active .nav-links {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 24px;
+    gap: 16px;
+  }
+  
+  .mobile-nav-toggle {
+    display: block;
+  }
+  
+  .grid-3, .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .footer-top {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  
+  .footer-top > div:first-child {
+    grid-column: span 1;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .footer-bottom-links {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
