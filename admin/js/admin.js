@@ -45,7 +45,7 @@ const DEFAULT_PAGE_CONTENTS = {
 <div class="policy-meta-info">귀하의 소중한 의견과 제보는 바이칼 뉴스의 가장 귀중한 자산입니다.</div>
 <div class="policy-section">
   <h2>기사 제보 (Tips & Reports)</h2>
-  <p>익명이 보장되는 기사 관련 제보는 report@baikalnews.com 으로 송부해 주시기 바랍니다.</p>
+  <p>익명이 보장되는 기사 관련 제보는 baikalnews815@gmail.com 으로 송부해 주시기 바랍니다.</p>
 </div>`
 };
 

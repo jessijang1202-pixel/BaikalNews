@@ -190,10 +190,10 @@ window.ARTICLES = [
     lead: "가짜 뉴스의 확산과 트래픽 확보를 위한 무분별한 속보 난립 속에서, 바이칼 뉴스가 흔들림 없이 고집하고자 하는 지적인 침묵과 정직성의 가치입니다.",
     date: "2026.07.11",
     author: {
-      name: "최성진",
+      name: "최상락",
       role: "바이칼 뉴스 편집인",
-      email: "sj.choi@baikalnews.com",
-      bio: "20여 년간 국내 주요 일간지 사회부와 문화부에서 일했으며, 2025년 바이칼 뉴스의 공동 창립 및 편집인으로 취임했습니다."
+      email: "baikalnews815@gmail.com",
+      bio: "20여 년간 국내 주요 일간지 사회부와 문화부에서 일했으며, 바이칼 뉴스의 공동 창립 및 편집장으로 활동하고 있습니다."
     },
     image: "images/opinion_editor.png",
     content: `
