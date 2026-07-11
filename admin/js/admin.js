@@ -101,7 +101,7 @@ async function switchTab(tabName) {
     'ai-writer': "🤖 AI 어시스턴트 집필실",
     curation: "홈페이지 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
-    audit: "보도 편집 감사 로그 (Audit Trail)",
+    audit: "보도 편집 감사 로그",
     supabase: "⚡ Supabase 클라우드 데이터베이스 연동"
   };
   const titleEl = document.getElementById("current-tab-title");
@@ -258,7 +258,7 @@ async function renderArticlesList() {
 function showArticleCreateForm() {
   document.getElementById("articles-list-view").style.display = "none";
   document.getElementById("articles-form-view").style.display = "block";
-  document.getElementById("form-view-title").textContent = "새 기사 작성 (Create Article)";
+  document.getElementById("form-view-title").textContent = "새 기사 작성";
   
   // Reset form inputs
   document.getElementById("article-form").reset();
