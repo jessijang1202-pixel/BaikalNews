@@ -86,13 +86,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // 1. Common features (Header, Footer, Mobile menu, Weather Widget)
 function initCommonFeatures() {
-  // Current Date display in Header
+  // Current Date display in Header (explicitly converted to Korea Standard Time - KST)
   const dateEl = document.getElementById("current-date");
   if (dateEl) {
-    const days = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
-    const now = new Date();
-    const formatted = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
-    dateEl.textContent = formatted;
+    const options = { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", weekday: "long" };
+    const formatter = new Intl.DateTimeFormat("ko-KR", options);
+    dateEl.textContent = formatter.format(new Date());
   }
 
   // Mobile Menu Navigation Toggle
@@ -104,7 +103,7 @@ function initCommonFeatures() {
     });
   }
 
-  // Baikal Weather Widget Logic (realistic seasonal values)
+  // Seoul Weather Widget Logic (realistic monthly temperatures for Seoul, South Korea)
   const tempValEl = document.getElementById("baikal-temp-val");
   const tempDescEl = document.getElementById("baikal-temp-desc");
   const sidebarTempValEl = document.getElementById("sidebar-baikal-temp-val");
@@ -113,21 +112,21 @@ function initCommonFeatures() {
   if (tempValEl || sidebarTempValEl) {
     const now = new Date();
     const month = now.getMonth();
-    let temp = 15;
+    let temp = 22.3;
     let desc = "맑음";
     
-    if (month === 0) { temp = -18.2; desc = "매우 강한 한파"; }
-    else if (month === 1) { temp = -15.4; desc = "맑고 극한 대기"; }
-    else if (month === 2) { temp = -8.1; desc = "쾌청한 빙판 해빙"; }
-    else if (month === 3) { temp = 2.4; desc = "구름 조금, 서리"; }
-    else if (month === 4) { temp = 9.8; desc = "맑고 청량함"; }
-    else if (month === 5) { temp = 15.6; desc = "맑고 화창한 초여름"; }
-    else if (month === 6) { temp = 18.5; desc = "화창한 여름 호숫바람"; }
-    else if (month === 7) { temp = 16.2; desc = "맑고 선선함"; }
-    else if (month === 8) { temp = 10.1; desc = "구름 많고 쌀쌀한 가을"; }
-    else if (month === 9) { temp = 2.0; desc = "첫눈 소식"; }
-    else if (month === 10) { temp = -7.5; desc = "매우 추움, 호수 결빙 시작"; }
-    else if (month === 11) { temp = -14.6; desc = "맑음, 튼튼한 얼음판"; }
+    if (month === 0) { temp = -2.4; desc = "맑고 한파"; }
+    else if (month === 1) { temp = 0.4; desc = "맑고 건조함"; }
+    else if (month === 2) { temp = 5.7; desc = "꽃샘추위, 맑음"; }
+    else if (month === 3) { temp = 12.5; desc = "맑고 온화함"; }
+    else if (month === 4) { temp = 18.0; desc = "맑고 선선함"; }
+    else if (month === 5) { temp = 22.3; desc = "화창하고 맑음"; }
+    else if (month === 6) { temp = 25.0; desc = "흐림, 고온다습"; }
+    else if (month === 7) { temp = 25.7; desc = "무더위 기승"; }
+    else if (month === 8) { temp = 21.0; desc = "맑고 쾌청함"; }
+    else if (month === 9) { temp = 14.8; desc = "맑고 신선한 가을"; }
+    else if (month === 10) { temp = 7.2; desc = "쌀쌀하고 구름 조금"; }
+    else if (month === 11) { temp = 0.3; desc = "매우 춥고 맑음"; }
     
     const formattedTemp = `${temp > 0 ? '+' : ''}${temp.toFixed(1)}°C`;
     
