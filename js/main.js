@@ -2,6 +2,15 @@
 
 // 0. Database initialization via localStorage (Self-Executing)
 (function initDatabase() {
+  // Database version control to force reset old Baikal/Siberia geography articles
+  const DB_VERSION = "v2_clean";
+  if (localStorage.getItem("baikal_db_version") !== DB_VERSION) {
+    localStorage.removeItem("baikal_articles");
+    localStorage.removeItem("baikal_curation");
+    localStorage.removeItem("baikal_media_library");
+    localStorage.setItem("baikal_db_version", DB_VERSION);
+  }
+
   // Check if articles exist in localStorage
   if (!localStorage.getItem("baikal_articles")) {
     // If not, seed database from default ARTICLES array (defined in articles.js)
@@ -316,9 +325,9 @@ function renderCategoryPage() {
   };
   
   const catDescs = {
-    culture: "시베리아 원주민 부랴트인의 구전 신화부터 호수의 영성을 품은 현대 문화 예술에 이르기까지 깊은 사색을 기록합니다.",
-    local: "평택과 시베리아 간의 연계 교류를 축으로 로컬 경제 활성화, 문화 연대, 상생의 소식을 다룹니다.",
-    economy: "자연 보호와 지속 가능한 에코 투어리즘 모델, 친환경 재생 에너지 사업 등 동시베리아와 글로벌 대안 경제를 모색합니다.",
+    culture: "일상 속 예술의 치유적 성격부터 현대 미술 아카이빙까지 사색을 통한 깊이 있는 삶의 가치를 기록합니다.",
+    local: "지역 경제의 활성화와 환경 보호, 상생과 연대를 도모하는 로컬 시민 사회의 소식을 다룹니다.",
+    economy: "순환 경제 모델, 지속 가능한 에너지 전환 등 미래 생태계 보존과 경제 성장의 균형을 다룹니다.",
     opinion: "자극과 속도 중심의 보도를 지양하고, 투명한 호수처럼 세상을 깊이 응시하는 지성적인 성찰을 모읍니다.",
     tech: "사물인터넷(IoT) 기술을 이용한 수질 모니터링부터 소멸 언어 보존까지 생태와 역사에 숨결을 불어넣는 기술을 보도합니다."
   };
