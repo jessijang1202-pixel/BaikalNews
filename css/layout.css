@@ -159,6 +159,30 @@ nav.nav-bar {
   font-weight: 600;
 }
 
+/* Secondary informational utility page styling (About, Contact) */
+.nav-links li#nav-about a,
+.nav-links li#nav-contact a {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+@media (min-width: 769px) {
+  .nav-links li#nav-about {
+    position: relative;
+  }
+  .nav-links li#nav-about::before {
+    content: '';
+    position: absolute;
+    left: -20px; /* Exactly centered in the 40px gap between menu items */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 12px;
+    background-color: var(--border-medium);
+  }
+}
+
 /* Mobile Menu controls */
 .mobile-nav-toggle {
   display: none;
