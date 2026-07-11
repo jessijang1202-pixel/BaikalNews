@@ -444,11 +444,11 @@ async function saveArticle() {
 
   // Category labels mapping
   const catLabels = {
-    culture: "Culture / 문화",
-    local: "Local / 평택",
-    economy: "Economy / Business",
-    opinion: "Opinion / Columns",
-    tech: "Tech / Media"
+    culture: "문화/예술",
+    economy: "경제 / 산업",
+    tech: "기술 / 미디어",
+    local: "지역 / 평택",
+    opinion: "오피니언"
   };
 
   // Critical Validation: Approval requires an Approver name

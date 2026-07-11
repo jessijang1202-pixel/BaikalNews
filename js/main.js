@@ -3,7 +3,7 @@
 // 0. Database initialization via localStorage (Self-Executing)
 (function initDatabase() {
   // Database version control to force reset old Baikal/Siberia geography articles
-  const DB_VERSION = "v2_clean";
+  const DB_VERSION = "v3_categories";
   if (localStorage.getItem("baikal_db_version") !== DB_VERSION) {
     localStorage.removeItem("baikal_articles");
     localStorage.removeItem("baikal_curation");
@@ -13,10 +13,19 @@
 
   // Check if articles exist in localStorage
   if (!localStorage.getItem("baikal_articles")) {
+    const catLabels = {
+      culture: "문화/예술",
+      economy: "경제 / 산업",
+      tech: "기술 / 미디어",
+      local: "지역 / 평택",
+      opinion: "오피니언"
+    };
+
     // If not, seed database from default ARTICLES array (defined in articles.js)
     // Map initial articles to status = 'published' and set default approvers for AdSense compliance
     const initialArticles = (window.ARTICLES || []).map(art => ({
       ...art,
+      categoryLabel: catLabels[art.category] || art.categoryLabel,
       status: 'published',
       approver: art.id % 2 === 0 ? '장승희' : '최상락',
       byline: art.id % 2 === 0 ? '장승희 기자' : '최상락 기자',
@@ -333,11 +342,11 @@ function renderCategoryPage() {
   }
 
   const catLabels = {
-    culture: "Culture / 문화",
-    local: "Local / 평택",
-    economy: "Economy / Business",
-    opinion: "Opinion / Columns",
-    tech: "Tech / Media"
+    culture: "문화/예술",
+    economy: "경제 / 산업",
+    tech: "기술 / 미디어",
+    local: "지역 / 평택",
+    opinion: "오피니언"
   };
   
   const catDescs = {
