@@ -91,19 +91,19 @@ header {
 
 .logo-kr {
   font-family: var(--font-serif);
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 1.15rem;
+  font-weight: 700;
   letter-spacing: 0.35em;
   margin-top: 4px;
   margin-left: 0.35em; /* Center correction for letter-spacing */
-  color: var(--text-secondary);
+  color: #000000;
 }
 
 .slogan {
   font-family: var(--font-serif);
   font-size: 0.8rem;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: var(--accent-blue);
   margin-top: 6px;
   font-style: italic;
 }
@@ -425,7 +425,7 @@ footer {
     align-items: flex-start;
   }
   .logo-kr {
-    font-size: 0.8rem;
+    font-size: 0.95rem;
     letter-spacing: 0.2em;
     margin-top: 2px;
   }
