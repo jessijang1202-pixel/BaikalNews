@@ -14,7 +14,7 @@
   // Check if articles exist in localStorage
   if (!localStorage.getItem("baikal_articles")) {
     const catLabels = {
-      culture: "문화/예술",
+      culture: "문화 / 예술",
       economy: "경제 / 산업",
       tech: "기술 / 미디어",
       local: "지역 / 평택",
@@ -347,7 +347,7 @@ function renderCategoryPage() {
   }
 
   const catLabels = {
-    culture: "문화/예술",
+    culture: "문화 / 예술",
     economy: "경제 / 산업",
     tech: "기술 / 미디어",
     local: "지역 / 평택",
