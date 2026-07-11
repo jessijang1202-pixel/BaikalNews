@@ -183,7 +183,8 @@ nav.nav-bar {
 
 /* Layout Grids */
 .section {
-  padding: 40px 0;
+  padding-top: 40px;
+  padding-bottom: 40px;
 }
 
 .grid-3 {
@@ -363,12 +364,25 @@ footer {
 }
 
 @media (max-width: 768px) {
+  .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
   .header-top {
-    flex-direction: column;
-    height: auto;
-    padding: 8px 0;
-    gap: 6px;
-    align-items: center;
+    flex-direction: row !important;
+    justify-content: center !important;
+    height: 32px !important;
+    padding: 4px 0 !important;
+    font-size: 0.72rem !important;
+  }
+  .header-meta {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+    white-space: nowrap !important;
+  }
+  .header-top-links {
+    display: none !important;
   }
   .header-main {
     padding: 16px 0 12px 0;

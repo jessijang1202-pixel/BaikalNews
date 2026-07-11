@@ -157,6 +157,11 @@ function initStaticPageOverrides() {
     const pageKey = page.replace('.html', '');
     const overrides = JSON.parse(localStorage.getItem("baikal_static_pages") || "{}");
     
+    // Highlight active menu tab for static pages
+    const navId = `nav-${pageKey}`;
+    const navEl = document.getElementById(navId);
+    if (navEl) navEl.classList.add("active");
+    
     // If a custom override HTML is set in localStorage, replace the policy page content block
     if (overrides[pageKey]) {
       const policyContentEl = document.querySelector(".policy-page");
@@ -368,7 +373,7 @@ function renderCategoryPage() {
 
   const navId = `nav-${cat}`;
   const navEl = document.getElementById(navId);
-  if (navEl) navEl.parentElement.classList.add("active");
+  if (navEl) navEl.classList.add("active");
 
   const filtered = getArticlesByCategory(cat);
   const container = document.getElementById("category-articles-container");
@@ -441,7 +446,7 @@ function renderArticlePage() {
   // Set active class on navbar category
   const navId = `nav-${article.category}`;
   const navEl = document.getElementById(navId);
-  if (navEl) navEl.parentElement.classList.add("active");
+  if (navEl) navEl.classList.add("active");
 
   // Inject Breadcrumbs
   const breadCategoryEl = document.getElementById("bread-category");
