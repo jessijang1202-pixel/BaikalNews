@@ -50,7 +50,24 @@
   }
 })();
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Sync database from Supabase in the background if configured
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    try {
+      const articles = await window.SupabaseAdapter.fetchArticles();
+      localStorage.setItem("baikal_articles", JSON.stringify(articles));
+      window.ARTICLES = articles;
+      
+      const curation = await window.SupabaseAdapter.fetchCuration();
+      localStorage.setItem("baikal_curation", JSON.stringify(curation));
+      
+      const staticPages = await window.SupabaseAdapter.fetchStaticPages();
+      localStorage.setItem("baikal_static_pages", JSON.stringify(staticPages));
+    } catch (e) {
+      console.warn("Background Supabase sync failed. Operating offline with cached local data.", e);
+    }
+  }
+
   initCommonFeatures();
   initStaticPageOverrides();
   

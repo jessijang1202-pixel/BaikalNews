@@ -15,7 +15,7 @@ const DEFAULT_PAGE_CONTENTS = {
 <div class="policy-meta-info">최종 수정일: 2026년 7월 11일</div>
 <div class="policy-section">
   <h2>바이칼 뉴스 소개</h2>
-  <p><strong>바이칼 뉴스(Baikal News)</strong>는 맑고 투명한 호수의 빙판처럼 거짓 없는 보도로 우리 사회를 맑게 비추고, 성급한 속보 경쟁보다는 깊이 있는 성찰적 보도를 생산하는 것을 최우선 가치로 삼는 디지털 대안 언론사입니다.</p>
+  <p><strong>바이칼 뉴스(Baikal News)</strong>는 맑고 투명한 호수의 빙판처럼 거짓 없는 보도로 우리 사회를 맑게 비추고, 성급한 속보 경쟁보다는 깊이 있는 성찰적 보도를 생산하는 것을 최우선 가치로 삼는 디지털 대안 언론사입니다. 우리는 단편적인 단어의 나열이나 말초적인 자극을 완벽히 지양하며, 정직하고 투명한 저널리즘을 실현하여 독자를 존중하고자 노력합니다.</p>
 </div>`,
   'editorial-policy': `<h1>편집 규약 / Editorial Policy</h1>
 <div class="policy-meta-info">최종 공시일: 2026년 7월 11일 | 바이칼 뉴스 제정</div>
@@ -50,17 +50,17 @@ const DEFAULT_PAGE_CONTENTS = {
 };
 
 // 1. Initialize admin sections
-function initAdminDashboard() {
+async function initAdminDashboard() {
   // Switch to dashboard tab initially
   switchTab('dashboard');
   
   // Refresh data models
-  refreshStats();
-  renderArticlesList();
-  renderPendingList();
-  populateCurationDropdowns();
-  loadStaticPageContent();
-  renderAuditLogs();
+  await refreshStats();
+  await renderArticlesList();
+  await renderPendingList();
+  await populateCurationDropdowns();
+  await loadStaticPageContent();
+  await renderAuditLogs();
 }
 
 // Sidebar Tab switching
@@ -74,7 +74,7 @@ function setupEventListeners() {
   });
 }
 
-function switchTab(tabName) {
+async function switchTab(tabName) {
   // Remove active from all sidebar links
   document.querySelectorAll(".sidebar-item").forEach(item => {
     item.classList.remove("active");
@@ -101,7 +101,8 @@ function switchTab(tabName) {
     'ai-writer': "🤖 AI 어시스턴트 집필실",
     curation: "홈페이지 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
-    audit: "보도 편집 감사 로그 (Audit Trail)"
+    audit: "보도 편집 감사 로그 (Audit Trail)",
+    supabase: "⚡ Supabase 클라우드 데이터베이스 연동"
   };
   const titleEl = document.getElementById("current-tab-title");
   if (titleEl) {
@@ -110,45 +111,53 @@ function switchTab(tabName) {
 
   // Refresh lists if switching to specific tabs
   if (tabName === 'dashboard') {
-    refreshStats();
-    renderPendingList();
+    await refreshStats();
+    await renderPendingList();
   } else if (tabName === 'articles') {
-    renderArticlesList();
+    await renderArticlesList();
   } else if (tabName === 'curation') {
-    populateCurationDropdowns();
+    await populateCurationDropdowns();
   } else if (tabName === 'audit') {
-    renderAuditLogs();
+    await renderAuditLogs();
+  } else if (tabName === 'supabase') {
+    loadSupabaseConfigForm();
   }
 }
 
 // 2. Audit Trail Log Helpers
-function logAudit(action, articleId, notes) {
-  const logs = JSON.parse(localStorage.getItem("baikal_audit_logs") || "[]");
+async function logAudit(action, articleId, notes) {
   const newLog = {
-    id: logs.length + 1,
     timestamp: new Date().toLocaleString("ko-KR"),
     role: "데스크 관리자 (Super Admin)",
     action: action,
-    articleId: articleId || "-",
+    articleId: articleId ? String(articleId) : "-",
     notes: notes || ""
   };
-  logs.unshift(newLog); // Put new logs at the beginning
-  localStorage.setItem("baikal_audit_logs", JSON.stringify(logs));
+  
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.saveAuditLog(newLog);
+  }
+  
+  await renderAuditLogs();
 }
 
-function renderAuditLogs() {
+async function renderAuditLogs() {
   const tableBody = document.getElementById("audit-table-body");
   if (!tableBody) return;
 
-  const logs = JSON.parse(localStorage.getItem("baikal_audit_logs") || "[]");
+  let logs = [];
+  if (window.SupabaseAdapter) {
+    logs = await window.SupabaseAdapter.fetchAuditLogs();
+  }
+
   if (logs.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--admin-text-muted);">감사 로그가 비어 있습니다. 기사 활동이 발생하면 자동으로 기록됩니다.</td></tr>`;
     return;
   }
 
-  tableBody.innerHTML = logs.map(log => `
+  tableBody.innerHTML = logs.map((log, index) => `
     <tr>
-      <td>#${log.id}</td>
+      <td>#${log.id || (logs.length - index)}</td>
       <td style="white-space: nowrap;">${log.timestamp}</td>
       <td><span class="profile-role-tag" style="background-color: var(--admin-bg-body); font-size: 0.65rem;">${log.role}</span></td>
       <td style="font-weight: 500; color: var(--admin-text-primary);">${log.action}</td>
@@ -158,17 +167,20 @@ function renderAuditLogs() {
   `).join('');
 }
 
-function clearAuditLogs() {
+async function clearAuditLogs() {
   if (confirm("경고: 모든 신문 편집 감사 기록이 영구 삭제됩니다. 계속하시겠습니까?")) {
     localStorage.setItem("baikal_audit_logs", JSON.stringify([]));
-    logAudit("감사 로그 초기화", null, "시스템 감사 트레일 기록을 전체 정리함.");
-    renderAuditLogs();
+    await logAudit("감사 로그 초기화", null, "시스템 감사 트레일 기록을 전체 정리함.");
+    await renderAuditLogs();
   }
 }
 
 // 3. Stats calculations
-function refreshStats() {
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+async function refreshStats() {
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
   
   const draft = articles.filter(a => a.status === 'draft').length;
   const review = articles.filter(a => a.status === 'review').length;
@@ -181,11 +193,14 @@ function refreshStats() {
 }
 
 // Render Dashboard Review list
-function renderPendingList() {
+async function renderPendingList() {
   const listEl = document.getElementById("dashboard-pending-list");
   if (!listEl) return;
 
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
   const pending = articles.filter(a => a.status === 'review');
 
   if (pending.length === 0) {
@@ -207,11 +222,15 @@ function renderPendingList() {
 }
 
 // 4. Article Management list & CRUD
-function renderArticlesList() {
+async function renderArticlesList() {
   const tbody = document.getElementById("articles-table-body");
   if (!tbody) return;
 
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+  
   if (articles.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
@@ -248,7 +267,7 @@ function showArticleCreateForm() {
   // Set default values
   document.getElementById("edit-article-id").value = "";
   document.getElementById("form-date").value = new Date().toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1); // "2026.07.11" format
-  document.getElementById("form-image").value = "images/baikal_ice.png";
+  document.getElementById("form-image").value = "images/news_editorial.png";
   
   // Hide widgets
   document.getElementById("btn-soft-delete").style.display = "none";
@@ -320,9 +339,11 @@ function onStatusChangeInForm(status) {
 }
 
 // Edit existing article
-function editArticle(id) {
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
-  const art = articles.find(a => a.id === id);
+async function editArticle(id) {
+  let art = null;
+  if (window.SupabaseAdapter) {
+    art = await window.SupabaseAdapter.fetchArticleById(id);
+  }
   if (!art) return;
 
   currentEditingId = id;
@@ -340,7 +361,7 @@ function editArticle(id) {
   document.getElementById("form-category").value = art.category;
   document.getElementById("form-date").value = art.date;
   document.getElementById("form-ymyl").checked = art.isYMYL || false;
-  document.getElementById("form-image").value = art.image || "images/baikal_ice.png";
+  document.getElementById("form-image").value = art.image || "images/news_editorial.png";
   
   document.getElementById("form-seo-title").value = art.seoTitle || "";
   document.getElementById("form-seo-meta").value = art.seoMeta || "";
@@ -370,8 +391,11 @@ function previewArticleInForm() {
 }
 
 // Duplicate article
-function duplicateArticle(id) {
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+async function duplicateArticle(id) {
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
   const art = articles.find(a => a.id === id);
   if (!art) return;
 
@@ -386,16 +410,20 @@ function duplicateArticle(id) {
     revisionHistory: [{"date": new Date().toLocaleString("ko-KR"), "action": "기사 복제본 초안 생성"}]
   };
 
-  articles.push(duplicated);
-  localStorage.setItem("baikal_articles", JSON.stringify(articles));
-  logAudit("기사 복제", duplicated.id, `기사 #${art.id}을 바탕으로 신규 초안 #${duplicated.id}을 만듦.`);
-  renderArticlesList();
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.saveArticle(duplicated);
+  }
+  await logAudit("기사 복제", duplicated.id, `기사 #${art.id}을 바탕으로 신규 초안 #${duplicated.id}을 만듦.`);
+  await renderArticlesList();
 }
 
 // Save Article
-function saveArticle() {
+async function saveArticle() {
   const idVal = document.getElementById("edit-article-id").value;
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
   
   const title = document.getElementById("form-title").value;
   const subtitle = document.getElementById("form-subtitle").value;
@@ -518,24 +546,27 @@ function saveArticle() {
       slug,
       isYMYL
     };
-    articles.push(art);
   }
 
-  // Save back to localStorage
-  localStorage.setItem("baikal_articles", JSON.stringify(articles));
-  logAudit(actionName, art.id, `제목: ${title} | 담당자 피드백: ${rejectionNote || '특이사항 없음'}`);
+  // Save via adapter
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.saveArticle(art);
+  }
+  await logAudit(actionName, art.id, `제목: ${title} | 담당자 피드백: ${rejectionNote || '특이사항 없음'}`);
   
   alert("기사와 편집 설정이 정상적으로 저장되었습니다.");
   hideArticleForm();
 }
 
 // Soft delete
-function softDeleteArticleInForm() {
+async function softDeleteArticleInForm() {
   if (!currentEditingId) return;
   
   if (confirm("본 기사를 아카이브 보관(Soft Delete) 상태로 전환하여 독자 사이트에서 숨기시겠습니까?")) {
-    const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
-    const art = articles.find(a => a.id === currentEditingId);
+    let art = null;
+    if (window.SupabaseAdapter) {
+      art = await window.SupabaseAdapter.fetchArticleById(currentEditingId);
+    }
     if (art) {
       art.status = 'archived';
       if (!art.revisionHistory) art.revisionHistory = [];
@@ -543,8 +574,10 @@ function softDeleteArticleInForm() {
         date: new Date().toLocaleString("ko-KR"),
         action: "기사 아카이브 보관 처리 (휴지통 보냄)"
       });
-      localStorage.setItem("baikal_articles", JSON.stringify(articles));
-      logAudit("기사 아카이브 보관", art.id, "기사를 비활성화하여 독자에게서 보이지 않게 처리함.");
+      if (window.SupabaseAdapter) {
+        await window.SupabaseAdapter.saveArticle(art);
+      }
+      await logAudit("기사 아카이브 보관", art.id, "기사를 비활성화하여 독자에게서 보이지 않게 처리함.");
     }
     hideArticleForm();
   }
@@ -565,7 +598,7 @@ const DAILY_MAJOR_NEWS = {
   T1: {
     headline: "친환경 화물 열차 노선 통합 운임 협상 개시",
     local: {
-      title: "글로벌 철도 요금 개편과 평택항 배후단지의 물류 다각화 방안",
+      title: "글로벌 철도 요금 개편 and 평택항 배후단지의 물류 다각화 방안",
       lead: "글로벌 연계 화물 철도망의 요금 개편이 본격적으로 추진됨에 따라, 평택 포승 배후 물류단지 기업들의 장기 대안 마련이 촉구됩니다.",
       body: `<h2>평택항 연계 대륙 물류망의 변동성 예측</h2>
 <p>세계 대륙 철도 연합과의 요금 개편 회의가 본 궤도에 오름에 따라 블라디보스토크를 거쳐 유럽으로 나아가는 철도 운송 단가가 조정 국면을 맞았습니다. 이는 평택항을 기점으로 자동차 부품 및 무역 기자재를 납품해오던 로컬 공급망 기업들에게 직접적인 손익 변화를 의미합니다.</p>
@@ -672,7 +705,7 @@ function generateAiDraft() {
       content: body,
       category: category,
       date: new Date().toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1),
-      image: "images/baikal_ice.png",
+      image: "images/news_editorial.png",
       seoTitle: `${headline} - 바이칼 뉴스`,
       seoMeta: lead,
       slug: `ai-draft-${Date.now()}`
@@ -716,14 +749,17 @@ function transferAiDraftToEditor() {
 }
 
 // 6. Homepage News Curation Panel
-function populateCurationDropdowns() {
+async function populateCurationDropdowns() {
   const publishedSelects = [
     "curate-hero",
     "curate-pick-1", "curate-pick-2", "curate-pick-3",
     "curate-pop-1", "curate-pop-2", "curate-pop-3"
   ];
   
-  const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
   const published = articles.filter(a => a.status === 'published');
 
   publishedSelects.forEach(selectId => {
@@ -744,7 +780,11 @@ function populateCurationDropdowns() {
   });
 
   // Load currently set values
-  const curation = JSON.parse(localStorage.getItem("baikal_curation")) || {};
+  let curation = {};
+  if (window.SupabaseAdapter) {
+    curation = await window.SupabaseAdapter.fetchCuration();
+  }
+  
   if (curation.featuredHeroId) document.getElementById("curate-hero").value = curation.featuredHeroId;
   
   if (curation.editorsPicksIds) {
@@ -760,7 +800,7 @@ function populateCurationDropdowns() {
   }
 }
 
-function saveCurationSettings() {
+async function saveCurationSettings() {
   const heroId = parseInt(document.getElementById("curate-hero").value, 10);
   
   const pick1 = parseInt(document.getElementById("curate-pick-1").value, 10);
@@ -783,13 +823,15 @@ function saveCurationSettings() {
     pinnedIds: []
   };
 
-  localStorage.setItem("baikal_curation", JSON.stringify(newCuration));
-  logAudit("홈페이지 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.saveCuration(newCuration);
+  }
+  await logAudit("홈페이지 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
   alert("홈페이지 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
 }
 
 // 7. Static Page Management Module
-function switchPageTab(key, btnEl) {
+async function switchPageTab(key, btnEl) {
   currentStaticPageKey = key;
   
   // Highlight active sub-tab
@@ -806,11 +848,14 @@ function switchPageTab(key, btnEl) {
   };
 
   document.getElementById("page-editor-title").textContent = titleMap[key] || "정적 페이지 편집";
-  loadStaticPageContent();
+  await loadStaticPageContent();
 }
 
-function loadStaticPageContent() {
-  const overrides = JSON.parse(localStorage.getItem("baikal_static_pages") || "{}");
+async function loadStaticPageContent() {
+  let overrides = {};
+  if (window.SupabaseAdapter) {
+    overrides = await window.SupabaseAdapter.fetchStaticPages();
+  }
   const editorEl = document.getElementById("page-html-editor");
   
   if (editorEl) {
@@ -819,14 +864,14 @@ function loadStaticPageContent() {
   }
 }
 
-function saveStaticPages() {
-  const overrides = JSON.parse(localStorage.getItem("baikal_static_pages") || "{}");
+async function saveStaticPages() {
   const text = document.getElementById("page-html-editor").value;
 
-  overrides[currentStaticPageKey] = text;
-  localStorage.setItem("baikal_static_pages", JSON.stringify(overrides));
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.saveStaticPage(currentStaticPageKey, text);
+  }
   
-  logAudit("정적 페이지 법률선언 개정", null, `문서 키: ${currentStaticPageKey} 의 HTML 내용을 수정함.`);
+  await logAudit("정적 페이지 법률선언 개정", null, `문서 키: ${currentStaticPageKey} 의 HTML 내용을 수정함.`);
   alert(`정적 문서 '${currentStaticPageKey.toUpperCase()}' 변경사항이 정상 공시되었습니다.`);
 }
 
@@ -861,7 +906,7 @@ function switchModalMediaTab(mode) {
 }
 
 const DEFAULT_MEDIA_ASSETS = [
-  "images/baikal_ice.png",
+  "images/news_editorial.png",
   "images/culture_shamanism.png",
   "images/culture_art.png",
   "images/local_center.png",
@@ -886,7 +931,7 @@ function renderMediaLibraryGrid() {
     const isSelected = selectedMediaImage === src;
     return `
       <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${src}')">
-        <img src="../${src}" class="media-img" onerror="this.src='../images/baikal_ice.png'">
+        <img src="../${src}" class="media-img" onerror="this.src='../images/news_editorial.png'">
         <div class="media-card-info">${filename}</div>
       </div>
     `;
@@ -922,14 +967,12 @@ function triggerAiImageGeneration() {
   setTimeout(() => {
     loader.style.display = "none";
     
-    // Simulate generating a new asset from the prompt by reusing the beautiful lake image
-    // In a real environment, this connects to DALL-E or Imagen API
-    const newAssetSrc = `images/baikal_ice.png`; // Fallback asset
+    // Simulate generating a new asset from the prompt
+    const newAssetSrc = `images/news_editorial.png`; // Fallback asset
     
     // Register into the list
     const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
     
-    // In order to make it look unique, simulate file creation
     const simulatedFilename = `images/ai_gen_${Date.now()}.png`;
     mediaList.unshift(simulatedFilename);
     localStorage.setItem("baikal_media_library", JSON.stringify(mediaList));
@@ -940,4 +983,95 @@ function triggerAiImageGeneration() {
     
     alert(`🤖 AI 이미지 엔진: 프롬프트에 입각한 정갈한 에디토리얼 이미지가 빌드되어 '${simulatedFilename}' 파일명으로 미디어 라이브러리에 자동 보관되었습니다.`);
   }, 1800);
+}
+
+// 9. Supabase settings configuration forms logic
+function loadSupabaseConfigForm() {
+  const url = localStorage.getItem("baikal_supabase_url") || "";
+  const key = localStorage.getItem("baikal_supabase_key") || "";
+  
+  document.getElementById("db-url").value = url;
+  document.getElementById("db-anon-key").value = key;
+  
+  updateSupabaseStatusUI();
+}
+
+function updateSupabaseStatusUI() {
+  const badge = document.getElementById("db-status-badge");
+  if (!badge) return;
+  
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    badge.textContent = "✓ Connected (원격 클라우드 DB 모드 작동 중)";
+    badge.style.backgroundColor = "var(--status-published)";
+  } else {
+    badge.textContent = "Offline (로컬 LocalStorage 모드 작동 중)";
+    badge.style.backgroundColor = "var(--status-draft)";
+  }
+}
+
+async function saveSupabaseConfig() {
+  const url = document.getElementById("db-url").value.trim();
+  const key = document.getElementById("db-anon-key").value.trim();
+  
+  if (!url || !key) {
+    alert("Supabase URL과 Anon Key를 모두 입력하십시오.");
+    return;
+  }
+  
+  localStorage.setItem("baikal_supabase_url", url);
+  localStorage.setItem("baikal_supabase_key", key);
+  
+  // Reinitialize client
+  window.supabaseClient = null;
+  
+  // Sync to local
+  if (window.SupabaseAdapter) {
+    await window.SupabaseAdapter.syncLocalArticles();
+  }
+  
+  updateSupabaseStatusUI();
+  alert("Supabase 연동 정보가 설정되었습니다. 원격 DB로부터 최신 기사 레코드를 동기화했습니다.");
+  await logAudit("데이터베이스 접속 설정", null, `원격 프로젝트 URL: ${url} 등록함.`);
+}
+
+async function testSupabaseConnection() {
+  const url = document.getElementById("db-url").value.trim();
+  const key = document.getElementById("db-anon-key").value.trim();
+  
+  if (!url || !key) {
+    alert("테스트 전에 Supabase URL과 Key를 입력하십시오.");
+    return;
+  }
+  
+  if (typeof supabase === 'undefined') {
+    alert("Supabase 라이브러리를 로드하지 못했습니다.");
+    return;
+  }
+  
+  try {
+    const tempClient = supabase.createClient(url, key);
+    // Attempt simple query
+    const { data, error } = await tempClient
+      .from('articles')
+      .select('id')
+      .limit(1);
+      
+    if (error) throw error;
+    alert("✓ 연결 테스트 성공! Supabase 데이터베이스와 정상적으로 양방향 통신할 수 있습니다.");
+  } catch (err) {
+    console.error(err);
+    alert(`✗ 연결 실패: ${err.message || err}\n테이블 DDL을 실행했는지, API 키와 URL이 정확한지 확인하십시오.`);
+  }
+}
+
+async function disconnectSupabase() {
+  if (confirm("Supabase 연결을 해제하시겠습니까? 데이터는 삭제되지 않으며, 즉시 LocalStorage 백업 모드로 전환됩니다.")) {
+    localStorage.removeItem("baikal_supabase_url");
+    localStorage.removeItem("baikal_supabase_key");
+    window.supabaseClient = null;
+    
+    updateSupabaseStatusUI();
+    alert("원격 연동이 해제되었습니다. 로컬 기기 저장소 모드로 복귀했습니다.");
+    await logAudit("데이터베이스 접속 해제", null, "Supabase 원격 모드를 비활성화하고 로컬로 복귀함.");
+  }
 }

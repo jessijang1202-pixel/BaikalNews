@@ -36,6 +36,9 @@
       <li class="sidebar-item" data-tab="audit">
         <a>감사 로그 Audit Trail</a>
       </li>
+      <li class="sidebar-item" data-tab="supabase">
+        <a>Supabase 설정 DB Config</a>
+      </li>
     </ul>
     
     <div class="sidebar-footer">
@@ -617,6 +620,93 @@
         </div>
       </section>
 
+      <!-- ================= TAB: SUPABASE ================= -->
+      <section id="tab-supabase" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">⚡ Supabase 클라우드 데이터베이스 연동</h3>
+            <span class="profile-role-tag" id="db-status-badge" style="background-color: var(--status-review); color: #fff;">연동 대기</span>
+          </div>
+          
+          <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 24px;">
+            원격 Supabase PostgreSQL 클라우드 인프라와 즉시 연결을 설정합니다. 접속 자격 증명을 제공하면 실시간 기사 작성, 보도 승인, 정적 페이지 개정 활동이 원격 데이터베이스에 영구 동기화됩니다. 정보가 없으면 브라우저의 LocalStorage 모드로 안전히 유지됩니다.
+          </p>
+
+          <form id="supabase-config-form" onsubmit="event.preventDefault(); saveSupabaseConfig();" style="max-width: 600px;">
+            <div class="form-group-admin">
+              <label for="db-url">Supabase 프로젝트 URL</label>
+              <input type="url" id="db-url" class="form-control-admin" placeholder="https://your-project-id.supabase.co" required>
+            </div>
+            
+            <div class="form-group-admin" style="margin-top: 16px;">
+              <label for="db-anon-key">Supabase Anon Key (API Key)</label>
+              <input type="password" id="db-anon-key" class="form-control-admin" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+            </div>
+
+            <div style="margin-top: 24px; display: flex; gap: 12px;">
+              <button type="submit" class="btn-admin btn-admin-primary">연동 및 저장하기</button>
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="testSupabaseConnection()">테스트 통신</button>
+              <button type="button" class="btn-admin btn-admin-danger" onclick="disconnectSupabase()">연동 해제 (로컬 모드 복귀)</button>
+            </div>
+          </form>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 40px 0;">
+
+          <h4>📋 데이터베이스 마이그레이션 DDL 스크립트</h4>
+          <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 12px;">
+            Supabase의 SQL Editor 메뉴로 가셔서 아래 쿼리를 복사한 뒤 실행하십시오. 테이블 구조 및 읽기 제한 정책 RLS가 생성됩니다.
+          </p>
+          <textarea class="form-control-admin" style="height: 250px; font-family: monospace; font-size: 0.75rem; background-color: var(--admin-bg-body);" readonly onclick="this.select()">-- Supabase 테이블 DDL
+CREATE TABLE IF NOT EXISTS public.articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    lead TEXT NOT NULL,
+    content TEXT NOT NULL,
+    category TEXT NOT NULL,
+    category_label TEXT NOT NULL,
+    date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    image TEXT DEFAULT 'images/news_editorial.png',
+    author JSONB NOT NULL,
+    approver TEXT,
+    byline TEXT,
+    drafted_by TEXT,
+    approved_at TIMESTAMPTZ,
+    revision_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+    seo_title TEXT,
+    seo_meta TEXT,
+    slug TEXT UNIQUE,
+    canonical_url TEXT,
+    is_ymyl BOOLEAN DEFAULT false,
+    is_pinned BOOLEAN DEFAULT false,
+    is_featured BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS public.curation (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    featured_hero_id INTEGER REFERENCES public.articles(id) ON DELETE SET NULL,
+    editors_picks_ids INTEGER[] DEFAULT '{}'::integer[],
+    popular_reads_ids INTEGER[] DEFAULT '{}'::integer[],
+    CONSTRAINT single_row CHECK (id = 1)
+);
+
+CREATE TABLE IF NOT EXISTS public.static_pages (
+    key TEXT PRIMARY KEY,
+    html_content TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    article_id TEXT,
+    notes TEXT
+);</textarea>
+        </div>
+      </section>
+
     </main>
 
   </div>
@@ -666,6 +756,8 @@
   </div>
 
   <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-adapter.js"></script>
   <script src="../js/articles.js"></script>
   <script src="js/admin.js"></script>
 </body>
