@@ -151,7 +151,7 @@ function initCommonFeatures() {
     });
   }
 
-  // Seoul Weather Widget Logic (realistic monthly temperatures for Seoul, South Korea)
+  // Pyeongtaek Weather Widget Logic (realistic monthly temperatures for Pyeongtaek, South Korea)
   const tempValEl = document.getElementById("baikal-temp-val");
   const tempDescEl = document.getElementById("baikal-temp-desc");
   const sidebarTempValEl = document.getElementById("sidebar-baikal-temp-val");
