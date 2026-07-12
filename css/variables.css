@@ -6,6 +6,7 @@
   --color-blue-light: #4ea8de;     /* Light Ice/Sky Blue (2) */
   --color-green-deep: #0d7a66;     /* Deep Emerald Green (3) */
   --color-green-light: #48c2a5;    /* Mint Teal Green (4) */
+  --color-orange: #e65c00;         /* Opinion Orange */
 
   --bg-primary: #ffffff;             /* Snow White */
   --bg-secondary: #f3f7f9;           /* Ice White (very light cyan-blue tinted white) */
@@ -61,6 +62,7 @@
   --accent-blue: var(--color-blue-light);             /* Light Ice Blue in Dark Mode */
   --accent-blue-hover: #73c2fb;
   --accent-ice: rgba(78, 168, 222, 0.2);
+  --color-orange: #ff9d42;           /* Light Orange for Dark Mode */
 
   --text-primary: #f8fafc;           /* Crisp White text */
   --text-secondary: #cbd5e1;         /* Silver Gray */

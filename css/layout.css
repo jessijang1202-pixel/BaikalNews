@@ -195,13 +195,13 @@ nav.nav-bar {
   background-color: var(--color-green-light);
 }
 
-/* Opinion (Deep Blue) */
+/* Opinion (Orange) */
 .nav-links li#nav-opinion a:hover,
 .nav-links li#nav-opinion.active a {
-  color: var(--color-blue-deep);
+  color: var(--color-orange);
 }
 .nav-links li#nav-opinion a::after {
-  background-color: var(--color-blue-deep);
+  background-color: var(--color-orange);
 }
 
 /* Static Pages (Teal Green) */
