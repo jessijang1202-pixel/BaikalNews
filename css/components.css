@@ -431,3 +431,10 @@
     gap: 8px;
   }
 }
+
+/* Dynamic Category Colors for Breadcrumbs & General Text */
+.color-culture { color: var(--color-green-deep) !important; font-weight: 600; }
+.color-economy { color: var(--color-blue-deep) !important; font-weight: 600; }
+.color-tech { color: var(--color-blue-light) !important; font-weight: 600; }
+.color-local { color: var(--color-green-light) !important; font-weight: 600; }
+.color-opinion { color: var(--color-blue-deep) !important; font-weight: 600; }

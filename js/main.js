@@ -410,6 +410,12 @@ function renderCategoryPage() {
   if (catTitleEl) catTitleEl.textContent = titleText;
   if (catDescEl) catDescEl.textContent = descText;
 
+  const breadCategoryEl = document.getElementById("bread-category");
+  if (breadCategoryEl) {
+    breadCategoryEl.textContent = titleText;
+    breadCategoryEl.className = `color-${cat}`;
+  }
+
   const navId = `nav-${cat}`;
   const navEl = document.getElementById(navId);
   if (navEl) navEl.classList.add("active");
@@ -489,12 +495,11 @@ function renderArticlePage() {
 
   // Inject Breadcrumbs
   const breadCategoryEl = document.getElementById("bread-category");
-  const breadTitleEl = document.getElementById("bread-title");
   if (breadCategoryEl) {
     breadCategoryEl.textContent = article.categoryLabel;
     breadCategoryEl.href = `category.html?cat=${article.category}`;
+    breadCategoryEl.className = `color-${article.category}`;
   }
-  if (breadTitleEl) breadTitleEl.textContent = article.title;
 
   // Inject Header Details
   const categoryBadgeEl = document.getElementById("article-category-badge");
