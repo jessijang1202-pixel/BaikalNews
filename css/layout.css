@@ -96,7 +96,7 @@ header {
   letter-spacing: 0.35em;
   margin-top: 4px;
   margin-left: 0.35em; /* Center correction for letter-spacing */
-  color: #000000;
+  color: var(--text-primary);
 }
 
 .slogan {
