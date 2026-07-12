@@ -98,11 +98,11 @@ async function switchTab(tabName) {
   const titles = {
     dashboard: "뉴스룸 현황 대시보드",
     articles: "기사 통합 데스크 관리",
-    'ai-writer': "🤖 AI 어시스턴트 집필실",
+    'ai-writer': "AI 어시스턴트 집필실",
     curation: "홈페이지 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
-    supabase: "⚡ Supabase 클라우드 데이터베이스 연동"
+    supabase: "Supabase 클라우드 데이터베이스 연동"
   };
   const titleEl = document.getElementById("current-tab-title");
   if (titleEl) {
@@ -215,7 +215,7 @@ async function renderPendingList() {
       <td>${art.author.name}</td>
       <td><span class="badge badge-review">검토 요청</span></td>
       <td class="action-links">
-        <a onclick="editArticle(${art.id})">🔍 열기 및 승인/반려</a>
+        <a onclick="editArticle(${art.id})">열기 및 승인/반려</a>
       </td>
     </tr>
   `).join('');
@@ -453,7 +453,7 @@ async function saveArticle() {
 
   // Critical Validation: Approval requires an Approver name
   if ((status === 'approved' || status === 'published') && !approver) {
-    alert("⚠️ 승인 완료(Approved) 또는 발행 공개(Published) 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
+    alert("승인 완료(Approved) 또는 발행 공개(Published) 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
     return;
   }
 
@@ -745,7 +745,7 @@ function transferAiDraftToEditor() {
   document.getElementById("form-status").value = "draft";
   onStatusChangeInForm("draft");
   
-  alert("🤖 AI 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청(Review) 및 최종 데스크 서명을 획득하세요.");
+  alert("AI 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청(Review) 및 최종 데스크 서명을 획득하세요.");
 }
 
 // 6. Homepage News Curation Panel
@@ -981,7 +981,7 @@ function triggerAiImageGeneration() {
     switchModalMediaTab('select');
     renderMediaLibraryGrid();
     
-    alert(`🤖 AI 이미지 엔진: 프롬프트에 입각한 정갈한 에디토리얼 이미지가 빌드되어 '${simulatedFilename}' 파일명으로 미디어 라이브러리에 자동 보관되었습니다.`);
+    alert(`AI 이미지 엔진: 프롬프트에 입각한 정갈한 에디토리얼 이미지가 빌드되어 '${simulatedFilename}' 파일명으로 미디어 라이브러리에 자동 보관되었습니다.`);
   }, 1800);
 }
 
@@ -1001,7 +1001,7 @@ function updateSupabaseStatusUI() {
   if (!badge) return;
   
   if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
-    badge.textContent = "✓ Connected (원격 클라우드 DB 모드 작동 중)";
+    badge.textContent = "Connected (원격 클라우드 DB 모드 작동 중)";
     badge.style.backgroundColor = "var(--status-published)";
   } else {
     badge.textContent = "Offline (로컬 LocalStorage 모드 작동 중)";
@@ -1057,10 +1057,10 @@ async function testSupabaseConnection() {
       .limit(1);
       
     if (error) throw error;
-    alert("✓ 연결 테스트 성공! Supabase 데이터베이스와 정상적으로 양방향 통신할 수 있습니다.");
+    alert("연결 테스트 성공! Supabase 데이터베이스와 정상적으로 양방향 통신할 수 있습니다.");
   } catch (err) {
     console.error(err);
-    alert(`✗ 연결 실패: ${err.message || err}\n테이블 DDL을 실행했는지, API 키와 URL이 정확한지 확인하십시오.`);
+    alert(`연결 실패: ${err.message || err}\n테이블 DDL을 실행했는지, API 키와 URL이 정확한지 확인하십시오.`);
   }
 }
 

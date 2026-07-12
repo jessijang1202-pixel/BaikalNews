@@ -71,22 +71,22 @@
           <div class="stat-card">
             <span class="stat-title">검토 대기 Under Review</span>
             <span class="stat-number" id="stat-review-count">0</span>
-            <span class="stat-trend" style="color: var(--status-review);">⚠️ 최종 승인 대기 중</span>
+            <span class="stat-trend" style="color: var(--status-review);">최종 승인 대기 중</span>
           </div>
           <div class="stat-card">
             <span class="stat-title">임시 저장 Drafts</span>
             <span class="stat-number" id="stat-draft-count">0</span>
-            <span class="stat-trend">✏️ 작성 중인 초안</span>
+            <span class="stat-trend">작성 중인 초안</span>
           </div>
           <div class="stat-card">
             <span class="stat-title">공개 발행 Published</span>
             <span class="stat-number" id="stat-published-count">0</span>
-            <span class="stat-trend" style="color: var(--status-published);">✓ 일반 독자 노출 중</span>
+            <span class="stat-trend" style="color: var(--status-published);">일반 독자 노출 중</span>
           </div>
           <div class="stat-card">
             <span class="stat-title">총 기사 건수 Total</span>
             <span class="stat-number" id="stat-total-count">0</span>
-            <span class="stat-trend">📂 전체 데이터베이스</span>
+            <span class="stat-trend">전체 데이터베이스</span>
           </div>
         </div>
 
@@ -95,7 +95,7 @@
           <!-- Left: Pending approvals queue -->
           <div class="panel" style="padding: 24px;">
             <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
-              <h3 class="panel-title">⚠️ 최종 승인 대기 기사</h3>
+              <h3 class="panel-title">최종 승인 대기 기사</h3>
             </div>
             <div class="admin-table-wrapper">
               <table class="admin-table">
@@ -124,13 +124,13 @@
                   + 새 기사 작성
                 </button>
                 <button class="btn-admin btn-admin-secondary" onclick="switchTab('ai-writer');" style="width: 100%; justify-content: center;">
-                  🤖 AI 어시스턴트 집필실
+                  AI 어시스턴트 집필실
                 </button>
                 <button class="btn-admin btn-admin-secondary" onclick="switchTab('curation');" style="width: 100%; justify-content: center;">
-                  🎯 홈화면 큐레이션 편집
+                  홈화면 큐레이션 편집
                 </button>
                 <a href="../index.html" target="_blank" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; text-decoration: none; text-align: center;">
-                  👁 독자 사이트 가기 (새창)
+                  독자 사이트 가기 (새창)
                 </a>
               </div>
             </div>
@@ -249,7 +249,7 @@
                   <div class="form-group-admin">
                     <label style="display: flex; align-items: center; gap: 8px; text-transform: none; cursor: pointer;">
                       <input type="checkbox" id="form-ymyl" style="width: 16px; height: 16px;">
-                      <strong>⚠️ YMYL 민감성 분야</strong>
+                      <strong>YMYL 민감성 분야</strong>
                     </label>
                     <div class="help-text">경제, 과학기술, 보건의료, 법률 등 독자 생명 및 자산에 영향을 주는 카테고리에 체크합니다.</div>
                   </div>
@@ -264,7 +264,7 @@
                     <div class="help-text">미디어 라이브러리에서 선택하거나 생성된 AI 이미지를 자동 적용합니다.</div>
                   </div>
                   <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="openMediaLibraryModal()">
-                    🖼 미디어 선택 / AI 제작
+                    미디어 선택 / AI 제작
                   </button>
                 </div>
 
@@ -326,7 +326,7 @@
                 <button type="button" class="btn-admin btn-admin-danger" id="btn-soft-delete" style="display: none;" onclick="softDeleteArticleInForm()">기사 휴지통 삭제</button>
               </div>
               <div style="display: flex; gap: 12px;">
-                <button type="button" class="btn-admin btn-admin-secondary" onclick="previewArticleInForm()">👁 실시간 레이아웃 미리보기</button>
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="previewArticleInForm()">실시간 레이아웃 미리보기</button>
                 <button type="submit" class="btn-admin btn-admin-primary" style="padding: 10px 24px;">기사 및 상태 변경 저장</button>
               </div>
             </div>
@@ -338,7 +338,7 @@
       <section id="tab-ai-writer" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">🤖 AI 어시스턴트 신문 집필실</h3>
+            <h3 class="panel-title">AI 어시스턴트 신문 집필실</h3>
             <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 워크플로우</span>
           </div>
 
@@ -434,7 +434,7 @@
               </div>
 
               <button class="btn-admin btn-admin-primary" style="width: 100%; justify-content: center; padding: 12px 0; font-size: 0.9rem;" onclick="generateAiDraft()">
-                🤖 AI 뉴스 초안 생성하기
+                AI 뉴스 초안 생성하기
               </button>
 
             </div>
@@ -457,8 +457,8 @@
               <!-- Output Draft Viewer -->
               <div id="ai-draft-viewer" style="display: none;">
                 <div class="panel-header" style="margin-bottom: 20px; padding-bottom: 12px; border-bottom-style: dashed;">
-                  <h4 style="color: var(--admin-accent-cyan); font-weight: 600;">🤖 완성된 AI 뉴스 초안 (승인 심사 대기)</h4>
-                  <button class="btn-admin btn-admin-success" onclick="transferAiDraftToEditor()">✍️ 편집기로 초안 가져가기</button>
+                  <h4 style="color: var(--admin-accent-cyan); font-weight: 600;">완성된 AI 뉴스 초안 (승인 심사 대기)</h4>
+                  <button class="btn-admin btn-admin-success" onclick="transferAiDraftToEditor()">편집기로 초안 가져가기</button>
                 </div>
 
                 <div class="ai-result-section">
@@ -489,7 +489,7 @@
 
                 <!-- Alert banner: AI directly published rule reminder -->
                 <div style="background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px 16px; border-radius: var(--border-radius); font-size: 0.78rem; color: #f87171; margin-top: 24px;">
-                  ⚠️ <strong>주의:</strong> 바이칼 뉴스 편집 규약에 의거, AI 생성물은 절대 1-클릭으로 바로 퍼블릭에 공개할 수 없습니다. 편집기로 전송하여 내용을 검수하고, 승인 상태에서 반드시 최상락 또는 장승희 편집위원의 승인을 획득해야 독자에게 노출됩니다.
+                  <strong>주의:</strong> 바이칼 뉴스 편집 규약에 의거, AI 생성물은 절대 1-클릭으로 바로 퍼블릭에 공개할 수 없습니다. 편집기로 전송하여 내용을 검수하고, 승인 상태에서 반드시 최상락 또는 장승희 편집위원의 승인을 획득해야 독자에게 노출됩니다.
                 </div>
 
               </div>
@@ -504,7 +504,7 @@
       <section id="tab-curation" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">🎯 홈 화면 뉴스 배치 및 큐레이션 통제</h3>
+            <h3 class="panel-title">홈 화면 뉴스 배치 및 큐레이션 통제</h3>
             <button class="btn-admin btn-admin-primary" onclick="saveCurationSettings()">큐레이션 배포하기</button>
           </div>
           
@@ -558,7 +558,7 @@
       <section id="tab-pages" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">📂 신뢰성 정적 페이지 및 법률 문서 편집</h3>
+            <h3 class="panel-title">신뢰성 정적 페이지 및 법률 문서 편집</h3>
             <button class="btn-admin btn-admin-primary" onclick="saveStaticPages()">수정 사항 웹사이트 공시</button>
           </div>
           
@@ -594,7 +594,7 @@
       <section id="tab-audit" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">📜 뉴스룸 감사 로그</h3>
+            <h3 class="panel-title">뉴스룸 감사 로그</h3>
             <button class="btn-admin btn-admin-secondary" onclick="clearAuditLogs()">감사 로그 초기화</button>
           </div>
           
@@ -626,7 +626,7 @@
       <section id="tab-supabase" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">⚡ Supabase 클라우드 데이터베이스 연동</h3>
+            <h3 class="panel-title">Supabase 클라우드 데이터베이스 연동</h3>
             <span class="profile-role-tag" id="db-status-badge" style="background-color: var(--status-review); color: #fff;">연동 대기</span>
           </div>
           
@@ -654,7 +654,7 @@
 
           <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 40px 0;">
 
-          <h4>📋 데이터베이스 마이그레이션 DDL 스크립트</h4>
+          <h4>데이터베이스 마이그레이션 DDL 스크립트</h4>
           <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 12px;">
             Supabase의 SQL Editor 메뉴로 가셔서 아래 쿼리를 복사한 뒤 실행하십시오. 테이블 구조 및 읽기 제한 정책 RLS가 생성됩니다.
           </p>
@@ -741,12 +741,12 @@ CREATE POLICY "Allow admin all" ON public.audit_logs FOR ALL USING (true) WITH C
   <div class="modal-admin" id="media-library-modal">
     <div class="modal-admin-content">
       <button class="modal-close-btn" onclick="closeMediaLibraryModal()">&times;</button>
-      <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--admin-border); padding-bottom: 8px;">🖼 미디어 라이브러리 및 AI 이미지 엔진</h3>
+      <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--admin-border); padding-bottom: 8px;">미디어 라이브러리 및 AI 이미지 엔진</h3>
       
       <!-- Mini Tabs inside modal -->
       <div style="display: flex; gap: 12px; margin-bottom: 20px;">
         <button class="btn-admin btn-admin-primary" id="modal-tab-select" onclick="switchModalMediaTab('select')">기존 라이브러리 선택</button>
-        <button class="btn-admin btn-admin-secondary" id="modal-tab-generate" onclick="switchModalMediaTab('generate')">🤖 AI 이미지 프롬프트 생성</button>
+        <button class="btn-admin btn-admin-secondary" id="modal-tab-generate" onclick="switchModalMediaTab('generate')">AI 이미지 프롬프트 생성</button>
       </div>
 
       <!-- Option 1: Select Existing Image -->
@@ -764,7 +764,7 @@ CREATE POLICY "Allow admin all" ON public.audit_logs FOR ALL USING (true) WITH C
           <textarea id="ai-image-prompt" class="form-control-admin" placeholder="예: 맑고 정갈한 미디어 데스크 위의 노란 전구와 노트, 정돈된 사무실 구도, 신뢰감 주는 사진" style="min-height: 80px;"></textarea>
         </div>
         <button class="btn-admin btn-admin-primary" style="width: 100%; justify-content: center;" onclick="triggerAiImageGeneration()">
-          🤖 AI 이미지 생성 및 라이브러리 등록
+          AI 이미지 생성 및 라이브러리 등록
         </button>
 
         <!-- Generation progress -->
