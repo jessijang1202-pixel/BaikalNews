@@ -84,7 +84,6 @@
   background-color: var(--bg-secondary);
   font-size: 0.8rem;
   color: var(--text-secondary);
-  border-left: 2px solid var(--accent-cyan);
   line-height: 1.4;
 }
 
@@ -103,9 +102,14 @@
   font-weight: 500;
   padding: 20px;
   background-color: var(--bg-secondary);
-  border-left: 4px solid var(--accent-cyan);
   border-radius: var(--border-radius-sm);
 }
+
+.article-lead.lead-culture { background-color: var(--bg-lead-culture); }
+.article-lead.lead-economy { background-color: var(--bg-lead-economy); }
+.article-lead.lead-tech { background-color: var(--bg-lead-tech); }
+.article-lead.lead-local { background-color: var(--bg-lead-local); }
+.article-lead.lead-opinion { background-color: var(--bg-lead-opinion); }
 
 .article-body {
   font-family: var(--font-serif);

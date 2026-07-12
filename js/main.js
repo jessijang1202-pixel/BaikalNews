@@ -538,7 +538,10 @@ function renderArticlePage() {
   // Inject Article Content
   const leadEl = document.getElementById("article-lead-paragraph");
   const bodyEl = document.getElementById("article-body-text");
-  if (leadEl) leadEl.textContent = article.lead;
+  if (leadEl) {
+    leadEl.textContent = article.lead;
+    leadEl.className = `article-lead lead-${article.category}`;
+  }
   if (bodyEl) bodyEl.innerHTML = article.content;
 
   // Inject Reporter Bio Box

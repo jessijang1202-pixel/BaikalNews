@@ -8,6 +8,13 @@
   --color-green-light: #48c2a5;    /* Mint Teal Green (4) */
   --color-orange: #e65c00;         /* Opinion Orange */
 
+  /* Lead Paragraph Backgrounds - Light Theme (Tinted) */
+  --bg-lead-culture: rgba(13, 122, 102, 0.07);
+  --bg-lead-economy: rgba(15, 76, 129, 0.07);
+  --bg-lead-tech: rgba(78, 168, 222, 0.1);
+  --bg-lead-local: rgba(72, 194, 165, 0.1);
+  --bg-lead-opinion: rgba(230, 92, 0, 0.07);
+
   --bg-primary: #ffffff;             /* Snow White */
   --bg-secondary: #f3f7f9;           /* Ice White (very light cyan-blue tinted white) */
   --bg-tertiary: #e5edf1;            /* Pale Sky Blue */
@@ -63,6 +70,13 @@
   --accent-blue-hover: #73c2fb;
   --accent-ice: rgba(78, 168, 222, 0.2);
   --color-orange: #ff9d42;           /* Light Orange for Dark Mode */
+
+  /* Lead Paragraph Backgrounds - Dark Theme (Opaque Tint) */
+  --bg-lead-culture: rgba(13, 122, 102, 0.2);
+  --bg-lead-economy: rgba(15, 76, 129, 0.2);
+  --bg-lead-tech: rgba(78, 168, 222, 0.18);
+  --bg-lead-local: rgba(72, 194, 165, 0.18);
+  --bg-lead-opinion: rgba(255, 157, 66, 0.15);
 
   --text-primary: #f8fafc;           /* Crisp White text */
   --text-secondary: #cbd5e1;         /* Silver Gray */
