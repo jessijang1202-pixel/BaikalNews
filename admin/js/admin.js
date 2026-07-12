@@ -128,7 +128,7 @@ async function switchTab(tabName) {
 async function logAudit(action, articleId, notes) {
   const newLog = {
     timestamp: new Date().toLocaleString("ko-KR"),
-    role: "데스크 관리자 (Super Admin)",
+    role: "데스크 관리자 (최고 관리자)",
     action: action,
     articleId: articleId ? String(articleId) : "-",
     notes: notes || ""
@@ -700,7 +700,7 @@ function generateAiDraft() {
     // Build generated object variables
     generatedDraftData = {
       title: headline,
-      subtitle: `${category.toUpperCase()} 부문 심층 AI 어시스턴트 초안`,
+      subtitle: `${category.toUpperCase()} 부문 심층 인공지능 초안`,
       lead: lead,
       content: body,
       category: category,
@@ -745,7 +745,7 @@ function transferAiDraftToEditor() {
   document.getElementById("form-status").value = "draft";
   onStatusChangeInForm("draft");
   
-  alert("AI 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청(Review) 및 최종 데스크 서명을 획득하세요.");
+  alert("인공지능 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청 및 최종 데스크 서명을 획득하세요.");
 }
 
 // 6. Homepage News Curation Panel
@@ -812,7 +812,7 @@ async function saveCurationSettings() {
   const pop3 = parseInt(document.getElementById("curate-pop-3").value, 10);
 
   if (isNaN(heroId)) {
-    alert("최소한 메인 추천 탑 뉴스(Hero Article)는 1건 지정해야 홈화면 배포가 가능합니다.");
+    alert("최소한 메인 추천 탑 뉴스는 1건 지정해야 홈화면 배포가 가능합니다.");
     return;
   }
 
@@ -839,12 +839,12 @@ async function switchPageTab(key, btnEl) {
   if (btnEl) btnEl.classList.add("active");
 
   const titleMap = {
-    about: "회사 소개 (About Baikal News)",
-    'editorial-policy': "편집 규약 (Editorial Policy)",
-    'privacy-policy': "개인정보처리방침 (Privacy Policy)",
-    terms: "이용약관 (Terms of Service)",
-    corrections: "오보 정정 및 개정 정책 (Corrections & Revisions Policy)",
-    contact: "제보 및 문의 (Contact Inquiries)"
+    about: "회사 소개",
+    'editorial-policy': "편집 규약",
+    'privacy-policy': "개인정보처리방침",
+    terms: "이용약관",
+    corrections: "오보 정정 및 개정 정책",
+    contact: "제보 및 문의"
   };
 
   document.getElementById("page-editor-title").textContent = titleMap[key] || "정적 페이지 편집";
@@ -1001,10 +1001,10 @@ function updateSupabaseStatusUI() {
   if (!badge) return;
   
   if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
-    badge.textContent = "Connected (원격 클라우드 DB 모드 작동 중)";
+    badge.textContent = "연결됨 (원격 데이터베이스 모드 작동 중)";
     badge.style.backgroundColor = "var(--status-published)";
   } else {
-    badge.textContent = "Offline (로컬 LocalStorage 모드 작동 중)";
+    badge.textContent = "오프라인 (로컬 브라우저 저장소 모드 작동 중)";
     badge.style.backgroundColor = "var(--status-draft)";
   }
 }
@@ -1030,7 +1030,7 @@ async function saveSupabaseConfig() {
   }
   
   updateSupabaseStatusUI();
-  alert("Supabase 연동 정보가 설정되었습니다. 원격 DB로부터 최신 기사 레코드를 동기화했습니다.");
+  alert("수파베이스(Supabase) 연동 정보가 설정되었습니다. 원격 데이터베이스로부터 최신 기사 레코드를 동기화했습니다.");
   await logAudit("데이터베이스 접속 설정", null, `원격 프로젝트 URL: ${url} 등록함.`);
 }
 
@@ -1057,15 +1057,15 @@ async function testSupabaseConnection() {
       .limit(1);
       
     if (error) throw error;
-    alert("연결 테스트 성공! Supabase 데이터베이스와 정상적으로 양방향 통신할 수 있습니다.");
+    alert("연결 테스트 성공! 수파베이스(Supabase) 데이터베이스와 정상적으로 양방향 통신할 수 있습니다.");
   } catch (err) {
     console.error(err);
-    alert(`연결 실패: ${err.message || err}\n테이블 DDL을 실행했는지, API 키와 URL이 정확한지 확인하십시오.`);
+    alert(`연결 실패: ${err.message || err}\n테이블을 생성하고, API 키와 URL이 정확한지 확인하십시오.`);
   }
 }
 
 async function disconnectSupabase() {
-  if (confirm("Supabase 연결을 해제하시겠습니까? 데이터는 삭제되지 않으며, 즉시 LocalStorage 백업 모드로 전환됩니다.")) {
+  if (confirm("수파베이스(Supabase) 연결을 해제하시겠습니까? 데이터는 삭제되지 않으며, 즉시 로컬 브라우저 저장소 백업 모드로 전환됩니다.")) {
     localStorage.removeItem("baikal_supabase_url");
     localStorage.removeItem("baikal_supabase_key");
     window.supabaseClient = null;

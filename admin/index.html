@@ -13,8 +13,8 @@
   <!-- Sidebar Navigation -->
   <aside class="admin-sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo">BAIKAL NEWS</div>
-      <div class="sidebar-sub">NEWSROOM CMS</div>
+      <div class="sidebar-logo">바이칼 뉴스</div>
+      <div class="sidebar-sub">뉴스룸 통합관리 시스템</div>
     </div>
     
     <ul class="sidebar-menu">
@@ -56,8 +56,8 @@
         <h2 id="current-tab-title">뉴스룸 대시보드</h2>
       </div>
       <div class="user-profile-badge">
-        <span class="profile-role-tag">Super Admin</span>
-        <span class="profile-name">데스크 관리자 (Guest)</span>
+        <span class="profile-role-tag">최고 관리자</span>
+        <span class="profile-name">데스크 관리자 (방문자)</span>
       </div>
     </header>
 
@@ -69,22 +69,22 @@
         <!-- Stats Row -->
         <div class="admin-grid-4">
           <div class="stat-card">
-            <span class="stat-title">검토 대기 Under Review</span>
+            <span class="stat-title">검토 대기</span>
             <span class="stat-number" id="stat-review-count">0</span>
             <span class="stat-trend" style="color: var(--status-review);">최종 승인 대기 중</span>
           </div>
           <div class="stat-card">
-            <span class="stat-title">임시 저장 Drafts</span>
+            <span class="stat-title">임시 저장</span>
             <span class="stat-number" id="stat-draft-count">0</span>
             <span class="stat-trend">작성 중인 초안</span>
           </div>
           <div class="stat-card">
-            <span class="stat-title">공개 발행 Published</span>
+            <span class="stat-title">공개 발행</span>
             <span class="stat-number" id="stat-published-count">0</span>
             <span class="stat-trend" style="color: var(--status-published);">일반 독자 노출 중</span>
           </div>
           <div class="stat-card">
-            <span class="stat-title">총 기사 건수 Total</span>
+            <span class="stat-title">총 기사 건수</span>
             <span class="stat-number" id="stat-total-count">0</span>
             <span class="stat-trend">전체 데이터베이스</span>
           </div>
@@ -118,7 +118,7 @@
           <!-- Right: Quick actions -->
           <aside>
             <div class="widget" style="background-color: var(--admin-bg-panel); border-color: var(--admin-border);">
-              <h3 class="widget-title" style="color: var(--admin-text-primary); border-bottom-color: var(--admin-border-light);">빠른 작업 Actions</h3>
+              <h3 class="widget-title" style="color: var(--admin-text-primary); border-bottom-color: var(--admin-border-light);">빠른 작업</h3>
               <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
                 <button class="btn-admin btn-admin-primary" onclick="switchTab('articles'); showArticleCreateForm();" style="width: 100%; justify-content: center;">
                   + 새 기사 작성
@@ -177,22 +177,22 @@
           <!-- Workflow status visualization bar -->
           <div class="workflow-visual">
             <div class="workflow-step active" id="wf-step-draft">
-              <span class="badge badge-draft">1. Draft</span>
+              <span class="badge badge-draft">1. 초안 작성</span>
               <span>작성 중</span>
             </div>
             <div class="workflow-connector" id="wf-conn-review"></div>
             <div class="workflow-step" id="wf-step-review">
-              <span class="badge badge-review">2. Under Review</span>
+              <span class="badge badge-review">2. 검토 요청</span>
               <span>검토 요청</span>
             </div>
             <div class="workflow-connector" id="wf-conn-approved"></div>
             <div class="workflow-step" id="wf-step-approved">
-              <span class="badge badge-approved">3. Approved</span>
+              <span class="badge badge-approved">3. 최종 승인</span>
               <span>최종 승인</span>
             </div>
             <div class="workflow-connector" id="wf-conn-published"></div>
             <div class="workflow-step" id="wf-step-published">
-              <span class="badge badge-published">4. Published</span>
+              <span class="badge badge-published">4. 공개 발행</span>
               <span>공개 발행</span>
             </div>
           </div>
@@ -205,23 +205,23 @@
               <!-- Left: Content fields -->
               <div>
                 <div class="form-group-admin">
-                  <label for="form-title">기사 제목 (Headline)</label>
+                  <label for="form-title">기사 제목 (헤드라인)</label>
                   <input type="text" id="form-title" class="form-control-admin" required placeholder="기사의 헤드라인을 입력하세요.">
                 </div>
 
                 <div class="form-group-admin">
-                  <label for="form-subtitle">기사 부제목 (Subtitle / Summary)</label>
+                  <label for="form-subtitle">기사 부제목 (핵심 요약)</label>
                   <input type="text" id="form-subtitle" class="form-control-admin" placeholder="기사의 핵심 요약 부제목을 입력하세요.">
                 </div>
 
                 <div class="form-group-admin">
-                  <label for="form-lead">리드 문단 (Lead paragraph)</label>
+                  <label for="form-lead">리드 문단 (도입부)</label>
                   <textarea id="form-lead" class="form-control-admin" placeholder="기사의 본문 첫머리 요약 요소를 작성해 주세요. (가장 돋보이게 렌더링됨)" required></textarea>
                 </div>
 
                 <div class="form-group-admin">
-                  <label for="form-content">기사 본문 (HTML Body)</label>
-                  <div class="help-text" style="margin-bottom: 8px;">Rich Text 형식의 HTML 코드를 입력하거나 일반 텍스트 문단을 작성할 수 있습니다.</div>
+                  <label for="form-content">기사 본문 (본문 내용)</label>
+                  <div class="help-text" style="margin-bottom: 8px;">서식 있는 텍스트 형식의 HTML 코드를 입력하거나 일반 텍스트 문단을 작성할 수 있습니다.</div>
                   <textarea id="form-content" class="form-control-admin" style="min-height: 350px;" required placeholder="본문 문단을 작성하세요. <p>, <h2> 등을 활용할 수 있습니다."></textarea>
                 </div>
               </div>
@@ -292,11 +292,11 @@
                   <div class="form-group-admin">
                     <label for="form-status">기사 상태</label>
                     <select id="form-status" class="form-control-admin" onchange="onStatusChangeInForm(this.value)">
-                      <option value="draft">Draft (임시 저장)</option>
-                      <option value="review">Under Review (검토 요청)</option>
-                      <option value="approved">Approved (승인 완료)</option>
-                      <option value="published">Published (발행 공개)</option>
-                      <option value="archived">Archived (기사 보관)</option>
+                      <option value="draft">초안 작성 (임시 저장)</option>
+                      <option value="review">검토 요청</option>
+                      <option value="approved">승인 완료</option>
+                      <option value="published">공개 발행</option>
+                      <option value="archived">기사 아카이브 보관</option>
                     </select>
                   </div>
 
@@ -339,7 +339,7 @@
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">AI 어시스턴트 신문 집필실</h3>
-            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 워크플로우</span>
+            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
           </div>
 
           <div class="ai-action-panel">
@@ -388,9 +388,9 @@
               <!-- INPUT CONTAINER 2: LINK -->
               <div id="ai-input-link" class="ai-input-group" style="display: none;">
                 <div class="form-group-admin">
-                  <label for="ai-link-url">원천 자료 출처 링크 (Source URL)</label>
+                  <label for="ai-link-url">원천 자료 출처 링크</label>
                   <input type="url" id="ai-link-url" class="form-control-admin" placeholder="https://news.example.com/article/123">
-                  <div class="help-text">여러 개의 기사 링크를 붙여넣어 크로스 분석도 가능합니다.</div>
+                  <div class="help-text">여러 개의 기사 링크를 붙여넣어 비교 분석도 가능합니다.</div>
                 </div>
                 <div class="form-group-admin">
                   <label for="ai-link-category">발행 타겟 카테고리</label>
@@ -415,19 +415,19 @@
                   </select>
                 </div>
                 <div class="form-group-admin">
-                  <label>추천 보도 시각 (Angle Options)</label>
+                  <label>추천 보도 시점 (관점 선택)</label>
                   <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                       <input type="radio" name="ai-angle" value="local" checked>
-                      <span>평택/로컬 교류 관점 (Local Angle)</span>
+                      <span>평택/로컬 교류 관점</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                       <input type="radio" name="ai-angle" value="culture">
-                      <span>부랴트인 인문 유산 관점 (Culture Angle)</span>
+                      <span>부랴트인 인문 유산 관점</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                       <input type="radio" name="ai-angle" value="economy">
-                      <span>신재생 에너지 타당성 (Economy Angle)</span>
+                      <span>신재생 에너지 타당성</span>
                     </label>
                   </div>
                 </div>
@@ -451,7 +451,7 @@
 
               <!-- Empty state -->
               <div id="ai-empty-state" style="text-align: center; padding: 120px 0; color: var(--admin-text-muted);">
-                왼쪽 옵션을 채우고 초안 생성 버튼을 누르시면, 사실에 입각한 전문적이고 담백한 뉴스 초안이 소제목 및 SEO 태그와 함께 빌드됩니다.
+                왼쪽 옵션을 채우고 초안 생성 버튼을 누르시면, 사실에 입각한 전문적이고 담백한 뉴스 초안이 소제목 및 검색엔진 최적화 태그와 함께 생성됩니다.
               </div>
 
               <!-- Output Draft Viewer -->
@@ -481,9 +481,9 @@
                 <div class="ai-result-section">
                   <div class="stat-title">추천 태그 및 SEO 메타 정보</div>
                   <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-                    <div><span class="ai-tag">SEO Title</span> <span id="ai-out-seo-title"></span></div>
-                    <div><span class="ai-tag">SEO Meta</span> <span id="ai-out-seo-meta"></span></div>
-                    <div><span class="ai-tag">Slug</span> <span id="ai-out-slug"></span></div>
+                    <div><span class="ai-tag">검색 타이틀</span> <span id="ai-out-seo-title"></span></div>
+                    <div><span class="ai-tag">검색 설명문</span> <span id="ai-out-seo-meta"></span></div>
+                    <div><span class="ai-tag">주소 이름(슬러그)</span> <span id="ai-out-slug"></span></div>
                   </div>
                 </div>
 
@@ -518,7 +518,7 @@
               <!-- Left Column Curation selectors -->
               <div>
                 <div class="form-group-admin">
-                  <label for="curate-hero">메인 추천 탑 뉴스 (Hero Article)</label>
+                  <label for="curate-hero">메인 추천 탑 뉴스</label>
                   <select id="curate-hero" class="form-control-admin" style="background-color: var(--admin-bg-panel);">
                     <!-- Populated dynamically -->
                   </select>
@@ -526,7 +526,7 @@
                 </div>
 
                 <div class="form-group-admin" style="margin-top: 32px;">
-                  <label>에디터 추천 픽스 (Editor's Picks) - 3개 기사 지정</label>
+                  <label>편집자 추천 기사 - 3개 기사 지정</label>
                   <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
                     <select id="curate-pick-1" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
                     <select id="curate-pick-2" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
@@ -539,7 +539,7 @@
               <!-- Right Column Curation selectors -->
               <div>
                 <div class="form-group-admin">
-                  <label>많이 읽은 인기 기사 (Popular Reads) - 3개 기사 지정</label>
+                  <label>많이 읽은 인기 기사 - 3개 기사 지정</label>
                   <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
                     <select id="curate-pop-1" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
                     <select id="curate-pop-2" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
@@ -570,12 +570,12 @@
             <!-- Left sub tab list -->
             <div style="border-right: 1px solid var(--admin-border); padding-right: 20px;">
               <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button class="btn-admin btn-admin-secondary page-tab-btn active" onclick="switchPageTab('about', this)" style="width: 100%; text-align: left;">회사 소개 (About)</button>
-                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('editorial-policy', this)" style="width: 100%; text-align: left;">편집 규약 (Editorial Policy)</button>
-                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('privacy-policy', this)" style="width: 100%; text-align: left;">개인정보처리방침 (Privacy)</button>
-                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('terms', this)" style="width: 100%; text-align: left;">이용약관 (Terms)</button>
-                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('corrections', this)" style="width: 100%; text-align: left;">오보정정정책 (Corrections)</button>
-                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('contact', this)" style="width: 100%; text-align: left;">제보 및 문의 (Contact)</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn active" onclick="switchPageTab('about', this)" style="width: 100%; text-align: left;">회사 소개</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('editorial-policy', this)" style="width: 100%; text-align: left;">편집 규약</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('privacy-policy', this)" style="width: 100%; text-align: left;">개인정보처리방침</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('terms', this)" style="width: 100%; text-align: left;">이용약관</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('corrections', this)" style="width: 100%; text-align: left;">오보정정정책</button>
+                <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('contact', this)" style="width: 100%; text-align: left;">제보 및 문의</button>
               </div>
             </div>
 
@@ -611,7 +611,7 @@
                   <th>사용자 권한</th>
                   <th>활동 내용</th>
                   <th>관련 기사 ID</th>
-                  <th>세부 메모 (Audit Note)</th>
+                  <th>세부 내역 기록</th>
                 </tr>
               </thead>
               <tbody id="audit-table-body">
