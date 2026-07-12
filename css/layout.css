@@ -41,6 +41,10 @@ header {
   align-items: center;
   gap: 6px;
   font-weight: 500;
+  color: var(--text-secondary);
+}
+
+#baikal-temp-val {
   color: var(--accent-cyan);
 }
 

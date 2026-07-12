@@ -16,7 +16,7 @@
   --border-medium: #cbd5e0;          /* Soft Silver-Gray border */
   --border-dark: #2c3e50;            /* Deep Blue-Gray border for structure */
 
-  --accent-cyan: var(--color-green-light);            /* Baikal Mint */
+  --accent-cyan: #008fa0;            /* Original Main Cyan */
   --accent-blue: var(--color-blue-deep);              /* Baikal Deep Blue */
   --accent-blue-hover: #0a365c;      /* Darker Baikal Depth */
   --accent-ice: rgba(78, 168, 222, 0.15); /* Translucent ice accent */
@@ -57,7 +57,7 @@
   --border-medium: #2e3f61;
   --border-dark: #4e6185;
 
-  --accent-cyan: var(--color-green-light);            /* Mint Teal Green */
+  --accent-cyan: #00a5bb;            /* Bright Original Cyan for Dark Mode */
   --accent-blue: var(--color-blue-light);             /* Light Ice Blue in Dark Mode */
   --accent-blue-hover: #73c2fb;
   --accent-ice: rgba(78, 168, 222, 0.2);
