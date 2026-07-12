@@ -95,6 +95,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // 1. Common features (Header, Footer, Mobile menu, Weather Widget)
 function initCommonFeatures() {
+  // Theme Toggle Initialization & Dynamic Injection
+  const headerTop = document.querySelector(".header-top");
+  if (headerTop) {
+    const hasToggle = document.getElementById("theme-toggle-btn");
+    if (!hasToggle) {
+      const themeToggle = document.createElement("div");
+      themeToggle.className = "theme-toggle-wrapper";
+      themeToggle.innerHTML = `
+        <button id="theme-toggle-btn" aria-label="테마 전환" class="theme-toggle-btn">
+          <span class="theme-toggle-icon">🌙</span>
+        </button>
+      `;
+      headerTop.appendChild(themeToggle);
+
+      const themeBtn = document.getElementById("theme-toggle-btn");
+      const savedTheme = localStorage.getItem("baikal-theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      
+      const iconSpan = themeBtn.querySelector(".theme-toggle-icon");
+      if (iconSpan) {
+        iconSpan.textContent = savedTheme === "dark" ? "☀️" : "🌙";
+      }
+
+      themeBtn.addEventListener("click", () => {
+        const activeTheme = document.documentElement.getAttribute("data-theme");
+        const newTheme = activeTheme === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", newTheme);
+        localStorage.setItem("baikal-theme", newTheme);
+        if (iconSpan) {
+          iconSpan.textContent = newTheme === "dark" ? "☀️" : "🌙";
+        }
+      });
+    }
+  } else {
+    // If headerTop is not present (for some inner pages that load main.js)
+    const savedTheme = localStorage.getItem("baikal-theme") || "light";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  }
+
   // Current Date display in Header (explicitly converted to Korea Standard Time - KST)
   const dateEl = document.getElementById("current-date");
   if (dateEl) {

@@ -2,6 +2,11 @@
 
 :root {
   /* Colors - Lake Baikal Inspired Palette */
+  --color-blue-deep: #0f4c81;      /* Deep Baikal Blue (1) */
+  --color-blue-light: #4ea8de;     /* Light Ice/Sky Blue (2) */
+  --color-green-deep: #0d7a66;     /* Deep Emerald Green (3) */
+  --color-green-light: #48c2a5;    /* Mint Teal Green (4) */
+
   --bg-primary: #ffffff;             /* Snow White */
   --bg-secondary: #f3f7f9;           /* Ice White (very light cyan-blue tinted white) */
   --bg-tertiary: #e5edf1;            /* Pale Sky Blue */
@@ -11,10 +16,10 @@
   --border-medium: #cbd5e0;          /* Soft Silver-Gray border */
   --border-dark: #2c3e50;            /* Deep Blue-Gray border for structure */
 
-  --accent-cyan: #008fa0;            /* Transparent Cyan */
-  --accent-blue: #0b3c5d;            /* Clear Deep Lake Blue */
-  --accent-blue-hover: #072c47;      /* Darker Baikal Depth */
-  --accent-ice: rgba(191, 227, 235, 0.35); /* Translucent ice accent */
+  --accent-cyan: var(--color-green-light);            /* Baikal Mint */
+  --accent-blue: var(--color-blue-deep);              /* Baikal Deep Blue */
+  --accent-blue-hover: #0a365c;      /* Darker Baikal Depth */
+  --accent-ice: rgba(78, 168, 222, 0.15); /* Translucent ice accent */
   
   --text-primary: #152230;           /* Deep Lake Black (high contrast, readable, non-pure black) */
   --text-secondary: #4a5a6a;         /* Muted Slate Gray */
@@ -32,8 +37,39 @@
   --header-height: 80px;
   --footer-height: auto;
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  --border-radius-sm: 2px;            /* Sharp, clean, editorial corners */
-  --border-radius-md: 4px;
+  --border-radius-sm: 8px;            /* Rounded corners */
+  --border-radius-md: 16px;           /* Rounded corners */
+  --border-radius-lg: 24px;           /* Rounded corners */
+
+  /* Soft Shadows like the Jobie image */
+  --box-shadow-soft: 0 10px 30px rgba(15, 76, 129, 0.04), 0 1px 3px rgba(15, 76, 129, 0.01);
+  --box-shadow-hover: 0 20px 40px rgba(15, 76, 129, 0.08), 0 2px 8px rgba(15, 76, 129, 0.02);
+}
+
+/* Dark Mode Theme */
+[data-theme="dark"] {
+  --bg-primary: #0b1329;             /* Very Deep Lake Depth */
+  --bg-secondary: #111e38;           /* Midnight Blue-Gray Panel */
+  --bg-tertiary: #1b2a4a;            /* Light Midnight Blue-Gray */
+  --bg-overlay: rgba(11, 19, 41, 0.85);
+
+  --border-light: #1b2a4a;
+  --border-medium: #2e3f61;
+  --border-dark: #4e6185;
+
+  --accent-cyan: var(--color-green-light);            /* Mint Teal Green */
+  --accent-blue: var(--color-blue-light);             /* Light Ice Blue in Dark Mode */
+  --accent-blue-hover: #73c2fb;
+  --accent-ice: rgba(78, 168, 222, 0.2);
+
+  --text-primary: #f8fafc;           /* Crisp White text */
+  --text-secondary: #cbd5e1;         /* Silver Gray */
+  --text-muted: #64748b;             /* Muted Slate Gray */
+  --text-on-dark: #0b1329;           /* Text color when on bright dynamic components */
+
+  /* Shadows for dark mode (subtler & darker) */
+  --box-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+  --box-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 * {
@@ -60,3 +96,33 @@ a {
 button, input, textarea {
   font-family: inherit;
 }
+
+/* Theme Toggle Button Style */
+.theme-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+.theme-toggle-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  font-size: 1rem;
+  box-shadow: var(--box-shadow-soft);
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.05);
+  background: var(--border-medium);
+  box-shadow: var(--box-shadow-hover);
+}
+

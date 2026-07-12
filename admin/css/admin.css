@@ -2,31 +2,43 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
 :root {
-  --admin-bg-body: #0f172a;        /* Deep Slate / Dark mode body */
-  --admin-bg-panel: #1e293b;       /* Panel Dark Slate */
-  --admin-bg-input: #334155;       /* Input background */
-  --admin-border: #334155;
-  --admin-border-light: #475569;
+  /* 바이칼 테마 메인 컬러 4종 */
+  --color-blue-deep: #0f4c81;      /* Deep Baikal Blue (1) */
+  --color-blue-light: #4ea8de;     /* Light Ice/Sky Blue (2) */
+  --color-green-deep: #0d7a66;     /* Deep Emerald Green (3) */
+  --color-green-light: #48c2a5;    /* Mint Teal Green (4) */
+
+  /* 라이트모드 전용으로 변수 변경 */
+  --admin-bg-body: #f4f7fa;        /* Light Ice Blue tinted grey-white */
+  --admin-bg-panel: #ffffff;       /* Pure White for cards and panels */
+  --admin-bg-input: #f1f5f9;       /* Slate 100 for input fields */
+  --admin-border: #e2e8f0;         /* Slate 200 */
+  --admin-border-light: #f1f5f9;   /* Slate 100 */
   
-  --admin-text-primary: #f8fafc;   /* Crisp White */
-  --admin-text-secondary: #cbd5e1; /* Silver Gray */
-  --admin-text-muted: #64748b;     /* Slate Muted */
+  --admin-text-primary: #0f172a;   /* Slate 900 */
+  --admin-text-secondary: #475569; /* Slate 600 */
+  --admin-text-muted: #94a3b8;     /* Slate 400 */
   
-  --admin-accent-cyan: #38bdf8;    /* Neon Ice Cyan */
-  --admin-accent-blue: #0284c7;    /* Icy Blue */
-  --admin-accent-blue-hover: #0369a1;
+  --admin-accent-cyan: var(--color-green-light);    /* Mint Green */
+  --admin-accent-blue: var(--color-blue-deep);      /* Deep Blue */
+  --admin-accent-blue-hover: #0a365c;
   
   /* Status Colors */
-  --status-draft: #94a3b8;         /* Gray */
-  --status-review: #fbbf24;        /* Amber Yellow */
-  --status-approved: #22c55e;      /* Emerald Green */
-  --status-published: #06b6d4;     /* Baikal Cyan */
-  --status-archived: #64748b;      /* Slate */
+  --status-draft: #64748b;         /* Gray */
+  --status-review: #d97706;        /* Darker Yellow/Amber for visibility on light bg */
+  --status-approved: var(--color-green-deep);
+  --status-published: var(--color-blue-light);
+  --status-archived: #94a3b8;      /* Slate */
   --status-rejected: #ef4444;      /* Red */
   
   --font-sans: 'Inter', 'Noto Sans KR', sans-serif;
-  --transition-fast: all 0.2s ease;
-  --border-radius: 4px;
+  --transition-fast: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --border-radius: 16px;           /* Large rounded corners like Jobie image */
+  --border-radius-sm: 8px;
+
+  /* Premium soft shadows for light mode panels */
+  --box-shadow-soft: 0 10px 30px rgba(15, 76, 129, 0.03), 0 1px 3px rgba(15, 76, 129, 0.01);
+  --box-shadow-hover: 0 20px 40px rgba(15, 76, 129, 0.07), 0 2px 8px rgba(15, 76, 129, 0.02);
 }
 
 * {
@@ -48,8 +60,8 @@ body {
 /* Sidebar Navigation */
 .admin-sidebar {
   width: 260px;
-  background-color: #0b1329;
-  border-right: 1px solid var(--admin-border);
+  background-color: #0b1a30; /* Dark Baikal Blue background */
+  border-right: none;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -83,10 +95,10 @@ body {
 
 .sidebar-menu {
   list-style: none;
-  padding: 20px 12px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
 }
 
@@ -94,24 +106,25 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  color: var(--admin-text-secondary);
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.9rem;
   font-weight: 500;
-  border-radius: var(--border-radius);
+  border-radius: 30px; /* Rounded pill style */
   transition: var(--transition-fast);
   cursor: pointer;
 }
 
 .sidebar-item a:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: var(--admin-text-primary);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
 .sidebar-item.active a {
-  background-color: var(--admin-accent-blue);
-  color: var(--admin-text-primary);
+  background: linear-gradient(135deg, var(--color-green-light), var(--color-green-deep));
+  color: #ffffff !important;
   font-weight: 600;
+  box-shadow: 0 4px 15px rgba(13, 122, 102, 0.35);
 }
 
 .sidebar-footer {
@@ -183,12 +196,46 @@ body {
 }
 
 .stat-card {
-  background-color: var(--admin-bg-panel);
-  border: 1px solid var(--admin-border);
+  border: none;
   border-radius: var(--border-radius);
   padding: 24px;
   display: flex;
   flex-direction: column;
+  transition: var(--transition-fast);
+  box-shadow: var(--box-shadow-soft);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-hover);
+}
+
+.stat-card:nth-child(1) {
+  background: linear-gradient(135deg, var(--color-blue-deep), #155e95);
+}
+
+.stat-card:nth-child(2) {
+  background: linear-gradient(135deg, var(--color-blue-light), #6cc3f5);
+}
+
+.stat-card:nth-child(3) {
+  background: linear-gradient(135deg, var(--color-green-deep), #129980);
+}
+
+.stat-card:nth-child(4) {
+  background: linear-gradient(135deg, var(--color-green-light), #72e0c7);
+}
+
+.stat-card:nth-child(n) .stat-title {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.stat-card:nth-child(n) .stat-number {
+  color: #ffffff !important;
+}
+
+.stat-card:nth-child(n) .stat-trend {
+  color: rgba(255, 255, 255, 0.95) !important;
 }
 
 .stat-title {
@@ -216,10 +263,11 @@ body {
 /* General Admin Panel Components */
 .panel {
   background-color: var(--admin-bg-panel);
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--admin-border-light);
   border-radius: var(--border-radius);
   padding: 32px;
   margin-bottom: 32px;
+  box-shadow: var(--box-shadow-soft);
 }
 
 .panel-header {
@@ -241,10 +289,10 @@ body {
 
 /* Buttons */
 .btn-admin {
-  padding: 8px 16px;
+  padding: 10px 20px;
   font-size: 0.82rem;
   font-weight: 600;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   border: none;
   cursor: pointer;
   display: inline-flex;
@@ -255,40 +303,43 @@ body {
 
 .btn-admin-primary {
   background-color: var(--admin-accent-blue);
-  color: var(--admin-text-primary);
+  color: #ffffff;
 }
 
 .btn-admin-primary:hover {
   background-color: var(--admin-accent-blue-hover);
+  transform: translateY(-1px);
 }
 
 .btn-admin-secondary {
   background-color: var(--admin-bg-input);
   color: var(--admin-text-secondary);
-  border: 1px solid var(--admin-border-light);
+  border: 1px solid var(--admin-border);
 }
 
 .btn-admin-secondary:hover {
-  background-color: var(--admin-border-light);
+  background-color: var(--admin-border);
   color: var(--admin-text-primary);
 }
 
 .btn-admin-success {
-  background-color: #10b981;
-  color: var(--admin-text-primary);
+  background-color: var(--color-green-deep);
+  color: #ffffff;
 }
 
 .btn-admin-success:hover {
-  background-color: #059669;
+  background-color: #0a6352;
+  transform: translateY(-1px);
 }
 
 .btn-admin-danger {
   background-color: #ef4444;
-  color: var(--admin-text-primary);
+  color: #ffffff;
 }
 
 .btn-admin-danger:hover {
   background-color: #dc2626;
+  transform: translateY(-1px);
 }
 
 /* Badges */
@@ -321,12 +372,12 @@ body {
 }
 
 .admin-table th {
-  background-color: rgba(0,0,0,0.15);
-  color: var(--admin-text-secondary);
+  background-color: var(--admin-bg-body);
+  color: var(--admin-text-primary);
   font-weight: 600;
   text-align: left;
-  padding: 12px 16px;
-  border-bottom: 1.5px solid var(--admin-border);
+  padding: 14px 16px;
+  border-bottom: 2px solid var(--admin-border);
 }
 
 .admin-table td {
@@ -336,7 +387,7 @@ body {
 }
 
 .admin-table tr:hover td {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--admin-border-light);
   color: var(--admin-text-primary);
 }
 
@@ -421,10 +472,10 @@ textarea.form-control-admin {
 }
 
 .editor-sidebar-widget {
-  background-color: rgba(0,0,0,0.1);
+  background-color: var(--admin-bg-body);
   border: 1px solid var(--admin-border);
   padding: 20px;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   margin-bottom: 24px;
 }
 
@@ -443,10 +494,10 @@ textarea.form-control-admin {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: rgba(0,0,0,0.2);
-  border: 1px solid var(--admin-border);
+  background-color: var(--admin-bg-body);
+  border: 1px solid var(--admin-border-light);
   padding: 16px 24px;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   margin-bottom: 28px;
 }
 
@@ -488,11 +539,12 @@ textarea.form-control-admin {
 }
 
 .ai-output-box {
-  background-color: #0b1329;
+  background-color: var(--admin-bg-panel);
   border: 1px solid var(--admin-border);
   border-radius: var(--border-radius);
   padding: 32px;
   min-height: 500px;
+  color: var(--admin-text-primary);
 }
 
 .ai-generating-loader {
@@ -552,7 +604,8 @@ textarea.form-control-admin {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0,0,0,0.6);
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -598,8 +651,8 @@ textarea.form-control-admin {
 
 .media-card {
   border: 1px solid var(--admin-border);
-  background-color: rgba(0,0,0,0.1);
-  border-radius: var(--border-radius);
+  background-color: var(--admin-bg-body);
+  border-radius: var(--border-radius-sm);
   overflow: hidden;
   position: relative;
   cursor: pointer;

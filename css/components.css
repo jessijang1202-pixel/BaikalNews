@@ -79,9 +79,17 @@
 .card {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-soft);
   transition: var(--transition-smooth);
   overflow: hidden;
+  padding: 16px;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-hover);
 }
 
 .card-image-wrapper {
@@ -90,7 +98,8 @@
   aspect-ratio: 16 / 10;
   background-color: var(--bg-tertiary);
   overflow: hidden;
-  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-sm);
+  border: none;
   margin-bottom: 16px;
 }
 
@@ -144,14 +153,23 @@
   grid-template-columns: 1.2fr 1fr;
   gap: 32px;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 32px;
-  margin-bottom: 32px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--box-shadow-soft);
+  padding: 24px;
+  margin-bottom: 40px;
+  transition: var(--transition-smooth);
+}
+
+.card-hero:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-hover);
 }
 
 .card-hero .card-image-wrapper {
   margin-bottom: 0;
   aspect-ratio: 16 / 9;
+  border-radius: var(--border-radius-md);
 }
 
 .card-hero .card-title {
@@ -171,13 +189,23 @@
   display: grid;
   grid-template-columns: 180px 1fr;
   gap: 20px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-soft);
+  margin-bottom: 20px;
+  transition: var(--transition-smooth);
+}
+
+.card-row:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-hover);
 }
 
 .card-row .card-image-wrapper {
   margin-bottom: 0;
   aspect-ratio: 4 / 3;
+  border-radius: var(--border-radius-sm);
 }
 
 .card-row .card-title {
@@ -193,12 +221,19 @@
 
 /* Card Minimalist - Text Only (for editor picks / popular reads) */
 .card-minimal {
-  padding: 12px 0;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--border-light);
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition-smooth);
 }
 
 .card-minimal:last-child {
   border-bottom: none;
+}
+
+.card-minimal:hover {
+  background-color: var(--bg-primary);
+  transform: translateX(4px);
 }
 
 .card-minimal .card-title {
@@ -270,10 +305,11 @@
 /* Sidebar Widgets */
 .widget {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-light);
+  border: none;
   padding: 24px;
   margin-bottom: 32px;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-soft);
 }
 
 .widget-title {
