@@ -1,23 +1,11 @@
 /* Section Title Header */
 .section-header {
-  border-bottom: 2px solid var(--border-dark);
-  padding-bottom: 8px;
+  border-bottom: none;
+  padding-bottom: 0;
   margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-}
-
-.section-header.header-latest {
-  border-bottom-color: var(--color-blue-deep);
-}
-
-.section-header.header-culture {
-  border-bottom-color: var(--color-green-deep);
-}
-
-.section-header.header-local {
-  border-bottom-color: var(--color-green-light);
 }
 
 .section-title {
@@ -358,8 +346,8 @@
   font-family: var(--font-serif);
   font-size: 1.1rem;
   font-weight: 700;
-  border-bottom: 1.5px solid var(--text-primary);
-  padding-bottom: 8px;
+  border-bottom: none;
+  padding-bottom: 0;
   margin-bottom: 16px;
   color: var(--text-primary);
 }

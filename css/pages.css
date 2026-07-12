@@ -6,8 +6,8 @@
 
 .article-header {
   margin-bottom: 32px;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 24px;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .article-header-meta {
@@ -127,17 +127,11 @@
   margin-top: 40px;
   margin-bottom: 16px;
   position: relative;
-  padding-bottom: 6px;
+  padding-bottom: 0;
 }
 
 .article-body h2::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 40px;
-  height: 2px;
-  background-color: var(--accent-cyan);
+  display: none;
 }
 
 .article-body h3 {
@@ -319,8 +313,8 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 16px;
-  border-bottom: 2px solid var(--border-dark);
-  padding-bottom: 12px;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .policy-meta-info {
