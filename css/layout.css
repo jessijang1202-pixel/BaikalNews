@@ -145,18 +145,71 @@ nav.nav-bar {
   transform: translateX(-50%);
 }
 
-.nav-links li a:hover {
-  color: var(--accent-cyan);
-}
-
+/* Navigation hover & active states with color variety */
 .nav-links li a:hover::after,
 .nav-links li.active a::after {
   width: 100%;
 }
 
 .nav-links li.active a {
-  color: var(--accent-cyan);
   font-weight: 600;
+}
+
+/* Culture (Teal/Emerald Green) */
+.nav-links li#nav-culture a:hover,
+.nav-links li#nav-culture.active a {
+  color: var(--color-green-deep);
+}
+.nav-links li#nav-culture a::after {
+  background-color: var(--color-green-deep);
+}
+
+/* Economy (Deep Blue) */
+.nav-links li#nav-economy a:hover,
+.nav-links li#nav-economy.active a {
+  color: var(--color-blue-deep);
+}
+.nav-links li#nav-economy a::after {
+  background-color: var(--color-blue-deep);
+}
+
+/* Tech (Light Ice Blue) */
+.nav-links li#nav-tech a:hover,
+.nav-links li#nav-tech.active a {
+  color: var(--color-blue-light);
+}
+.nav-links li#nav-tech a::after {
+  background-color: var(--color-blue-light);
+}
+
+/* Local (Mint Green) */
+.nav-links li#nav-local a:hover,
+.nav-links li#nav-local.active a {
+  color: var(--color-green-light);
+}
+.nav-links li#nav-local a::after {
+  background-color: var(--color-green-light);
+}
+
+/* Opinion (Deep Blue) */
+.nav-links li#nav-opinion a:hover,
+.nav-links li#nav-opinion.active a {
+  color: var(--color-blue-deep);
+}
+.nav-links li#nav-opinion a::after {
+  background-color: var(--color-blue-deep);
+}
+
+/* Static Pages (Teal Green) */
+.nav-links li#nav-about a:hover,
+.nav-links li#nav-about.active a,
+.nav-links li#nav-contact a:hover,
+.nav-links li#nav-contact.active a {
+  color: var(--color-green-deep);
+}
+.nav-links li#nav-about a::after,
+.nav-links li#nav-contact a::after {
+  background-color: var(--color-green-deep);
 }
 
 /* Secondary informational utility page styling (About, Contact) */
@@ -196,9 +249,28 @@ nav.nav-bar {
   display: block;
   width: 20px;
   height: 2px;
-  background-color: var(--text-primary);
   margin: 4px 0;
   transition: var(--transition-smooth);
+}
+
+.mobile-nav-toggle span:nth-child(1) {
+  background-color: var(--color-blue-deep);
+}
+.mobile-nav-toggle span:nth-child(2) {
+  background-color: var(--color-green-light);
+}
+.mobile-nav-toggle span:nth-child(3) {
+  background-color: var(--color-green-deep);
+}
+
+[data-theme="dark"] .mobile-nav-toggle span:nth-child(1) {
+  background-color: var(--color-blue-light);
+}
+[data-theme="dark"] .mobile-nav-toggle span:nth-child(2) {
+  background-color: var(--color-green-light);
+}
+[data-theme="dark"] .mobile-nav-toggle span:nth-child(3) {
+  background-color: var(--color-green-light);
 }
 
 .mobile-menu {
@@ -444,8 +516,10 @@ footer {
     top: 100%;
     left: 0;
     width: 100%;
-    border-bottom: 2px solid var(--border-medium);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    background-color: var(--bg-secondary);
+    border-bottom: none;
+    border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+    box-shadow: var(--box-shadow-hover);
     z-index: 99;
   }
   

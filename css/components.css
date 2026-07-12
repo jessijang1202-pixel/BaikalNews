@@ -8,6 +8,18 @@
   align-items: flex-end;
 }
 
+.section-header.header-latest {
+  border-bottom-color: var(--color-blue-deep);
+}
+
+.section-header.header-culture {
+  border-bottom-color: var(--color-green-deep);
+}
+
+.section-header.header-local {
+  border-bottom-color: var(--color-green-light);
+}
+
 .section-title {
   font-family: var(--font-serif);
   font-size: 1.4rem;
@@ -31,12 +43,36 @@
 /* Category Badge Tags */
 .category-badge {
   display: inline-block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--accent-cyan);
-  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  color: #ffffff !important; /* Always white text for contrast on filled backgrounds */
+}
+
+/* Category-specific color mappings */
+.category-badge.badge-culture {
+  background-color: var(--color-green-deep);
+  box-shadow: 0 2px 8px rgba(13, 122, 102, 0.2);
+}
+.category-badge.badge-economy {
+  background-color: var(--color-blue-deep);
+  box-shadow: 0 2px 8px rgba(15, 76, 129, 0.2);
+}
+.category-badge.badge-tech {
+  background-color: var(--color-blue-light);
+  box-shadow: 0 2px 8px rgba(78, 168, 222, 0.25);
+}
+.category-badge.badge-local {
+  background-color: var(--color-green-light);
+  box-shadow: 0 2px 8px rgba(72, 194, 165, 0.25);
+}
+.category-badge.badge-opinion {
+  background-color: var(--color-blue-deep);
+  box-shadow: 0 2px 8px rgba(15, 76, 129, 0.2);
 }
 
 /* Button styles */
@@ -248,13 +284,14 @@
 
 /* Newsletter section block - calm cold lake look */
 .newsletter-block {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--color-blue-deep), var(--color-green-deep));
+  border: none;
   padding: 40px;
   text-align: center;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--border-radius-md);
   max-width: 800px;
   margin: 40px auto 0 auto;
+  box-shadow: 0 10px 30px rgba(15, 76, 129, 0.15);
 }
 
 .newsletter-block h3 {
@@ -262,12 +299,12 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 8px;
-  color: var(--text-primary);
+  color: #ffffff;
 }
 
 .newsletter-block p {
   font-size: 0.9rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.85);
   margin-bottom: 24px;
   max-width: 500px;
   margin-left: auto;
@@ -298,8 +335,13 @@
 
 .newsletter-disclaimer {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.7);
   margin-top: 12px;
+}
+
+.newsletter-disclaimer a {
+  color: #ffffff;
+  text-decoration: underline;
 }
 
 /* Sidebar Widgets */

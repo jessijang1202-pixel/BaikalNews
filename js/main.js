@@ -235,7 +235,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
           <h2 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h2>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
@@ -252,7 +252,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
           <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
@@ -265,7 +265,7 @@ function createArticleCardHTML(article, mode = 'standard') {
   } else if (mode === 'minimal') {
     return `
       <article class="card card-minimal">
-        <span class="category-badge">${article.categoryLabel}</span>
+        <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
         <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
         <div class="card-meta">
           <span class="card-author">${bylineText}</span>
@@ -280,7 +280,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
           <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
