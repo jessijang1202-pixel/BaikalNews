@@ -402,7 +402,7 @@ async function editArticle(id) {
 
 // Preview before publishing
 function previewArticle(id) {
-  window.open(`../article.html?id=${id}&preview=true`, '_blank');
+  window.open(`https://baikalnews.com/article.html?id=${id}&preview=true`, '_blank');
 }
 
 function previewArticleInForm() {
@@ -954,7 +954,7 @@ function renderMediaLibraryGrid() {
     const isSelected = selectedMediaImage === src;
     return `
       <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${src}')">
-        <img src="../${src}" class="media-img" onerror="this.src='../images/news_editorial.png'">
+        <img src="https://baikalnews.com/${src}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div class="media-card-info">${filename}</div>
       </div>
     `;
