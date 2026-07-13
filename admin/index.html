@@ -10,6 +10,9 @@
 </head>
 <body>
 
+  <!-- Sidebar Navigation Overlay for Mobile -->
+  <div class="admin-sidebar-overlay" id="sidebar-overlay"></div>
+
   <!-- Sidebar Navigation -->
   <aside class="admin-sidebar">
     <div class="sidebar-header">
@@ -52,6 +55,11 @@
     
     <!-- Top Header -->
     <header class="admin-header">
+      <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="메뉴 열기">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <div class="header-title-area">
         <h2 id="current-tab-title">뉴스룸 대시보드</h2>
       </div>
@@ -566,9 +574,9 @@
             Google AdSense 심사와 저널리즘 투명성 입증에 핵심이 되는 정적 페이지의 약관과 선언문을 수정합니다. 수정 즉시 독자 사이트 하단에 실시간으로 개정 공시됩니다.
           </p>
 
-          <div style="display: grid; grid-template-columns: 240px 1fr; gap: 32px;">
+          <div class="static-page-container">
             <!-- Left sub tab list -->
-            <div style="border-right: 1px solid var(--admin-border); padding-right: 20px;">
+            <div class="static-page-sidebar">
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <button class="btn-admin btn-admin-secondary page-tab-btn active" onclick="switchPageTab('about', this)" style="width: 100%; text-align: left;">회사 소개</button>
                 <button class="btn-admin btn-admin-secondary page-tab-btn" onclick="switchPageTab('editorial-policy', this)" style="width: 100%; text-align: left;">편집 규약</button>

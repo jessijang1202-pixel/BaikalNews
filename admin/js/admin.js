@@ -70,8 +70,31 @@ function setupEventListeners() {
     item.addEventListener("click", () => {
       const tab = item.getAttribute("data-tab");
       switchTab(tab);
+      
+      // Mobile: Close sidebar automatically after navigation
+      const sidebar = document.querySelector(".admin-sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
+      if (sidebar) sidebar.classList.remove("active");
+      if (overlay) overlay.classList.remove("active");
     });
   });
+
+  // Mobile Sidebar Toggle Event setup
+  const toggleBtn = document.getElementById("sidebar-toggle");
+  const sidebar = document.querySelector(".admin-sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+
+  if (toggleBtn && sidebar && overlay) {
+    toggleBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("active");
+      overlay.classList.toggle("active");
+    });
+
+    overlay.addEventListener("click", () => {
+      sidebar.classList.remove("active");
+      overlay.classList.remove("active");
+    });
+  }
 }
 
 async function switchTab(tabName) {

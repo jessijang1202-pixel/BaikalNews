@@ -682,3 +682,206 @@ textarea.form-control-admin {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Sidebar toggle button (Hamburger) */
+.sidebar-toggle-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 20px;
+  height: 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 101;
+  order: -1; /* Place before title */
+}
+
+.sidebar-toggle-btn span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--admin-text-primary);
+  border-radius: 2px;
+  transition: var(--transition-fast);
+}
+
+/* Sidebar navigation overlay for mobile */
+.admin-sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(11, 26, 48, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+}
+
+.admin-sidebar-overlay.active {
+  display: block;
+}
+
+/* Static page custom layout styles (originally inline styles) */
+.static-page-container {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+}
+
+.static-page-sidebar {
+  border-right: 1px solid var(--admin-border);
+  padding-right: 20px;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: flex;
+  }
+  
+  /* Sidebar responsive transition */
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -260px;
+    z-index: 100;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(11, 26, 48, 0.15);
+  }
+  
+  .admin-sidebar.active {
+    left: 0;
+  }
+  
+  /* Main area adjusts to full width */
+  .admin-main {
+    margin-left: 0;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  /* Header adjustments */
+  .admin-header {
+    padding: 0 20px;
+    gap: 12px;
+    justify-content: flex-start;
+  }
+  
+  .header-title-area {
+    flex: 1;
+  }
+  
+  .header-title-area h2 {
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  
+  .user-profile-badge {
+    gap: 6px;
+    font-size: 0.75rem;
+  }
+  
+  .profile-name {
+    display: none; /* Hide visitor name to save space on mobile */
+  }
+
+  /* Content inner paddings */
+  .admin-content {
+    padding: 24px 16px;
+  }
+
+  /* Grid structure collapses */
+  .admin-grid-4 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .grid-main-sidebar {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .editor-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .ai-action-panel {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .ai-controls {
+    border-right: none;
+    border-bottom: 1px solid var(--admin-border);
+    padding-right: 0;
+    padding-bottom: 24px;
+  }
+  
+  .static-page-container {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .static-page-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--admin-border);
+    padding-right: 0;
+    padding-bottom: 16px;
+  }
+
+  /* Workflow bar to vertical timeline */
+  .workflow-visual {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+  }
+  
+  .workflow-step {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .workflow-connector {
+    width: 2px;
+    height: 16px;
+    margin: 0 0 0 28px;
+    flex: none;
+  }
+  
+  /* Tables wrapper scroll enhancement */
+  .admin-table-wrapper {
+    margin: 0 -16px;
+    padding: 0 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .admin-table {
+    min-width: 600px; /* Force minimum table width for smooth scroll */
+  }
+
+  /* Modal contents adjustment */
+  .modal-admin-content {
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .media-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
