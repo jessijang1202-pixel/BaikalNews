@@ -350,6 +350,24 @@
             <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
           </div>
 
+          <!-- API Key Config Panel -->
+          <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin: 0 24px 20px 24px;">
+            <h4 style="margin-top: 0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleApiConfig()">
+              <span>🔑 Gemini API 설정 (기사 학습 및 생성용)</span>
+              <span id="api-config-toggle-icon">▼</span>
+            </h4>
+            <div id="api-config-content" style="display: none; margin-top: 12px;">
+              <div class="form-group-admin" style="margin-bottom: 12px;">
+                <label for="ai-gemini-key">Gemini API Key</label>
+                <input type="password" id="ai-gemini-key" class="form-control-admin" placeholder="API Key를 입력하여 학습 및 작성 기능을 활성화하세요.">
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button type="button" class="btn-admin btn-admin-primary" onclick="saveGeminiApiKey()">API Key 저장</button>
+                <span id="api-key-status" style="font-size: 0.8rem; color: var(--admin-text-secondary);">설정 확인 중...</span>
+              </div>
+            </div>
+          </div>
+
           <div class="ai-action-panel">
             
             <!-- Left Controls -->
@@ -365,7 +383,7 @@
                   </label>
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="radio" name="ai-mode" value="link" onclick="switchAiMode('link')">
-                    <span>외부 기사/링크 재구성</span>
+                    <span>외부 기사/링크 재구성 (논조 학습)</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="radio" name="ai-mode" value="angles" onclick="switchAiMode('angles')">
@@ -383,6 +401,13 @@
                   <input type="text" id="ai-topic-input" class="form-control-admin" placeholder="예: 탄소 저감 순환 비즈니스 모델의 가치 분석">
                 </div>
                 <div class="form-group-admin">
+                  <label for="ai-style-select">적용할 논조 스타일 (학습 데이터 기반)</label>
+                  <select id="ai-style-select" class="form-control-admin" onchange="onStyleSelectChange(this.value)">
+                    <option value="">-- 기본 스타일 (중립) --</option>
+                  </select>
+                  <div class="help-text" id="ai-style-status-help">로딩 중...</div>
+                </div>
+                <div class="form-group-admin">
                   <label for="ai-topic-category">대상 카테고리</label>
                   <select id="ai-topic-category" class="form-control-admin">
                     <option value="culture">문화 / 예술</option>
@@ -396,9 +421,18 @@
               <!-- INPUT CONTAINER 2: LINK -->
               <div id="ai-input-link" class="ai-input-group" style="display: none;">
                 <div class="form-group-admin">
-                  <label for="ai-link-url">원천 자료 출처 링크</label>
+                  <label for="ai-link-style-name">학습 대상 매체/스타일 명칭</label>
+                  <input type="text" id="ai-link-style-name" class="form-control-admin" placeholder="예: 오마이뉴스, 시민언론 민들레">
+                  <div class="help-text">기존 매체명을 쓰면 해당 스타일에 분석 결과가 누적 학습됩니다.</div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-link-url">원천 자료 출처 링크 (URL)</label>
                   <input type="url" id="ai-link-url" class="form-control-admin" placeholder="https://news.example.com/article/123">
-                  <div class="help-text">여러 개의 기사 링크를 붙여넣어 비교 분석도 가능합니다.</div>
+                  <div class="help-text">글 분석을 위해 파싱을 자동 시도합니다.</div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-link-raw-text">기사 본문 직접 입력 (CORS 대체용)</label>
+                  <textarea id="ai-link-raw-text" class="form-control-admin" style="min-height: 100px; font-size: 0.8rem;" placeholder="CORS 제한 등으로 자동 파싱이 안 되는 경우 기사 본문을 여기에 복사해 붙여넣으십시오."></textarea>
                 </div>
                 <div class="form-group-admin">
                   <label for="ai-link-category">발행 타겟 카테고리</label>
@@ -737,7 +771,35 @@ CREATE POLICY "Allow public read" ON public.static_pages FOR SELECT USING (true)
 CREATE POLICY "Allow admin all" ON public.static_pages FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public read" ON public.audit_logs FOR SELECT USING (true);
-CREATE POLICY "Allow admin all" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);</textarea>
+CREATE POLICY "Allow admin all" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
+
+-- 7. writing_styles 및 writing_samples 테이블 생성 (학습 시스템용)
+CREATE TABLE IF NOT EXISTS public.writing_styles (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    style_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.writing_samples (
+    id UUID PRIMARY KEY,
+    style_id UUID REFERENCES public.writing_styles(id) ON DELETE CASCADE,
+    url TEXT,
+    title TEXT,
+    content TEXT,
+    analysis TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.writing_styles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.writing_samples ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read" ON public.writing_styles FOR SELECT USING (true);
+CREATE POLICY "Allow admin all" ON public.writing_styles FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow public read" ON public.writing_samples FOR SELECT USING (true);
+CREATE POLICY "Allow admin all" ON public.writing_samples FOR ALL USING (true) WITH CHECK (true);</textarea>
         </div>
       </section>
 

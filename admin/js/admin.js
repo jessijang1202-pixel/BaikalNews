@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initAdminDashboard();
   setupEventListeners();
+  loadGeminiApiKey();
 });
 
 // Global state variables
@@ -138,6 +139,9 @@ async function switchTab(tabName) {
     await renderPendingList();
   } else if (tabName === 'articles') {
     await renderArticlesList();
+  } else if (tabName === 'ai-writer') {
+    loadGeminiApiKey();
+    await loadWritingStyles();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
   } else if (tabName === 'audit') {
@@ -673,40 +677,167 @@ function onMajorTopicChange(topicVal) {
 }
 
 // Generate the draft
-function generateAiDraft() {
+async function generateAiDraft() {
   document.getElementById("ai-empty-state").style.display = "none";
   document.getElementById("ai-draft-viewer").style.display = "none";
   document.getElementById("ai-loader").style.display = "flex";
+  
+  const loaderTitle = document.querySelector("#ai-loader h4");
+  if (loaderTitle) loaderTitle.textContent = "AI 뉴스 초안 및 논조 분석 작업 중...";
 
-  setTimeout(() => {
-    document.getElementById("ai-loader").style.display = "none";
-    document.getElementById("ai-draft-viewer").style.display = "block";
-
+  try {
     let headline = "";
     let lead = "";
     let body = "";
     let category = "culture";
     
     if (activeAiMode === 'topic') {
-      const kw = document.getElementById("ai-topic-input").value || "지속 가능한 자원 순환과 환경 경제의 가치";
+      const topic = document.getElementById("ai-topic-input").value.trim();
       category = document.getElementById("ai-topic-category").value;
+      const selectedStyleId = document.getElementById("ai-style-select").value;
       
-      headline = `[심층 분석] ${kw}의 현주소와 지속 가능한 대안`;
-      lead = `기후 변화 대응과 글로벌 대기 환경 감시 정책의 생태 환경적 조화와 에코 성장의 밸런스에 관한 정밀 분석 리포트입니다.`;
-      body = `<h2>자연의 지혜와 차가운 숲의 생명력</h2>
-<p>글로벌 녹색지대는 지구 산소 공급의 기둥이자 수많은 희귀 토종 동식물의 마지막 보금자리입니다. 최근 기온 상승 압박에 따른 해빙과 동결 변화는 지구 생태 균형을 재조정하고 있습니다.</p>
-<h2>지성적이고 투명한 친환경 보전 로드맵</h2>
-<p>바이칼 뉴스가 만난 연구진들에 따르면, 벌목 위주의 선형적 목재 비즈니스를 전면 백지화하고 탄소배출권을 거래하는 분산 생태 밸류 체인 도입이 탄소 저감에 절대적으로 유리하다는 실증 조사가 속속 발표되고 있습니다. 속도의 조절이야말로 깊이 있는 치유의 첫걸음입니다.</p>`;
+      if (!topic) {
+        throw new Error("기사 주제 키워드를 입력해 주세요.");
+      }
+      
+      let stylePrompt = "정직하고 깊이 있는 저널리즘 스타일로 작성해 주세요.";
+      let fewShotPrompt = "";
+      
+      if (selectedStyleId) {
+        const styles = await window.SupabaseAdapter.fetchWritingStyles();
+        const style = styles.find(s => s.id === selectedStyleId);
+        if (style) {
+          stylePrompt = `
+당신은 다음 스타일 가이드라인을 엄격하게 지켜 기사를 작성해야 합니다:
+- 매체/논조 스타일: ${style.name}
+- 주요 톤앤매너 설명: ${style.description}
+- 반드시 준수해야 할 스타일 규칙:
+${(style.styleRules || []).map(r => `  * ${r}`).join('\n')}
+`;
+          
+          // Get few-shot samples
+          const samples = await window.SupabaseAdapter.fetchWritingSamples(selectedStyleId);
+          if (samples && samples.length > 0) {
+            // Take up to 2 latest samples
+            const latestSamples = samples.slice(0, 2);
+            fewShotPrompt = `
+아래는 당신이 모방해야 할 이 매체의 실제 기사 예시(Few-shot)입니다. 톤앤매너, 문체, 문장 구성, 헤드라인 느낌을 완벽하게 따라 하십시오.
+
+${latestSamples.map((s, idx) => `
+[기사 예시 ${idx + 1}]
+- 제목: ${s.title}
+- 본문 요약:
+${s.content.substring(0, 800)}
+---
+`).join('\n')}
+`;
+          }
+        }
+      }
+      
+      const generationPrompt = `
+제공된 주제와 지침을 바탕으로 신뢰감 있고 완성도 높은 뉴스 기사를 작성하십시오.
+
+[작성할 기사 주제]
+${topic}
+
+[카테고리]
+${category}
+
+${fewShotPrompt}
+
+[작성 지침]
+반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
+1. "title": 이 매체의 스타일을 완벽하게 따른 기사 제목 (오마이뉴스라면 따옴표를 활용한 서사체, 민들레라면 선명하고 날카로운 은유 등 스타일 반영)
+2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단 (바이칼 뉴스 본문 구조에 적합한 형태)
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조 및 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 1500자 내외로 상세하게 작성)
+`;
+      
+      const resultText = await callGeminiApi(generationPrompt, stylePrompt);
+      let draftJson;
+      try {
+        const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+        draftJson = JSON.parse(cleanedText);
+      } catch (err) {
+        console.error("Gemini output parsing failed. Raw text:", resultText);
+        throw new Error("기사 초안 생성 결과 파싱에 실패했습니다: " + err.message);
+      }
+      
+      headline = draftJson.title;
+      lead = draftJson.lead;
+      body = draftJson.body;
+      
     } else if (activeAiMode === 'link') {
-      const url = document.getElementById("ai-link-url").value || "https://news.example.com/local-environment-123";
+      const styleName = document.getElementById("ai-link-style-name").value.trim();
+      const url = document.getElementById("ai-link-url").value.trim();
+      const rawText = document.getElementById("ai-link-raw-text").value.trim();
       category = document.getElementById("ai-link-category").value;
       
-      headline = `[재구성] 외부 통계 보고서로 본 로컬 생태 다각화 과제`;
-      lead = `원천 출처(${url})의 팩트를 기반으로, 바이칼 뉴스의 담백하고 깊이 있는 편집 어조에 맞추어 사실 관계를 독창적으로 재작성한 해설 기사입니다.`;
-      body = `<h2>출처 기반 사실 구조의 객관적 분석</h2>
-<p>통계 연구에 따르면 연안 항만 지역의 물류 운임 적재율 향상과 친환경 저탄소 연료 전지 도입이 기존 물류망 대비 유해물질 유출율을 약 12% 이상 저감해 준다는 결론이 도출되었습니다.</p>
-<h2>바이칼 뉴스가 전하는 시사점</h2>
-<p>우리는 이 데이터를 통해 산업 성장 위주의 항만 물류가 어떻게 생태와 타협하지 않고 건강하게 결합할 수 있는지 그 가능성을 확인했습니다. 투명한 감시 구조와 시민 사회 공동 지성의 성원이 전제될 때 비로소 맑은 하늘을 온전히 가꿀 수 있습니다.</p>`;
+      if (!styleName) {
+        throw new Error("학습할 대상 매체/스타일 명칭을 입력해 주세요. (예: 오마이뉴스)");
+      }
+      if (!url && !rawText) {
+        throw new Error("출처 링크(URL) 또는 기사 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
+      }
+      
+      let articleText = rawText;
+      if (!articleText && url) {
+        if (loaderTitle) loaderTitle.textContent = "외부 링크에서 본문을 크롤링하고 있습니다 (CORS Proxy 활용)...";
+        try {
+          articleText = await scrapeExternalLink(url);
+        } catch (err) {
+          throw new Error("CORS Proxy를 통한 외부 기사 크롤링에 실패했습니다. 본문 텍스트를 하단에 직접 복사해서 입력해 주세요.");
+        }
+      }
+      
+      if (!articleText || articleText.length < 50) {
+        throw new Error("가져온 기사 본문이 너무 짧거나 비어 있습니다. 기사 본문을 직접 붙여넣어 주세요.");
+      }
+      
+      // Step 1: Learn the style
+      if (loaderTitle) loaderTitle.textContent = `'${styleName}' 스타일을 분석하고 학습 가이드를 도출 중...`;
+      const learningResult = await learnWritingStyle(styleName, url, articleText);
+      
+      // Load newly updated styles to select list
+      await loadWritingStyles();
+      
+      // Step 2: Generate alternative article with similar tone but slightly different content/focus
+      if (loaderTitle) loaderTitle.textContent = `학습 완료! '${styleName}' 스타일로 유사한 새 기사를 집필하는 중...`;
+      
+      const stylePrompt = `
+당신은 다음 스타일 가이드라인을 엄격하게 지켜 기사를 작성해야 합니다:
+- 매체/논조 스타일: ${styleName}
+- 주요 톤앤매너 설명: ${learningResult.description}
+- 반드시 준수해야 할 스타일 규칙:
+${(learningResult.rules || []).map(r => `  * ${r}`).join('\n')}
+`;
+
+      const rephrasePrompt = `
+원천 기사 주제: "${learningResult.title}"
+
+위 원천 기사의 핵심 사실관계나 주제와 유사하지만, 다른 각도(또는 다른 인물, 다른 지역, 다른 관점)에서 서술하는 새로운 독창적 기사를 작성하십시오. 절대 원본을 그대로 베껴서는 안 되며, 논조와 어조만 완벽히 모방하십시오.
+
+[작성 지침]
+반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
+1. "title": 원천 기사의 톤앤매너를 본뜬 새로운 독창적 기사 제목
+2. "lead": 독자의 관심을 이끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락들로 구성된 뉴스 본문 HTML 코드 (오마이뉴스라면 경어체/독백체, 민들레라면 선명한 단어 사용 등 스타일 반영)
+`;
+
+      const resultText = await callGeminiApi(rephrasePrompt, stylePrompt);
+      let rephrasedJson;
+      try {
+        const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+        rephrasedJson = JSON.parse(cleanedText);
+      } catch (err) {
+        console.error("Gemini output parsing failed:", resultText);
+        throw new Error("대안 기사 초안 생성 결과 파싱에 실패했습니다: " + err.message);
+      }
+      
+      headline = rephrasedJson.title;
+      lead = rephrasedJson.lead;
+      body = rephrasedJson.body;
+      
     } else if (activeAiMode === 'angles') {
       const major = document.getElementById("ai-major-topic-select").value;
       const angle = document.querySelector('input[name="ai-angle"]:checked').value;
@@ -741,8 +872,16 @@ function generateAiDraft() {
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
     document.getElementById("ai-out-seo-meta").textContent = generatedDraftData.seoMeta;
     document.getElementById("ai-out-slug").textContent = generatedDraftData.slug;
+    
+    document.getElementById("ai-loader").style.display = "none";
+    document.getElementById("ai-draft-viewer").style.display = "block";
 
-  }, 1500);
+  } catch (err) {
+    console.error("AI Generation Error:", err);
+    document.getElementById("ai-loader").style.display = "none";
+    document.getElementById("ai-empty-state").style.display = "block";
+    alert("AI 초안 생성 실패: " + err.message);
+  }
 }
 
 // Transfer AI draft to form editor
@@ -1097,4 +1236,263 @@ async function disconnectSupabase() {
     alert("원격 연동이 해제되었습니다. 로컬 기기 저장소 모드로 복귀했습니다.");
     await logAudit("데이터베이스 접속 해제", null, "Supabase 원격 모드를 비활성화하고 로컬로 복귀함.");
   }
+}
+
+// ==========================================================
+// Gemini API Settings & AI Writing Styles Learning / Generation Logic
+// ==========================================================
+
+function toggleApiConfig() {
+  const content = document.getElementById("api-config-content");
+  const icon = document.getElementById("api-config-toggle-icon");
+  if (content.style.display === "none" || !content.style.display) {
+    content.style.display = "block";
+    icon.textContent = "▲";
+  } else {
+    content.style.display = "none";
+    icon.textContent = "▼";
+  }
+}
+
+function saveGeminiApiKey() {
+  const keyInput = document.getElementById("ai-gemini-key").value.trim();
+  if (keyInput) {
+    localStorage.setItem("baikal_gemini_key", keyInput);
+    document.getElementById("api-key-status").textContent = "API Key가 안전하게 저장되었습니다.";
+    document.getElementById("api-key-status").style.color = "#10b981"; // green
+  } else {
+    localStorage.removeItem("baikal_gemini_key");
+    document.getElementById("api-key-status").textContent = "API Key가 제거되었습니다.";
+    document.getElementById("api-key-status").style.color = "#ef4444"; // red
+  }
+}
+
+function loadGeminiApiKey() {
+  const savedKey = localStorage.getItem("baikal_gemini_key");
+  const keyInput = document.getElementById("ai-gemini-key");
+  const statusSpan = document.getElementById("api-key-status");
+  if (savedKey && keyInput && statusSpan) {
+    keyInput.value = savedKey;
+    statusSpan.textContent = "API Key 연동 중";
+    statusSpan.style.color = "#10b981"; // green
+  } else if (keyInput && statusSpan) {
+    keyInput.value = "";
+    statusSpan.textContent = "API Key가 설정되지 않았습니다. AI 기능을 사용하려면 등록하십시오.";
+    statusSpan.style.color = "#fbbf24"; // yellow
+  }
+}
+
+let loadedWritingStyles = [];
+
+async function loadWritingStyles() {
+  const select = document.getElementById("ai-style-select");
+  const help = document.getElementById("ai-style-status-help");
+  
+  if (!select) return;
+  
+  try {
+    loadedWritingStyles = await window.SupabaseAdapter.fetchWritingStyles();
+    
+    // Clear select, keep only first option
+    select.innerHTML = '<option value="">-- 기본 스타일 (중립) --</option>';
+    
+    if (loadedWritingStyles && loadedWritingStyles.length > 0) {
+      loadedWritingStyles.forEach(style => {
+        const option = document.createElement("option");
+        option.value = style.id;
+        option.textContent = `${style.name} (${style.styleRules ? style.styleRules.length : 0}개 규칙)`;
+        select.appendChild(option);
+      });
+      help.textContent = `현재 ${loadedWritingStyles.length}개의 학습된 스타일이 등록되어 있습니다.`;
+      help.style.color = "var(--admin-text-secondary)";
+    } else {
+      help.textContent = "아직 등록된 학습 스타일이 없습니다. '외부 기사/링크 재구성' 탭에서 학습을 먼저 진행해 주세요.";
+      help.style.color = "#fbbf24";
+    }
+  } catch (err) {
+    console.error("Failed to load writing styles:", err);
+    help.textContent = "스타일을 불러오는 중 오류가 발생했습니다.";
+    help.style.color = "#ef4444";
+  }
+}
+
+function onStyleSelectChange(styleId) {
+  // Can expand logic if needed
+}
+
+// CORS Proxy Scraper helper
+async function scrapeExternalLink(url) {
+  if (!url) return "";
+  try {
+    // Use Allorigins proxy to fetch raw HTML (cors bypass)
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error("HTTP error " + response.status);
+    const html = await response.text();
+    
+    // Parse HTML to extract text content
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    
+    // Extract main text: clean tags like script, style, nav, footer
+    const removes = doc.querySelectorAll("script, style, nav, footer, header, iframe, noscript");
+    removes.forEach(el => el.remove());
+    
+    // Target main article elements if possible (general news sites)
+    let bodyText = "";
+    const articleSelectors = [
+      "article", ".article", "#articleBody", "#article_body", 
+      ".article_body", ".news_body", "#news_body_area", ".story-content",
+      ".view_txt", ".article-body", "[itemprop='articleBody']", "main"
+    ];
+    
+    let mainEl = null;
+    for (const selector of articleSelectors) {
+      mainEl = doc.querySelector(selector);
+      if (mainEl) break;
+    }
+    
+    if (mainEl) {
+      bodyText = mainEl.innerText || mainEl.textContent || "";
+    } else {
+      bodyText = doc.body.innerText || doc.body.textContent || "";
+    }
+    
+    // Simple text cleanup: excessive whitespaces
+    return bodyText.replace(/\s+/g, ' ').trim();
+  } catch (err) {
+    console.error("CORS Scraper error for URL: " + url, err);
+    throw err;
+  }
+}
+
+// Gemini API Caller
+async function callGeminiApi(prompt, systemInstruction = "") {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
+  }
+  
+  // Using gemini-2.5-flash which has system instruction support
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: prompt }
+        ]
+      }
+    ]
+  };
+  
+  if (systemInstruction) {
+    requestBody.systemInstruction = {
+      parts: [
+        { text: systemInstruction }
+      ]
+    };
+  }
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}): ${errText}`);
+  }
+  
+  const data = await response.json();
+  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+    return data.candidates[0].content.parts[0].text;
+  } else {
+    throw new Error("Gemini API가 올바른 응답 양식을 반환하지 않았습니다.");
+  }
+}
+
+// Learning style loop
+async function learnWritingStyle(styleName, sourceUrl, textContent) {
+  if (!styleName || !textContent) {
+    throw new Error("스타일 이름과 분석할 본문 텍스트가 모두 필요합니다.");
+  }
+  
+  // Step 1: Query existing styles to check if styleName already exists
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  let existingStyle = styles.find(s => s.name.trim() === styleName.trim());
+  
+  // Step 2: Use Gemini to analyze the writing style
+  const analysisPrompt = `
+당신은 베테랑 언론사 데스크이자 문체 분석가입니다. 아래 제공되는 기사 본문 텍스트를 정밀 분석하여, 작성 기자가 사용하는 독특한 문체적 특징(스타일 가이드라인)을 도출하십시오.
+
+[기사 본문]
+${textContent}
+
+[분석 지침]
+다음 4가지 요소를 세밀하게 도출하여 JSON 형식으로만 답변해주십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 유효한 JSON 오브젝트만 반환해야 합니다.
+
+1. "description": 이 글의 전체적인 논조와 어조에 대한 2~3문장 요약. (예: 진보 성향의 매체로, 권력 비판적이며 지적이고 선명한 어조를 가집니다.)
+2. "rules": 기사 작성 시 지켜야 할 구체적인 문체/어조/서사 특징 규칙들의 리스트 (최소 5개 이상). 각 규칙은 짧고 가독성 높게 작성하십시오. (예: ["따옴표를 활용한 대화체 제목 선호", "일상의 현장 스케치로 서사 시작", "단정적이면서 감정적인 수식어 절제", "대안적이고 시민 연대를 호소하는 결론"])
+3. "title": 이 기사의 원래 제목 (도출하거나 분석해서 작성)
+4. "summary": 이 기사의 간략한 팩트/내용 요약
+`;
+
+  const analysisResultText = await callGeminiApi(analysisPrompt, "You are a professional writing style analyzer. Answer strictly in JSON format matching the specifications.");
+  
+  let analysisJson;
+  try {
+    const cleanedText = analysisResultText.replace(/```json/g, '').replace(/```/g, '').trim();
+    analysisJson = JSON.parse(cleanedText);
+  } catch (err) {
+    console.error("Gemini JSON parse failed. Raw response:", analysisResultText);
+    throw new Error("스타일 분석 결과 파싱에 실패했습니다: " + err.message);
+  }
+  
+  let styleId;
+  if (existingStyle) {
+    styleId = existingStyle.id;
+    
+    // Merge rules (avoid duplicates)
+    const currentRules = existingStyle.styleRules || [];
+    const newRules = analysisJson.rules || [];
+    const mergedRules = Array.from(new Set([...currentRules, ...newRules]));
+    
+    existingStyle.description = analysisJson.description || existingStyle.description;
+    existingStyle.styleRules = mergedRules;
+    
+    await window.SupabaseAdapter.saveWritingStyle(existingStyle);
+  } else {
+    styleId = crypto.randomUUID ? crypto.randomUUID() : 'style-' + Date.now();
+    const newStyle = {
+      id: styleId,
+      name: styleName,
+      description: analysisJson.description || `${styleName} 기사 스타일`,
+      styleRules: analysisJson.rules || []
+    };
+    await window.SupabaseAdapter.saveWritingStyle(newStyle);
+  }
+  
+  // Step 3: Save writing sample as few-shot data
+  const sampleId = crypto.randomUUID ? crypto.randomUUID() : 'sample-' + Date.now();
+  const newSample = {
+    id: sampleId,
+    styleId: styleId,
+    url: sourceUrl || "",
+    title: analysisJson.title || "분석된 기사",
+    content: textContent.substring(0, 1500),
+    analysis: JSON.stringify(analysisJson.rules || []),
+    createdAt: new Date().toISOString()
+  };
+  await window.SupabaseAdapter.saveWritingSample(newSample);
+  
+  return {
+    styleId: styleId,
+    description: analysisJson.description,
+    rules: analysisJson.rules,
+    title: analysisJson.title
+  };
 }

@@ -885,3 +885,23 @@ textarea.form-control-admin {
     gap: 10px;
   }
 }
+
+/* AI API Config Panel & Help UI styling */
+.ai-api-config-panel {
+  box-shadow: var(--box-shadow-soft);
+  transition: var(--transition-fast);
+}
+
+.ai-api-config-panel:hover {
+  border-color: var(--color-blue-light) !important;
+}
+
+.ai-api-config-panel h4:hover {
+  color: var(--color-blue-deep);
+}
+
+#ai-style-status-help {
+  font-size: 0.8rem;
+  margin-top: 6px;
+  font-weight: 500;
+}

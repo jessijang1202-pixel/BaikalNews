@@ -391,6 +391,131 @@
           }
         }
       }
+    },
+
+    // ==========================================
+    // AI Writing Styles & Samples Adapter
+    // ==========================================
+    fetchWritingStyles: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('writing_styles')
+              .select('*')
+              .order('name', { ascending: true });
+            if (error) throw error;
+            
+            // Map snake_case from DB to camelCase for JS if needed
+            return (data || []).map(row => ({
+              id: row.id,
+              name: row.name,
+              description: row.description,
+              styleRules: row.style_rules,
+              updatedAt: row.updated_at
+            }));
+          } catch (err) {
+            console.error("Supabase fetchWritingStyles error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      return JSON.parse(localStorage.getItem("baikal_writing_styles") || "[]");
+    },
+
+    saveWritingStyle: async function(style) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const dbRow = {
+              id: style.id,
+              name: style.name,
+              description: style.description,
+              style_rules: style.styleRules,
+              updated_at: new Date().toISOString()
+            };
+            const { error } = await client
+              .from('writing_styles')
+              .upsert(dbRow, { onConflict: 'id' });
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase saveWritingStyle error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const styles = JSON.parse(localStorage.getItem("baikal_writing_styles") || "[]");
+      const idx = styles.findIndex(s => s.id === style.id);
+      style.updatedAt = new Date().toISOString();
+      if (idx !== -1) {
+        styles[idx] = style;
+      } else {
+        styles.push(style);
+      }
+      localStorage.setItem("baikal_writing_styles", JSON.stringify(styles));
+      return true;
+    },
+
+    fetchWritingSamples: async function(styleId) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('writing_samples')
+              .select('*')
+              .eq('style_id', styleId)
+              .order('created_at', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              styleId: row.style_id,
+              url: row.url,
+              title: row.title,
+              content: row.content,
+              analysis: row.analysis,
+              createdAt: row.created_at
+            }));
+          } catch (err) {
+            console.error("Supabase fetchWritingSamples error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const samples = JSON.parse(localStorage.getItem("baikal_writing_samples") || "[]");
+      return samples.filter(s => s.styleId === styleId || s.style_id === styleId);
+    },
+
+    saveWritingSample: async function(sample) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const dbRow = {
+              id: sample.id,
+              style_id: sample.styleId || sample.style_id,
+              url: sample.url,
+              title: sample.title,
+              content: sample.content,
+              analysis: sample.analysis,
+              created_at: sample.createdAt || new Date().toISOString()
+            };
+            const { error } = await client
+              .from('writing_samples')
+              .insert(dbRow);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase saveWritingSample error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const samples = JSON.parse(localStorage.getItem("baikal_writing_samples") || "[]");
+      sample.styleId = sample.styleId || sample.style_id;
+      sample.createdAt = sample.createdAt || new Date().toISOString();
+      samples.unshift(sample);
+      localStorage.setItem("baikal_writing_samples", JSON.stringify(samples));
+      return true;
     }
   };
 
