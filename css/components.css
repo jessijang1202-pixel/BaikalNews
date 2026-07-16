@@ -575,6 +575,23 @@
 }
 
 /* ============================================================
+   Ranking widget (article.html sidebar) - matches the "관련 기사"
+   section-header treatment (accent bar beside the title) so it lines
+   up visually with the article's category kicker at the same height.
+   ============================================================ */
+.ranking-widget {
+  margin-bottom: 44px;
+}
+
+.ranking-widget .section-header {
+  margin-bottom: 18px;
+}
+
+.ranking-widget .section-title {
+  font-size: 1.1rem;
+}
+
+/* ============================================================
    Sidebar Widgets (article.html) - ruled modules, no boxes
    ============================================================ */
 .widget {

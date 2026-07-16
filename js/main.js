@@ -1,5 +1,17 @@
 // Baikal News - Main Shared Scripts
 
+// Canonical category display labels - the single source of truth for how
+// category names are shown across the site. Rendering always prefers this
+// map over a stored article.categoryLabel so already-saved articles display
+// consistently even if they were created before this naming was unified.
+const CATEGORY_LABELS = {
+  culture: "문화·예술",
+  economy: "경제·산업",
+  tech: "기술·미디어",
+  local: "지역·평택",
+  opinion: "오피니언"
+};
+
 // 0. Database initialization via localStorage (Self-Executing)
 (function initDatabase() {
   // Database version control to force reset old Baikal/Siberia geography articles
@@ -13,19 +25,11 @@
 
   // Check if articles exist in localStorage
   if (!localStorage.getItem("baikal_articles")) {
-    const catLabels = {
-      culture: "문화 / 예술",
-      economy: "경제 / 산업",
-      tech: "기술 / 미디어",
-      local: "지역 / 평택",
-      opinion: "오피니언"
-    };
-
     // If not, seed database from default ARTICLES array (defined in articles.js)
     // Map initial articles to status = 'published' and set default approvers for AdSense compliance
     const initialArticles = (window.ARTICLES || []).map(art => ({
       ...art,
-      categoryLabel: catLabels[art.category] || art.categoryLabel,
+      categoryLabel: CATEGORY_LABELS[art.category] || art.categoryLabel,
       status: 'published',
       approver: art.id % 2 === 0 ? '장승희' : '최상락',
       byline: art.id % 2 === 0 ? '장승희 기자' : '최상락 기자',
@@ -235,7 +239,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
           <h2 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h2>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
@@ -252,7 +256,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
           <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
@@ -265,7 +269,7 @@ function createArticleCardHTML(article, mode = 'standard') {
   } else if (mode === 'minimal') {
     return `
       <article class="card card-minimal">
-        <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
+        <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
         <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
         <div class="card-meta">
           <span class="card-author">${bylineText}</span>
@@ -280,7 +284,7 @@ function createArticleCardHTML(article, mode = 'standard') {
           <img src="${imageUrl}" alt="${article.title}" class="card-image">
         </a>
         <div class="card-content">
-          <span class="category-badge badge-${article.category}">${article.categoryLabel}</span>
+          <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
           <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
           <p class="card-excerpt">${article.lead}</p>
           <div class="card-meta">
@@ -406,14 +410,8 @@ function renderCategoryPage() {
     return;
   }
 
-  const catLabels = {
-    culture: "문화 / 예술",
-    economy: "경제 / 산업",
-    tech: "기술 / 미디어",
-    local: "지역 / 평택",
-    opinion: "오피니언"
-  };
-  
+  const catLabels = CATEGORY_LABELS;
+
   const catDescs = {
     culture: "얼어붙은 표면 아래 살아 숨 쉬는 온기처럼, 일상 속 예술이 지닌 치유의 힘과 문화의 결을 깊이 있게 기록합니다.",
     local: "바이칼처럼 마르지 않는 공동체의 연대와 상생을 지역 곳곳의 현장에서 길어 올립니다.",
@@ -514,22 +512,14 @@ function renderArticlePage() {
   const navEl = document.getElementById(navId);
   if (navEl) navEl.classList.add("active");
 
-  // Inject Breadcrumbs
-  const breadCategoryEl = document.getElementById("bread-category");
-  if (breadCategoryEl) {
-    breadCategoryEl.textContent = article.categoryLabel;
-    breadCategoryEl.href = `category.html?cat=${article.category}`;
-    breadCategoryEl.className = `color-${article.category}`;
-  }
-
   // Inject Header Details
   const categoryBadgeEl = document.getElementById("article-category-badge");
   const headlineEl = document.getElementById("article-title-text");
   const publishDateEl = document.getElementById("article-publish-date-text");
   const authorNameEl = document.getElementById("article-author-name");
-  
+
   if (categoryBadgeEl) {
-    categoryBadgeEl.textContent = article.categoryLabel;
+    categoryBadgeEl.textContent = CATEGORY_LABELS[article.category] || article.categoryLabel;
     categoryBadgeEl.href = `category.html?cat=${article.category}`;
   }
   if (headlineEl) headlineEl.textContent = article.title;

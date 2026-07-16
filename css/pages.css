@@ -1,7 +1,9 @@
 /* --- Article Detail Page --- */
 
 .article-wrapper {
-  padding: 40px 0 56px 0;
+  /* No top padding - keeps the category kicker flush with the top of the
+     sidebar so the two columns start on the same line. */
+  padding: 0 0 56px 0;
 }
 
 .article-publish-date {

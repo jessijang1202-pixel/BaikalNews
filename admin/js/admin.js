@@ -471,10 +471,10 @@ async function saveArticle() {
 
   // Category labels mapping
   const catLabels = {
-    culture: "문화 / 예술",
-    economy: "경제 / 산업",
-    tech: "기술 / 미디어",
-    local: "지역 / 평택",
+    culture: "문화·예술",
+    economy: "경제·산업",
+    tech: "기술·미디어",
+    local: "지역·평택",
     opinion: "오피니언"
   };
 
