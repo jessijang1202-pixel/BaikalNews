@@ -328,7 +328,7 @@
    ============================================================ */
 #editors-picks-container,
 #popular-reads-container,
-#related-sidebar-container {
+#article-ranking-container {
   counter-reset: ranklist;
 }
 
@@ -540,6 +540,38 @@
 .newsletter-disclaimer a {
   color: var(--accent-cyan);
   text-decoration: underline;
+}
+
+/* Compact modifier - used for the article-page sidebar newsletter widget */
+.newsletter-block.compact {
+  display: block;
+  padding: 22px;
+}
+
+.newsletter-block.compact .newsletter-copy {
+  margin-bottom: 16px;
+}
+
+.newsletter-block.compact h3 {
+  font-size: 1.05rem;
+}
+
+.newsletter-block.compact p {
+  font-size: 0.8rem;
+  max-width: none;
+}
+
+.newsletter-block.compact .newsletter-form {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.newsletter-block.compact .newsletter-input {
+  border: 1px solid var(--border-medium);
+}
+
+.newsletter-block.compact #newsletter-submit-btn {
+  width: 100%;
 }
 
 /* ============================================================

@@ -542,7 +542,7 @@ function renderArticlePage() {
   // Display Byline (selected approver is shown to reader)
   const bylineText = article.byline || (article.approver ? `${article.approver} 기자` : article.author.name);
   if (authorNameEl) {
-    authorNameEl.textContent = `${bylineText} (${article.author.role})`;
+    authorNameEl.textContent = bylineText;
   }
 
   // Featured Image
@@ -615,20 +615,90 @@ function renderArticlePage() {
     }
   }
 
-  // Render Related Articles Sidebar (same category, up to 3 articles, excluding current)
+  // Render Related Articles (same category, up to 3 articles, excluding current)
   const relatedContainer = document.getElementById("related-sidebar-container");
   if (relatedContainer) {
     const publishedList = window.ARTICLES.filter(a => a.status === 'published');
     const related = publishedList
       .filter(a => a.category === article.category && a.id !== article.id)
       .slice(0, 3);
-    
+
     if (related.length === 0) {
       // Fallback
       const other = publishedList.filter(a => a.id !== article.id).slice(0, 3);
-      relatedContainer.innerHTML = other.map(a => createArticleCardHTML(a, 'minimal')).join('');
+      relatedContainer.innerHTML = other.map(a => createArticleCardHTML(a, 'standard')).join('');
     } else {
-      relatedContainer.innerHTML = related.map(a => createArticleCardHTML(a, 'minimal')).join('');
+      relatedContainer.innerHTML = related.map(a => createArticleCardHTML(a, 'standard')).join('');
+    }
+  }
+
+  // Render Sidebar Ranking Widget (실시간 인기기사 - reuses homepage curation, excludes current article)
+  const rankingContainer = document.getElementById("article-ranking-container");
+  if (rankingContainer) {
+    const curationData = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
+    const publishedForRanking = window.ARTICLES.filter(a => a.status === 'published');
+    let rankingItems = publishedForRanking
+      .filter(a => curationData.popularReadsIds.includes(a.id) && a.id !== article.id)
+      .slice(0, 5);
+
+    if (rankingItems.length === 0) {
+      const others = publishedForRanking.filter(a => a.id !== article.id);
+      rankingItems = others.slice(Math.max(0, others.length - 5));
+    }
+    rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
+  }
+
+  // Wire up share / copy-link / scrap buttons
+  const shareRow = document.querySelector(".article-share-row");
+  if (shareRow) {
+    const copyBtn = shareRow.querySelector('[data-share-action="copy"]');
+    const shareBtn = shareRow.querySelector('[data-share-action="share"]');
+    const scrapBtn = document.getElementById("article-scrap-btn");
+
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          const original = copyBtn.textContent;
+          copyBtn.textContent = "복사됨";
+          setTimeout(() => { copyBtn.textContent = original; }, 1500);
+        } catch (e) {
+          console.warn("클립보드 복사에 실패했습니다:", e);
+        }
+      });
+    }
+
+    if (shareBtn) {
+      shareBtn.addEventListener("click", async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: article.title, url: window.location.href });
+          } catch (e) {
+            // 사용자가 공유를 취소한 경우이므로 별도 처리하지 않음
+          }
+        } else if (copyBtn) {
+          copyBtn.click();
+        }
+      });
+    }
+
+    if (scrapBtn) {
+      const updateScrapLabel = () => {
+        const saved = JSON.parse(localStorage.getItem("baikal_scraps") || "[]").includes(article.id);
+        scrapBtn.textContent = saved ? "스크랩됨" : "스크랩";
+        scrapBtn.classList.toggle("is-active", saved);
+      };
+      updateScrapLabel();
+      scrapBtn.addEventListener("click", () => {
+        let saved = JSON.parse(localStorage.getItem("baikal_scraps") || "[]");
+        if (saved.includes(article.id)) {
+          saved = saved.filter(id => id !== article.id);
+        } else {
+          saved.push(article.id);
+        }
+        localStorage.setItem("baikal_scraps", JSON.stringify(saved));
+        updateScrapLabel();
+      });
     }
   }
 }

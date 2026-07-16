@@ -227,13 +227,14 @@ nav.nav-bar {
 /* Retained for article.html main + sidebar layout (not used on the homepage) */
 .grid-main-sidebar {
   display: grid;
-  grid-template-columns: 2.3fr 300px;
-  gap: 56px;
+  grid-template-columns: 1fr 320px;
+  gap: 48px;
+  align-items: start;
 }
 
 .grid-main-sidebar > aside {
-  border-left: 1px solid var(--border-light);
-  padding-left: 40px;
+  position: sticky;
+  top: 24px;
 }
 
 /* Homepage full-width stacked sections */
@@ -364,8 +365,7 @@ footer {
     gap: 36px;
   }
   .grid-main-sidebar > aside {
-    border-left: none;
-    padding-left: 0;
+    position: static;
     border-top: 1px solid var(--border-light);
     padding-top: 32px;
   }

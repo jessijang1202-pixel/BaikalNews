@@ -38,7 +38,6 @@
               <span class="logo-en">BAIKAL NEWS</span>
             </a>
           </h1>
-          <p class="slogan">깊고 투명한 시선으로 세상을 비추다</p>
         </div>
 
         <button class="mobile-nav-toggle" aria-label="메뉴 열기" id="mobile-menu-toggle">
@@ -67,95 +66,112 @@
 
   <!-- Article Detail Layout -->
   <main class="container section">
-    
+
     <!-- Breadcrumbs -->
     <div class="breadcrumbs">
+      <a href="index.html">홈</a>
+      <span class="separator"></span>
       <a href="#" id="bread-category">카테고리</a>
     </div>
 
     <div class="grid-main-sidebar">
-      
+
       <!-- Main Article Area -->
       <article class="article-wrapper" id="article-main-content">
-        
-        <!-- Article Header -->
-        <div class="article-header">
-          <div class="article-header-meta">
-            <a href="#" class="category-badge" id="article-category-badge">CATEGORY</a>
+
+        <a href="#" class="category-badge" id="article-category-badge">CATEGORY</a>
+        <h1 class="article-headline" id="article-title-text">기사 제목을 로딩 중입니다.</h1>
+        <p class="article-lead" id="article-lead-paragraph">기사의 주요 요약 및 리드 문단이 이곳에 렌더링됩니다.</p>
+
+        <!-- Byline / date / share row -->
+        <div class="article-meta-row">
+          <div class="article-meta-info">
+            <span id="article-author-name">기자 이름</span>
+            <span class="meta-sep">·</span>
             <span class="article-publish-date" id="article-publish-date-text">게재일자: 2026.07.11</span>
           </div>
-          <h1 class="article-headline" id="article-title-text">기사 제목을 로딩 중입니다.</h1>
-          
-          <div class="article-author-line">
-            <div class="author-avatar-sm" id="author-avatar-sm-char">B</div>
-            <span id="article-author-name">기자 이름</span>
+          <div class="article-share-row">
+            <button type="button" class="share-btn" data-share-action="copy">링크 복사</button>
+            <button type="button" class="share-btn" data-share-action="share">공유</button>
+            <button type="button" class="share-btn" id="article-scrap-btn" data-share-action="scrap">스크랩</button>
           </div>
         </div>
 
         <!-- Featured Image -->
         <div class="article-featured-image">
           <img src="images/baikal_ice.png" alt="기사 대표 이미지" id="article-main-image">
-          <div class="image-caption" id="article-image-caption">
-            사진 설명 문구가 삽입됩니다.
+        </div>
+        <p class="image-caption" id="article-image-caption">사진 설명 문구가 삽입됩니다.</p>
+
+        <!-- Body Text -->
+        <div class="article-body" id="article-body-text">
+          <p>기사 본문을 데이터베이스에서 읽어오는 중입니다. 투명하고 정직한 시각으로 보도하겠습니다.</p>
+        </div>
+
+        <!-- Reporter profile box (Trust signal) -->
+        <div class="reporter-info-box">
+          <div class="reporter-avatar-lg" id="reporter-avatar-char">B</div>
+          <div class="reporter-details">
+            <h4 id="reporter-name-box">작성자</h4>
+            <div class="reporter-role" id="reporter-role-box">담당 취재기자</div>
+            <p id="reporter-bio-text">취재기자 소개글이 렌더링됩니다.</p>
+            <div class="reporter-contact">
+              이메일: <a href="mailto:baikalnews815@gmail.com" id="reporter-email-link">baikalnews815@gmail.com</a>
+            </div>
           </div>
         </div>
 
-        <!-- Body Layout -->
-        <div class="article-body-layout">
-          <!-- Lead paragraph -->
-          <div class="article-lead" id="article-lead-paragraph">
-            기사의 주요 요약 및 리드 문단이 이곳에 렌더링됩니다.
+        <!-- Transparent Revision Log (Trust signal) -->
+        <div class="article-revision-area">
+          <div class="revision-header">
+            <span class="revision-badge">수정 이력</span>
+            <h3 class="revision-title">보도 정정 및 수정 이력</h3>
           </div>
+          <ul class="revision-history-list" id="revision-history-log">
+            <li class="revision-item">
+              <span class="revision-date">2026.07.11 12:00</span>
+              <span class="revision-action">최초 보도 게재</span>
+            </li>
+          </ul>
+        </div>
 
-          <!-- Body Text -->
-          <div class="article-body" id="article-body-text">
-            <p>기사 본문을 데이터베이스에서 읽어오는 중입니다. 투명하고 정직한 시각으로 보도하겠습니다.</p>
+        <!-- Related Articles -->
+        <div class="related-articles-block">
+          <div class="section-header">
+            <h2 class="section-title">관련 기사</h2>
           </div>
-
-          <!-- Reporter profile box (Trust signal) -->
-          <div class="reporter-info-box">
-            <div class="reporter-avatar-lg" id="reporter-avatar-char">B</div>
-            <div class="reporter-details">
-              <h4 id="reporter-name-box">작성자</h4>
-              <div class="reporter-role" id="reporter-role-box">담당 취재기자</div>
-              <p id="reporter-bio-text">취재기자 소개글이 렌더링됩니다.</p>
-              <div class="reporter-contact">
-                이메일: <a href="mailto:baikalnews815@gmail.com" id="reporter-email-link">baikalnews815@gmail.com</a>
-              </div>
-            </div>
+          <div id="related-sidebar-container" class="home-row">
+            <!-- Dynamically populated standard cards -->
           </div>
-
-          <!-- Transparent Revision Log (Trust signal) -->
-          <div class="article-revision-area">
-            <div class="revision-header">
-              <span class="revision-badge">수정 이력</span>
-              <h3 class="revision-title">보도 정정 및 수정 이력</h3>
-            </div>
-            <ul class="revision-history-list" id="revision-history-log">
-              <li class="revision-item">
-                <span class="revision-date">2026.07.11 12:00</span>
-                <span class="revision-action">최초 보도 게재</span>
-              </li>
-            </ul>
-          </div>
-
         </div>
 
       </article>
 
       <!-- Sidebar Area -->
-      <aside class="section" style="padding: 40px 0;">
-        
-        <!-- Related Articles widget -->
+      <aside>
+
+        <!-- Real-time ranking widget -->
         <div class="widget">
-          <h3 class="widget-title">관련 기사</h3>
-          <div id="related-sidebar-container">
-            <!-- Dynamically populated minimal cards -->
+          <h3 class="widget-title">실시간 인기기사</h3>
+          <div id="article-ranking-container">
+            <!-- Dynamically populated ranked list -->
           </div>
         </div>
 
+        <!-- Compact newsletter signup -->
+        <div class="newsletter-block compact">
+          <div class="newsletter-copy">
+            <h3>바이칼뉴스 뉴스레터</h3>
+            <p>매주 목요일, 엄선한 지역 소식을 받아보세요.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('구독해 주셔서 감사합니다! 입력하신 이메일로 메일이 발송됩니다.'); this.reset();">
+            <input type="email" placeholder="이메일 주소" class="newsletter-input" required aria-label="이메일 주소">
+            <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독하기</button>
+          </form>
+        </div>
+
         <!-- Trust seals widget -->
-        <div class="widget" style="background-color: var(--bg-primary); border-color: var(--border-medium);">
+        <div class="widget">
           <h3 class="widget-title">보도 윤리</h3>
           <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
             바이칼 뉴스는 한국기자협회 윤리강령 및 보도준칙을 엄격하게 준수하며, 자극적인 추측성 보도를 배제하고 다각도로 확인된 사실만을 전달합니다.
