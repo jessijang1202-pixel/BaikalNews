@@ -316,16 +316,16 @@ function renderHomepage() {
     heroContainer.innerHTML = createArticleCardHTML(heroArt, 'hero');
   }
 
-  // Feature #2: Latest Articles Grid (up to 4 items, excluding hero)
+  // Feature #2: Latest Articles Grid (secondary headlines, up to 3 items, excluding hero)
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
     let heroArt = published.find(a => a.id === curation.featuredHeroId) || published[0];
-    const latestItems = published.filter(a => a.id !== heroArt.id).slice(0, 4);
-    
+    const latestItems = published.filter(a => a.id !== heroArt.id).slice(0, 3);
+
     if (latestItems.length > 0) {
       latestContainer.innerHTML = latestItems.map(art => createArticleCardHTML(art, 'standard')).join('');
     } else {
-      latestContainer.innerHTML = `<p style="grid-column: span 2; color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
+      latestContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
     }
   }
 
@@ -345,34 +345,55 @@ function renderHomepage() {
   // Feature #4: Popular Reads
   const popularContainer = document.getElementById("popular-reads-container");
   if (popularContainer) {
-    const popularItems = published.filter(a => curation.popularReadsIds.includes(a.id));
+    const popularItems = published.filter(a => curation.popularReadsIds.includes(a.id)).slice(0, 5);
     if (popularItems.length > 0) {
       popularContainer.innerHTML = popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('');
     } else {
       // Fallback
-      const fallbackPopular = published.slice(Math.max(0, published.length - 3));
+      const fallbackPopular = published.slice(Math.max(0, published.length - 5));
       popularContainer.innerHTML = fallbackPopular.map(art => createArticleCardHTML(art, 'minimal')).join('');
     }
   }
 
-  // Feature #5: Category Highlights
-  const cultureRow = document.getElementById("culture-row-container");
-  if (cultureRow) {
-    const cultureArticles = getArticlesByCategory("culture").slice(0, 2);
-    if (cultureArticles.length > 0) {
-      cultureRow.innerHTML = cultureArticles.map(a => createArticleCardHTML(a, 'standard')).join('');
-    } else {
-      cultureRow.innerHTML = `<p style="color: var(--text-muted);">등록된 문화 뉴스가 없습니다.</p>`;
-    }
-  }
+  // Feature #5: Category Highlights (5 full-width sections, 3 cards each)
+  const categoryRows = [
+    { id: "culture-row-container", cat: "culture", empty: "등록된 문화·예술 뉴스가 없습니다." },
+    { id: "economy-row-container", cat: "economy", empty: "등록된 경제·산업 뉴스가 없습니다." },
+    { id: "tech-row-container", cat: "tech", empty: "등록된 기술·미디어 뉴스가 없습니다." },
+    { id: "local-row-container", cat: "local", empty: "등록된 지역·평택 뉴스가 없습니다." },
+    { id: "opinion-row-container", cat: "opinion", empty: "등록된 오피니언 뉴스가 없습니다." }
+  ];
 
-  const localRow = document.getElementById("local-row-container");
-  if (localRow) {
-    const localArticles = getArticlesByCategory("local").slice(0, 2);
-    if (localArticles.length > 0) {
-      localRow.innerHTML = localArticles.map(a => createArticleCardHTML(a, 'standard')).join('');
+  categoryRows.forEach(row => {
+    const container = document.getElementById(row.id);
+    if (container) {
+      const articles = getArticlesByCategory(row.cat).slice(0, 3);
+      if (articles.length > 0) {
+        container.innerHTML = articles.map(a => createArticleCardHTML(a, 'standard')).join('');
+      } else {
+        container.innerHTML = `<p style="color: var(--text-muted);">${row.empty}</p>`;
+      }
+    }
+  });
+
+  // Feature #6: Photo Gallery (last 4 published articles)
+  const photoContainer = document.getElementById("photo-gallery-container");
+  if (photoContainer) {
+    const photoItems = published.slice(Math.max(0, published.length - 4));
+    if (photoItems.length > 0) {
+      photoContainer.innerHTML = photoItems.map(art => {
+        const imageUrl = art.image || 'images/baikal_ice.png';
+        return `
+          <figure class="photo-item">
+            <a class="photo-tile" href="article.html?id=${art.id}">
+              <img src="${imageUrl}" alt="${art.title}">
+            </a>
+            <p class="photo-caption">${art.title}</p>
+          </figure>
+        `;
+      }).join('');
     } else {
-      localRow.innerHTML = `<p style="color: var(--text-muted);">등록된 지역 뉴스가 없습니다.</p>`;
+      photoContainer.innerHTML = `<p style="color: var(--text-muted);">등록된 포토 기사가 없습니다.</p>`;
     }
   }
 }

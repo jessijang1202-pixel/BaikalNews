@@ -1,85 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Colors - Frozen Lake Baikal Palette (winter ice / emerald cracks / deep night sky) */
-  --color-navy-deep: #0a1f3a;      /* Deep night sky over the frozen lake (1) */
-  --color-navy-mid: #123a63;       /* Midday winter sky blue (2) */
-  --color-ice-turquoise: #0fb8a6;  /* Glowing emerald ice crack (3) */
-  --color-ice-turquoise-deep: #0a8a7d; /* Deep emerald beneath the ice (4) */
-  --color-ice-blue: #3f9fc9;       /* Pale glacial sky blue (5) */
-  --color-amber: #c97a1f;          /* Winter sun glow - Opinion accent */
+  /* Core palette - icy winter daylight (from the Baikal News homepage reference) */
+  --bg-primary: oklch(98% 0.006 210);       /* page background - ice white */
+  --bg-secondary: oklch(97% 0.01 205);      /* placeholder / subtle panel tone */
+  --bg-tertiary: oklch(90% 0.03 200);       /* placeholder stripe tone */
+  --bg-newsletter: oklch(94% 0.02 200);     /* newsletter banner - pale icy blue */
+  --bg-overlay: oklch(30% 0.02 230 / 0.55); /* image caption / scrim overlay */
 
-  --bg-primary: #ffffff;             /* Fresh Snow White */
-  --bg-secondary: #f4f8fa;           /* Ice-tinted White (used sparingly - print pages stay flat) */
-  --bg-tertiary: #e7f1f4;            /* Pale Glacier Blue */
-  --bg-overlay: rgba(10, 31, 58, 0.94); /* Solid-feeling dark overlay (masthead strip) */
+  --bg-dark-utility: oklch(22% 0.02 230);   /* top utility bar */
+  --bg-dark-footer: oklch(20% 0.02 230);    /* footer */
 
-  --border-light: #dfe8eb;           /* Hairline rule - light */
-  --border-medium: #b9c9d0;          /* Hairline rule - medium */
-  --border-dark: #0a1f3a;            /* Heavy rule - deep night-sky */
+  --border-light: oklch(88% 0.01 210);
+  --border-medium: oklch(80% 0.02 210);
+  --border-dark: oklch(35% 0.02 230);
 
-  --accent-cyan: #0e9c8c;            /* Primary Emerald-Ice accent (kept name for legacy inline JS refs) */
-  --accent-blue: var(--color-navy-deep);       /* Deep Baikal Night Blue - primary "ink" color */
-  --accent-blue-hover: #123a63;
-  --accent-ice: rgba(63, 159, 201, 0.15);
+  --accent-cyan: oklch(50% 0.09 220);       /* primary point color (kept var name for legacy inline JS refs) */
+  --accent-blue: oklch(50% 0.09 220);
+  --accent-blue-hover: oklch(44% 0.1 220);
+  --accent-ice: oklch(50% 0.09 220 / 0.15);
 
-  --text-primary: #0d1b2a;           /* Deep Lake-Night Black (high contrast, readable) */
-  --text-secondary: #45596a;         /* Muted Slate-Ice Gray */
-  --text-muted: #7c8e99;             /* Frost Mist Gray */
+  --text-primary: oklch(24% 0.02 230);
+  --text-secondary: oklch(42% 0.02 230);
+  --text-muted: oklch(55% 0.02 230);
   --text-on-dark: #ffffff;
 
-  /* Typography Pairing */
-  --font-logo: 'Playfair Display', 'Noto Serif KR', serif;
-  --font-serif: 'Lora', 'Noto Serif KR', serif;
-  --font-sans: 'Inter', 'Noto Sans KR', sans-serif;
+  --font-logo: 'Noto Serif KR', serif;
+  --font-serif: 'Noto Serif KR', serif;
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  /* Layout Variables */
   --max-width: 1200px;
   --max-width-article: 720px;
-  --header-height: 80px;
-  --footer-height: auto;
-  --transition-smooth: all 0.25s ease;
+  --transition-smooth: all 0.2s ease;
 
-  /* Broadsheet language: sharp corners everywhere, no floating-card radius */
-  --border-radius-sm: 0px;
-  --border-radius-md: 0px;
-  --border-radius-lg: 0px;
+  --border-radius-sm: 3px;
+  --border-radius-md: 4px;
+  --border-radius-lg: 6px;
 
-  /* No soft drop shadows - structure comes from hairline/heavy rules instead */
   --box-shadow-soft: none;
   --box-shadow-hover: none;
-
-  /* Rule weights used throughout for the "ruled newsprint" look */
-  --rule-hair: 1px;
-  --rule-thick: 3px;
-
-  /* Signature "ice crack" gradient - used sparingly as a small accent (active tab underline, tag marks) */
-  --gradient-ice-crack: linear-gradient(90deg, var(--color-navy-deep) 0%, var(--color-ice-turquoise) 55%, var(--color-ice-blue) 100%);
 }
 
-/* Dark Mode Theme - Baikal Night */
+/* Dark mode - not covered by the reference mockup, extrapolated to match its palette logic */
 [data-theme="dark"] {
-  --bg-primary: #08152a;
-  --bg-secondary: #0d1f38;
-  --bg-tertiary: #142c4a;
-  --bg-overlay: rgba(4, 10, 20, 0.96);
+  --bg-primary: oklch(18% 0.015 230);
+  --bg-secondary: oklch(22% 0.02 230);
+  --bg-tertiary: oklch(28% 0.025 225);
+  --bg-newsletter: oklch(24% 0.02 220);
+  --bg-overlay: oklch(10% 0.02 230 / 0.7);
 
-  --border-light: #21395a;
-  --border-medium: #33507a;
-  --border-dark: #cfe4ee;
+  --bg-dark-utility: oklch(12% 0.02 230);
+  --bg-dark-footer: oklch(12% 0.02 230);
 
-  --accent-cyan: #1fd6c2;
-  --accent-blue: #3f9fc9;
-  --accent-blue-hover: #6fc1e3;
-  --accent-ice: rgba(63, 159, 201, 0.22);
-  --color-amber: #dba05a;
+  --border-light: oklch(30% 0.02 230);
+  --border-medium: oklch(38% 0.02 230);
+  --border-dark: oklch(70% 0.02 210);
 
-  --text-primary: #f2f8fa;
-  --text-secondary: #c3d3dc;
-  --text-muted: #7d94a3;
-  --text-on-dark: #08152a;
+  --accent-cyan: oklch(68% 0.1 200);
+  --accent-blue: oklch(68% 0.1 200);
+  --accent-blue-hover: oklch(75% 0.09 200);
+  --accent-ice: oklch(68% 0.1 200 / 0.2);
 
-  --gradient-ice-crack: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 55%, #8fd8ef 100%);
+  --text-primary: oklch(94% 0.01 210);
+  --text-secondary: oklch(78% 0.015 210);
+  --text-muted: oklch(60% 0.02 220);
+  --text-on-dark: oklch(94% 0.01 210);
 }
 
 * {
@@ -107,6 +93,10 @@ button, input, textarea {
   font-family: inherit;
 }
 
+::selection {
+  background: oklch(85% 0.06 195);
+}
+
 /* Theme Toggle Button Style */
 .theme-toggle-wrapper {
   display: flex;
@@ -116,20 +106,20 @@ button, input, textarea {
 
 .theme-toggle-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid oklch(100% 0 0 / 0.3);
   color: #ffffff;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: var(--transition-smooth);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .theme-toggle-btn:hover {
-  border-color: var(--color-ice-turquoise);
-  color: var(--color-ice-turquoise);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
 }
