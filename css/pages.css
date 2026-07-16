@@ -100,16 +100,17 @@
   color: var(--text-primary);
   margin-bottom: 28px;
   font-weight: 500;
-  padding: 20px;
+  padding: 20px 22px;
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius-sm);
+  border-left: 4px solid var(--color-ice-turquoise);
 }
 
-.article-lead.lead-culture { background-color: var(--bg-lead-culture); }
-.article-lead.lead-economy { background-color: var(--bg-lead-economy); }
-.article-lead.lead-tech { background-color: var(--bg-lead-tech); }
-.article-lead.lead-local { background-color: var(--bg-lead-local); }
-.article-lead.lead-opinion { background-color: var(--bg-lead-opinion); }
+.article-lead.lead-culture { background-color: var(--bg-lead-culture); border-left-color: var(--color-ice-turquoise); }
+.article-lead.lead-economy { background-color: var(--bg-lead-economy); border-left-color: var(--color-navy-mid); }
+.article-lead.lead-tech { background-color: var(--bg-lead-tech); border-left-color: var(--color-ice-blue); }
+.article-lead.lead-local { background-color: var(--bg-lead-local); border-left-color: var(--color-ice-turquoise-deep); }
+.article-lead.lead-opinion { background-color: var(--bg-lead-opinion); border-left-color: var(--color-amber); }
 
 .article-body {
   font-family: var(--font-serif);
@@ -131,7 +132,18 @@
   margin-top: 40px;
   margin-bottom: 16px;
   position: relative;
-  padding-bottom: 0;
+  padding-left: 16px;
+}
+
+.article-body h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--color-navy-deep) 0%, var(--color-ice-turquoise) 100%);
 }
 
 .article-body h2::after {
@@ -286,8 +298,22 @@
   font-family: var(--font-serif);
   font-size: 2.4rem;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
   color: var(--text-primary);
+  position: relative;
+}
+
+/* Centered ice-crack accent beneath the category title */
+.category-intro h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 3px;
+  background: var(--gradient-ice-crack);
 }
 
 .category-intro p {
@@ -337,8 +363,9 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 12px;
-  border-left: 3px solid var(--accent-cyan);
-  padding-left: 12px;
+  border-left: 4px solid transparent;
+  border-image: linear-gradient(180deg, var(--color-navy-deep) 0%, var(--color-ice-turquoise) 100%) 1;
+  padding-left: 14px;
 }
 
 .policy-section p, .policy-section li {

@@ -20,6 +20,18 @@ header {
   transition: var(--transition-smooth);
 }
 
+/* Signature "ice crack" accent bar across the very top of the header */
+header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-ice-crack);
+  z-index: 1;
+}
+
 .header-top {
   display: flex;
   justify-content: space-between;
@@ -51,10 +63,22 @@ header {
 .weather-dot {
   width: 6px;
   height: 6px;
-  background-color: var(--accent-cyan);
+  background-color: var(--color-ice-turquoise);
   border-radius: 50%;
   display: inline-block;
-  box-shadow: 0 0 8px var(--accent-cyan);
+  box-shadow: 0 0 8px var(--color-ice-turquoise);
+  animation: weather-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes weather-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.55);
+    opacity: 0.55;
+  }
 }
 
 .header-top-links {
@@ -143,8 +167,8 @@ nav.nav-bar {
   bottom: 0;
   left: 50%;
   width: 0;
-  height: 1.5px;
-  background-color: var(--accent-cyan);
+  height: 2px;
+  background: var(--gradient-ice-crack);
   transition: var(--transition-smooth);
   transform: translateX(-50%);
 }
@@ -159,61 +183,61 @@ nav.nav-bar {
   font-weight: 600;
 }
 
-/* Culture (Teal/Emerald Green) */
+/* Culture (Emerald Ice Turquoise) */
 .nav-links li#nav-culture a:hover,
 .nav-links li#nav-culture.active a {
-  color: var(--color-green-deep);
+  color: var(--color-ice-turquoise);
 }
 .nav-links li#nav-culture a::after {
-  background-color: var(--color-green-deep);
+  background: var(--color-ice-turquoise);
 }
 
-/* Economy (Deep Blue) */
+/* Economy (Winter Sky Navy) */
 .nav-links li#nav-economy a:hover,
 .nav-links li#nav-economy.active a {
-  color: var(--color-blue-deep);
+  color: var(--color-navy-mid);
 }
 .nav-links li#nav-economy a::after {
-  background-color: var(--color-blue-deep);
+  background: var(--color-navy-mid);
 }
 
-/* Tech (Light Ice Blue) */
+/* Tech (Glacial Ice Blue) */
 .nav-links li#nav-tech a:hover,
 .nav-links li#nav-tech.active a {
-  color: var(--color-blue-light);
+  color: var(--color-ice-blue);
 }
 .nav-links li#nav-tech a::after {
-  background-color: var(--color-blue-light);
+  background: var(--color-ice-blue);
 }
 
-/* Local (Mint Green) */
+/* Local (Deep Emerald) */
 .nav-links li#nav-local a:hover,
 .nav-links li#nav-local.active a {
-  color: var(--color-green-light);
+  color: var(--color-ice-turquoise-deep);
 }
 .nav-links li#nav-local a::after {
-  background-color: var(--color-green-light);
+  background: var(--color-ice-turquoise-deep);
 }
 
-/* Opinion (Orange) */
+/* Opinion (Winter Sun Amber) */
 .nav-links li#nav-opinion a:hover,
 .nav-links li#nav-opinion.active a {
-  color: var(--color-orange);
+  color: var(--color-amber);
 }
 .nav-links li#nav-opinion a::after {
-  background-color: var(--color-orange);
+  background: var(--color-amber);
 }
 
-/* Static Pages (Teal Green) */
+/* Static Pages (Emerald Ice Turquoise) */
 .nav-links li#nav-about a:hover,
 .nav-links li#nav-about.active a,
 .nav-links li#nav-contact a:hover,
 .nav-links li#nav-contact.active a {
-  color: var(--color-green-deep);
+  color: var(--color-ice-turquoise);
 }
 .nav-links li#nav-about a::after,
 .nav-links li#nav-contact a::after {
-  background-color: var(--color-green-deep);
+  background: var(--color-ice-turquoise);
 }
 
 /* Secondary informational utility page styling (About, Contact) */
@@ -258,23 +282,23 @@ nav.nav-bar {
 }
 
 .mobile-nav-toggle span:nth-child(1) {
-  background-color: var(--color-blue-deep);
+  background-color: var(--color-navy-deep);
 }
 .mobile-nav-toggle span:nth-child(2) {
-  background-color: var(--color-green-light);
+  background-color: var(--color-ice-turquoise);
 }
 .mobile-nav-toggle span:nth-child(3) {
-  background-color: var(--color-green-deep);
+  background-color: var(--color-ice-blue);
 }
 
 [data-theme="dark"] .mobile-nav-toggle span:nth-child(1) {
-  background-color: var(--color-blue-light);
+  background-color: var(--color-ice-blue);
 }
 [data-theme="dark"] .mobile-nav-toggle span:nth-child(2) {
-  background-color: var(--color-green-light);
+  background-color: var(--color-ice-turquoise);
 }
 [data-theme="dark"] .mobile-nav-toggle span:nth-child(3) {
-  background-color: var(--color-green-light);
+  background-color: var(--color-ice-turquoise-deep);
 }
 
 .mobile-menu {
@@ -305,14 +329,26 @@ nav.nav-bar {
   gap: 48px;
 }
 
-/* Footer style - cold grey tone with comprehensive trust signals */
+/* Footer style - deep night sky over the frozen lake */
 footer {
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-light);
+  position: relative;
+  background-color: var(--color-navy-deep);
+  border-top: none;
   padding: 60px 0 40px 0;
   margin-top: 60px;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Ice-crack signature bar at the top edge of the footer */
+footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-ice-crack);
 }
 
 .footer-top {
@@ -320,14 +356,15 @@ footer {
   grid-template-columns: 2fr 1fr 1.5fr;
   gap: 48px;
   padding-bottom: 40px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .footer-brand .footer-logo {
   font-family: var(--font-logo);
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  color: #ffffff;
   margin-bottom: 8px;
 }
 
@@ -336,22 +373,24 @@ footer {
   font-style: italic;
   font-size: 0.8rem;
   margin-bottom: 16px;
-  color: var(--text-muted);
+  color: var(--color-ice-turquoise);
+  letter-spacing: 0.04em;
 }
 
 .footer-principle {
   font-family: var(--font-serif);
   font-size: 0.85rem;
-  border-left: 2px solid var(--accent-cyan);
-  padding-left: 12px;
+  border-left: 2px solid transparent;
+  border-image: var(--gradient-ice-crack) 1;
+  padding-left: 14px;
   margin-top: 16px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.6;
 }
 
 .footer-links-col h4 {
   font-family: var(--font-sans);
-  color: var(--text-primary);
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 16px;
@@ -366,24 +405,37 @@ footer {
   gap: 10px;
 }
 
+.footer-links-col ul a {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .footer-links-col ul a:hover {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
   padding-left: 4px;
 }
 
 .footer-contact-info p {
   margin-bottom: 8px;
   line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .footer-contact-info strong {
-  color: var(--text-primary);
+  color: #ffffff;
+}
+
+.footer-contact-info a {
+  color: var(--color-ice-blue);
+}
+
+.footer-contact-info a:hover {
+  color: var(--color-ice-turquoise);
 }
 
 /* Trust Signals Area */
 .footer-trust-signals {
   padding: 30px 0;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -395,16 +447,21 @@ footer {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-sm);
+  padding: 16px;
 }
 
 .trust-card-icon {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
   font-size: 1.2rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .trust-card-content h5 {
-  color: var(--text-primary);
+  color: #ffffff;
   font-size: 0.85rem;
   font-weight: 600;
   margin-bottom: 4px;
@@ -412,7 +469,7 @@ footer {
 
 .trust-card-content p {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.6);
   line-height: 1.4;
 }
 
@@ -423,7 +480,7 @@ footer {
   align-items: center;
   padding-top: 30px;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.55);
   flex-wrap: wrap;
   gap: 16px;
 }
@@ -435,15 +492,16 @@ footer {
 
 .footer-bottom-links a {
   font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .footer-bottom-links a.privacy-link {
-  color: var(--text-secondary);
+  color: #ffffff;
   font-weight: 600;
 }
 
 .footer-bottom-links a:hover {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
 }
 
 /* Responsive Rules for Layout */

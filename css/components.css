@@ -1,11 +1,23 @@
 /* Section Title Header */
 .section-header {
-  border-bottom: none;
-  padding-bottom: 0;
+  position: relative;
+  padding-bottom: 12px;
   margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Ice-crack gradient underline accent on the section header */
+.section-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 64px;
+  height: 3px;
+  background: var(--gradient-ice-crack);
 }
 
 .section-title {
@@ -14,6 +26,20 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+  position: relative;
+  padding-left: 14px;
+}
+
+/* Left accent bar - a thin crack of turquoise light */
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--color-navy-deep) 0%, var(--color-ice-turquoise) 100%);
 }
 
 .section-link {
@@ -25,7 +51,7 @@
 }
 
 .section-link:hover {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
 }
 
 /* Category Badge Tags */
@@ -36,31 +62,31 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--border-radius-sm);
   margin-bottom: 12px;
   color: #ffffff !important; /* Always white text for contrast on filled backgrounds */
 }
 
-/* Category-specific color mappings */
+/* Category-specific color mappings - frozen Baikal palette */
 .category-badge.badge-culture {
-  background-color: var(--color-green-deep);
-  box-shadow: 0 2px 8px rgba(13, 122, 102, 0.2);
+  background-color: var(--color-ice-turquoise);
+  box-shadow: 0 2px 8px rgba(15, 184, 166, 0.25);
 }
 .category-badge.badge-economy {
-  background-color: var(--color-blue-deep);
-  box-shadow: 0 2px 8px rgba(15, 76, 129, 0.2);
+  background-color: var(--color-navy-mid);
+  box-shadow: 0 2px 8px rgba(18, 58, 99, 0.25);
 }
 .category-badge.badge-tech {
-  background-color: var(--color-blue-light);
-  box-shadow: 0 2px 8px rgba(78, 168, 222, 0.25);
+  background-color: var(--color-ice-blue);
+  box-shadow: 0 2px 8px rgba(63, 159, 201, 0.25);
 }
 .category-badge.badge-local {
-  background-color: var(--color-green-light);
-  box-shadow: 0 2px 8px rgba(72, 194, 165, 0.25);
+  background-color: var(--color-ice-turquoise-deep);
+  box-shadow: 0 2px 8px rgba(10, 138, 125, 0.25);
 }
 .category-badge.badge-opinion {
-  background-color: var(--color-orange);
-  box-shadow: 0 2px 8px rgba(230, 92, 0, 0.25);
+  background-color: var(--color-amber);
+  box-shadow: 0 2px 8px rgba(224, 147, 44, 0.25);
 }
 
 /* Button styles */
@@ -148,7 +174,7 @@
 }
 
 .card:hover .card-title {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
 }
 
 .card-excerpt {
@@ -173,6 +199,7 @@
 
 /* Card Hero Layout - Featured Article on top */
 .card-hero {
+  position: relative;
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 32px;
@@ -180,9 +207,25 @@
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--box-shadow-soft);
-  padding: 24px;
+  padding: 28px 24px 24px 24px;
   margin-bottom: 40px;
   transition: var(--transition-smooth);
+  overflow: hidden;
+}
+
+/* Ice-crack signature accent along the top edge of the hero card */
+.card-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-ice-crack);
+}
+
+.card-hero:hover .card-title {
+  color: var(--color-ice-turquoise);
 }
 
 .card-hero:hover {
@@ -270,16 +313,29 @@
   font-size: 0.75rem;
 }
 
-/* Newsletter section block - calm cold lake look */
+/* Newsletter section block - calm frozen lake at dusk */
 .newsletter-block {
-  background: linear-gradient(135deg, var(--color-blue-deep), var(--color-green-deep));
+  position: relative;
+  background: linear-gradient(135deg, var(--color-navy-deep) 0%, var(--color-navy-mid) 55%, var(--color-ice-turquoise-deep) 100%);
   border: none;
-  padding: 40px;
+  padding: 44px 40px 40px 40px;
   text-align: center;
   border-radius: var(--border-radius-md);
   max-width: 800px;
-  margin: 40px auto 0 auto;
-  box-shadow: 0 10px 30px rgba(15, 76, 129, 0.15);
+  margin: 56px auto 0 auto;
+  box-shadow: 0 18px 40px rgba(10, 31, 58, 0.28);
+  overflow: hidden;
+}
+
+/* Signature ice-crack divider along the top of the newsletter block */
+.newsletter-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-ice-crack);
 }
 
 .newsletter-block h3 {
@@ -397,7 +453,7 @@
 }
 
 .breadcrumbs a:hover {
-  color: var(--accent-cyan);
+  color: var(--color-ice-turquoise);
 }
 
 .breadcrumbs span.separator::after {
@@ -433,8 +489,8 @@
 }
 
 /* Dynamic Category Colors for Breadcrumbs & General Text */
-.color-culture { color: var(--color-green-deep) !important; font-weight: 600; }
-.color-economy { color: var(--color-blue-deep) !important; font-weight: 600; }
-.color-tech { color: var(--color-blue-light) !important; font-weight: 600; }
-.color-local { color: var(--color-green-light) !important; font-weight: 600; }
-.color-opinion { color: var(--color-orange) !important; font-weight: 600; }
+.color-culture { color: var(--color-ice-turquoise) !important; font-weight: 600; }
+.color-economy { color: var(--color-navy-mid) !important; font-weight: 600; }
+.color-tech { color: var(--color-ice-blue) !important; font-weight: 600; }
+.color-local { color: var(--color-ice-turquoise-deep) !important; font-weight: 600; }
+.color-opinion { color: var(--color-amber) !important; font-weight: 600; }
