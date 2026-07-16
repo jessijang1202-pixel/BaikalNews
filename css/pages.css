@@ -461,12 +461,25 @@ textarea.form-control {
   .article-headline {
     font-size: 1.8rem;
   }
+  .article-lead {
+    font-size: 1rem;
+  }
+  .article-body {
+    font-size: 0.95rem;
+  }
   .category-grid {
     column-count: 1;
   }
   .reporter-info-box {
     flex-direction: column;
     text-align: center;
+  }
+  /* Shaded panel around the sidebar ranking widget once it stacks
+     below the article on mobile, matching the mobile reference */
+  .ranking-widget {
+    background-color: var(--bg-secondary);
+    margin: 0 -16px 32px -16px;
+    padding: 20px 16px;
   }
   .policy-page h1 {
     font-size: 1.9rem;

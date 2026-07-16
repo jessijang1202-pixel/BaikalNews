@@ -656,19 +656,78 @@
 
 @media (max-width: 768px) {
   .card-hero .card-title {
-    font-size: 1.6rem;
+    font-size: 1.45rem;
   }
-  .home-row {
+
+  /* Category/related article rows become compact thumbnail+text rows,
+     matching the mobile reference (instead of full-width stacked cards) */
+  .home-row,
+  .category-grid {
     grid-template-columns: 1fr;
-    gap: 28px;
+    column-count: 1;
+    gap: 20px;
+  }
+  .home-row .card,
+  .category-grid .card {
+    flex-direction: row;
+    gap: 14px;
+    align-items: flex-start;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+  .home-row .card .card-image-wrapper,
+  .category-grid .card .card-image-wrapper {
+    width: 100px;
+    height: 76px;
+    aspect-ratio: auto;
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+  .home-row .card .card-excerpt,
+  .category-grid .card .card-excerpt {
+    display: none;
+  }
+
+  /* Ranking widens back into a single shaded panel with a plain
+     vertical numbered list, instead of the desktop 5-column grid */
+  .home-section:has(#popular-reads-container) {
+    background-color: var(--bg-secondary);
+    margin: 0 -16px;
+    padding: 24px 16px;
+    border-top: none;
   }
   #popular-reads-container {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
   #popular-reads-container .card-minimal {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
     border-right: none;
+    border-bottom: 1px solid var(--border-light);
   }
+  #popular-reads-container .card-minimal:last-child {
+    border-bottom: none;
+  }
+  #popular-reads-container .card-minimal::before {
+    font-size: 1.4rem;
+  }
+
+  /* Photo gallery becomes a horizontal scroll strip */
+  .photo-grid {
+    display: flex;
+    grid-template-columns: none;
+    gap: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .photo-item {
+    flex: 0 0 130px;
+  }
+
   .card-row {
     grid-template-columns: 1fr;
     gap: 12px;
