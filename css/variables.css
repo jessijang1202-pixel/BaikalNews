@@ -1,38 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,400&display=swap');
 
 :root {
-  /* Colors - Frozen Lake Baikal Palette (winter ice / emerald cracks / deep night sky) */
-  --color-navy-deep: #0a1f3a;      /* Deep night sky over the frozen lake (1) */
-  --color-navy-mid: #123a63;       /* Midday winter sky blue (2) */
-  --color-ice-turquoise: #0fb8a6;  /* Glowing emerald ice crack (3) */
-  --color-ice-turquoise-deep: #0a8a7d; /* Deep emerald beneath the ice (4) */
-  --color-ice-blue: #3f9fc9;       /* Pale glacial sky blue (5) */
-  --color-amber: #e0932c;          /* Winter sun glow - Opinion accent */
+  /* Colors - Lake Baikal Inspired Palette */
+  --color-blue-deep: #0f4c81;      /* Deep Baikal Blue (1) */
+  --color-blue-light: #4ea8de;     /* Light Ice/Sky Blue (2) */
+  --color-green-deep: #0d7a66;     /* Deep Emerald Green (3) */
+  --color-green-light: #48c2a5;    /* Mint Teal Green (4) */
+  --color-orange: #e65c00;         /* Opinion Orange */
 
   /* Lead Paragraph Backgrounds - Light Theme (Tinted) */
-  --bg-lead-culture: rgba(15, 184, 166, 0.08);
-  --bg-lead-economy: rgba(10, 31, 58, 0.055);
-  --bg-lead-tech: rgba(63, 159, 201, 0.1);
-  --bg-lead-local: rgba(10, 138, 125, 0.1);
-  --bg-lead-opinion: rgba(224, 147, 44, 0.08);
+  --bg-lead-culture: rgba(13, 122, 102, 0.07);
+  --bg-lead-economy: rgba(15, 76, 129, 0.07);
+  --bg-lead-tech: rgba(78, 168, 222, 0.1);
+  --bg-lead-local: rgba(72, 194, 165, 0.1);
+  --bg-lead-opinion: rgba(230, 92, 0, 0.07);
 
-  --bg-primary: #ffffff;             /* Fresh Snow White */
-  --bg-secondary: #f4f8fa;           /* Ice-tinted White */
-  --bg-tertiary: #e7f1f4;            /* Pale Glacier Blue */
-  --bg-overlay: rgba(244, 248, 250, 0.88); /* Frosted transparent overlay */
+  --bg-primary: #ffffff;             /* Snow White */
+  --bg-secondary: #f3f7f9;           /* Ice White (very light cyan-blue tinted white) */
+  --bg-tertiary: #e5edf1;            /* Pale Sky Blue */
+  --bg-overlay: rgba(243, 247, 249, 0.85); /* Frosty transparent overlay */
+  
+  --border-light: #e0ebf0;           /* Clean Ice Crack silver-gray */
+  --border-medium: #cbd5e0;          /* Soft Silver-Gray border */
+  --border-dark: #2c3e50;            /* Deep Blue-Gray border for structure */
 
-  --border-light: #e2ecef;           /* Hairline Ice Crack silver-blue */
-  --border-medium: #c7d7dd;          /* Soft Snow-Shadow gray-blue */
-  --border-dark: #0a1f3a;            /* Deep night-sky border for structure */
-
-  --accent-cyan: #0e9c8c;            /* Primary Emerald-Ice accent */
-  --accent-blue: var(--color-navy-deep);       /* Deep Baikal Night Blue */
-  --accent-blue-hover: #123a63;      /* Winter Sky Blue on hover */
-  --accent-ice: rgba(63, 159, 201, 0.15); /* Translucent glacier accent */
-
-  --text-primary: #0d1b2a;           /* Deep Lake-Night Black (high contrast, readable) */
-  --text-secondary: #45596a;         /* Muted Slate-Ice Gray */
-  --text-muted: #8098a6;             /* Frost Mist Gray */
+  --accent-cyan: #008fa0;            /* Original Main Cyan */
+  --accent-blue: var(--color-blue-deep);              /* Baikal Deep Blue */
+  --accent-blue-hover: #0a365c;      /* Darker Baikal Depth */
+  --accent-ice: rgba(78, 168, 222, 0.15); /* Translucent ice accent */
+  
+  --text-primary: #152230;           /* Deep Lake Black (high contrast, readable, non-pure black) */
+  --text-secondary: #4a5a6a;         /* Muted Slate Gray */
+  --text-muted: #7c8e9f;             /* Ice Mist Gray */
   --text-on-dark: #ffffff;           /* Pure white text for dark elements */
 
   /* Typography Pairing */
@@ -46,52 +45,47 @@
   --header-height: 80px;
   --footer-height: auto;
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  --border-radius-sm: 4px;            /* Crisp ice-cut corners */
-  --border-radius-md: 10px;
-  --border-radius-lg: 18px;
+  --border-radius-sm: 8px;            /* Rounded corners */
+  --border-radius-md: 16px;           /* Rounded corners */
+  --border-radius-lg: 24px;           /* Rounded corners */
 
-  /* Cool, icy shadows */
-  --box-shadow-soft: 0 10px 30px rgba(10, 31, 58, 0.06), 0 1px 3px rgba(10, 31, 58, 0.02);
-  --box-shadow-hover: 0 20px 40px rgba(10, 31, 58, 0.12), 0 2px 8px rgba(10, 31, 58, 0.03);
-
-  /* Signature "ice crack" gradient - used for dividers / underlines / accent bars */
-  --gradient-ice-crack: linear-gradient(90deg, var(--color-navy-deep) 0%, var(--color-ice-turquoise) 55%, var(--color-ice-blue) 100%);
+  /* Soft Shadows like the Jobie image */
+  --box-shadow-soft: 0 10px 30px rgba(15, 76, 129, 0.04), 0 1px 3px rgba(15, 76, 129, 0.01);
+  --box-shadow-hover: 0 20px 40px rgba(15, 76, 129, 0.08), 0 2px 8px rgba(15, 76, 129, 0.02);
 }
 
-/* Dark Mode Theme - Baikal Night */
+/* Dark Mode Theme */
 [data-theme="dark"] {
-  --bg-primary: #08152a;             /* Frozen Lake at Midnight */
-  --bg-secondary: #0d1f38;           /* Deep Night-Ice Panel */
-  --bg-tertiary: #142c4a;            /* Lighter Night-Ice Panel */
-  --bg-overlay: rgba(8, 21, 42, 0.88);
+  --bg-primary: #0b1329;             /* Very Deep Lake Depth */
+  --bg-secondary: #111e38;           /* Midnight Blue-Gray Panel */
+  --bg-tertiary: #1b2a4a;            /* Light Midnight Blue-Gray */
+  --bg-overlay: rgba(11, 19, 41, 0.85);
 
-  --border-light: #142c4a;
-  --border-medium: #24405f;
-  --border-dark: #4a6a8a;
+  --border-light: #1b2a4a;
+  --border-medium: #2e3f61;
+  --border-dark: #4e6185;
 
-  --accent-cyan: #1fd6c2;            /* Bright Emerald-Ice Glow for Dark Mode */
-  --accent-blue: #3f9fc9;             /* Pale Glacier Blue in Dark Mode */
-  --accent-blue-hover: #6fc1e3;
-  --accent-ice: rgba(63, 159, 201, 0.22);
-  --color-amber: #f0a94a;            /* Bright winter sun for Dark Mode */
+  --accent-cyan: #00a5bb;            /* Bright Original Cyan for Dark Mode */
+  --accent-blue: var(--color-blue-light);             /* Light Ice Blue in Dark Mode */
+  --accent-blue-hover: #73c2fb;
+  --accent-ice: rgba(78, 168, 222, 0.2);
+  --color-orange: #ff9d42;           /* Light Orange for Dark Mode */
 
   /* Lead Paragraph Backgrounds - Dark Theme (Opaque Tint) */
-  --bg-lead-culture: rgba(15, 184, 166, 0.2);
-  --bg-lead-economy: rgba(63, 159, 201, 0.16);
-  --bg-lead-tech: rgba(63, 159, 201, 0.2);
-  --bg-lead-local: rgba(10, 138, 125, 0.2);
-  --bg-lead-opinion: rgba(240, 169, 74, 0.16);
+  --bg-lead-culture: rgba(13, 122, 102, 0.2);
+  --bg-lead-economy: rgba(15, 76, 129, 0.2);
+  --bg-lead-tech: rgba(78, 168, 222, 0.18);
+  --bg-lead-local: rgba(72, 194, 165, 0.18);
+  --bg-lead-opinion: rgba(255, 157, 66, 0.15);
 
-  --text-primary: #f2f8fa;           /* Crisp Snow White text */
-  --text-secondary: #c3d3dc;         /* Ice-Silver Gray */
-  --text-muted: #6d8598;             /* Muted Frost Gray */
-  --text-on-dark: #08152a;           /* Text color when on bright dynamic components */
-
-  --gradient-ice-crack: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 55%, #8fd8ef 100%);
+  --text-primary: #f8fafc;           /* Crisp White text */
+  --text-secondary: #cbd5e1;         /* Silver Gray */
+  --text-muted: #64748b;             /* Muted Slate Gray */
+  --text-on-dark: #0b1329;           /* Text color when on bright dynamic components */
 
   /* Shadows for dark mode (subtler & darker) */
-  --box-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.12);
-  --box-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.18);
+  --box-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+  --box-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 * {
@@ -147,3 +141,4 @@ button, input, textarea {
   background: var(--border-medium);
   box-shadow: var(--box-shadow-hover);
 }
+
