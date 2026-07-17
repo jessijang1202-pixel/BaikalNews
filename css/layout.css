@@ -319,8 +319,8 @@ footer {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px 22px;
-  max-width: 480px;
+  align-content: flex-start;
+  gap: 10px 20px;
   padding: 0;
   border-bottom: none;
   flex-shrink: 0;
