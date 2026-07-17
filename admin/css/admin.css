@@ -634,6 +634,35 @@ textarea.form-control-admin {
   flex-shrink: 0;
 }
 
+/* AI self-check results (check.md) */
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.83rem;
+  color: var(--admin-text-primary);
+}
+
+.checklist-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+  width: 16px;
+  text-align: center;
+}
+
+.checklist-item.pass .checklist-icon {
+  color: #10b981;
+}
+
+.checklist-item.fail .checklist-icon {
+  color: #ef4444;
+}
+
+.checklist-item.fail {
+  color: var(--admin-text-secondary);
+}
+
 /* AI 글쓰기 학습 sample list */
 .training-sample-item {
   display: flex;

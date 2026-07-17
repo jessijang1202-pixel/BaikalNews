@@ -1426,6 +1426,109 @@ ${fewShotPrompt}
   return { headline: draft.title, lead: draft.lead, body: draft.body, category };
 }
 
+// ---- Self-check: every generated draft is graded against admin/check.md ----
+async function loadChecklistItems() {
+  try {
+    const response = await fetch('check.md');
+    if (!response.ok) throw new Error("check.md fetch failed with status " + response.status);
+    const text = await response.text();
+
+    const items = [];
+    let currentSection = "";
+    text.split('\n').forEach(line => {
+      const sectionMatch = line.match(/^##\s+(.*)/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].trim();
+        return;
+      }
+      const itemMatch = line.match(/^-\s*\[ \]\s*(.*)/);
+      if (itemMatch) {
+        items.push({ section: currentSection, text: itemMatch[1].trim() });
+      }
+    });
+    return items;
+  } catch (err) {
+    console.error("체크리스트(check.md)를 불러오지 못했습니다:", err);
+    return [];
+  }
+}
+
+async function runSelfCheck(draft) {
+  const items = await loadChecklistItems();
+  if (items.length === 0) return null;
+
+  const checklistText = items.map((it, i) => `${i + 1}. [${it.section}] ${it.text}`).join('\n');
+  const plainBody = draft.content.replace(/<[^>]+>/g, ' ');
+
+  const prompt = `
+당신은 바이칼 뉴스의 깐깐한 데스크 편집자입니다. 아래 체크리스트 각 항목에 대해 주어진 기사 초안이 통과하는지 냉정하게 평가하십시오. 애매하면 통과(true)가 아니라 실패(false)로 판단하십시오.
+
+[체크리스트]
+${checklistText}
+
+[기사 초안]
+제목: ${draft.title}
+리드: ${draft.lead}
+본문: ${plainBody}
+카테고리: ${draft.category}
+
+반드시 다음 구조의 JSON 배열로만 답변하십시오. 백틱이나 'json' 마킹 없이, 배열의 순서와 개수를 체크리스트와 정확히 동일하게 맞춰야 합니다.
+[
+  { "pass": true, "note": "판단 근거를 1문장으로" }
+]
+`;
+
+  try {
+    const resultText = await callGeminiApi(prompt, "당신은 엄격한 저널리즘 데스크 편집자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    const results = parseAiJsonResponse(resultText);
+    return items.map((it, i) => ({
+      section: it.section,
+      text: it.text,
+      pass: results[i] ? !!results[i].pass : false,
+      note: results[i] ? (results[i].note || '') : ''
+    }));
+  } catch (err) {
+    console.error("AI 자체 점검 실패:", err);
+    return null;
+  }
+}
+
+function renderSelfCheckResults(results) {
+  const wrapper = document.getElementById("ai-selfcheck-section");
+  const container = document.getElementById("ai-selfcheck-body");
+  if (!wrapper || !container) return;
+
+  if (!results || results.length === 0) {
+    wrapper.style.display = "none";
+    return;
+  }
+
+  wrapper.style.display = "block";
+  const passCount = results.filter(r => r.pass).length;
+
+  const bySection = {};
+  results.forEach(r => {
+    if (!bySection[r.section]) bySection[r.section] = [];
+    bySection[r.section].push(r);
+  });
+
+  let html = `<div style="font-weight: 600; margin-bottom: 12px;">${passCount} / ${results.length}개 항목 통과 (check.md 기준, 참고용 자체 점검)</div>`;
+  Object.keys(bySection).forEach(section => {
+    html += `<div style="margin-bottom: 14px;"><div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: var(--admin-text-secondary);">${section}</div>`;
+    bySection[section].forEach(r => {
+      html += `
+        <div class="checklist-item ${r.pass ? 'pass' : 'fail'}">
+          <span class="checklist-icon">${r.pass ? '✓' : '✗'}</span>
+          <span>${r.text}${r.note ? ` <span class="help-text">— ${r.note}</span>` : ''}</span>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
 // Dispatch + render the draft output (shared by all 4 modes)
 async function generateAiDraft() {
   document.getElementById("ai-empty-state").style.display = "none";
@@ -1466,6 +1569,10 @@ async function generateAiDraft() {
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
     document.getElementById("ai-out-seo-meta").textContent = generatedDraftData.seoMeta;
     document.getElementById("ai-out-slug").textContent = generatedDraftData.slug;
+
+    setAiLoaderText("check.md 체크리스트 기준으로 자체 점검하는 중...");
+    const selfCheckResults = await runSelfCheck(generatedDraftData);
+    renderSelfCheckResults(selfCheckResults);
 
     document.getElementById("ai-loader").style.display = "none";
     document.getElementById("ai-draft-viewer").style.display = "block";
