@@ -314,13 +314,19 @@ footer {
   color: oklch(74% 0.09 210);
 }
 
-/* Desktop: links + compliance line share one right-hand column,
-   stacked below each other, beside the brand block in .footer-top */
+.footer-notice {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+/* Desktop: the link list sits in its own right-hand column beside
+   the brand block in .footer-top */
 .footer-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 14px;
   max-width: 480px;
 }
 
@@ -341,22 +347,6 @@ footer {
 }
 
 .footer-links a:hover {
-  color: oklch(74% 0.09 210);
-}
-
-.footer-compliance {
-  padding: 0;
-  border-bottom: none;
-  text-align: right;
-}
-
-.footer-compliance p {
-  font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.6;
-}
-
-.footer-compliance a {
   color: oklch(74% 0.09 210);
 }
 
@@ -493,9 +483,9 @@ footer {
     padding-bottom: 22px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   }
-  /* display:contents flattens the wrapper so footer-links and
-     footer-compliance fall back into footer-top's own column stack,
-     exactly as before this wrapper existed. */
+  /* display:contents flattens the wrapper so footer-links falls back
+     into footer-top's own column stack, exactly as before this
+     wrapper existed. */
   .footer-right {
     display: contents;
   }
@@ -506,11 +496,6 @@ footer {
     gap: 12px;
     padding: 16px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .footer-compliance {
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    text-align: left;
   }
   .footer-bottom {
     flex-direction: column;
