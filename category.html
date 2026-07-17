@@ -67,24 +67,66 @@
 
   <!-- Category Main Section -->
   <main class="container section">
-    
+
     <!-- Breadcrumbs -->
     <div class="breadcrumbs">
+      <a href="index.html">홈</a>
+      <span class="separator"></span>
       <span id="bread-category">카테고리</span>
     </div>
 
-    <!-- Category Header Info -->
-    <div class="category-intro">
-      <h1 id="category-title">카테고리</h1>
-      <p id="category-description">기사를 로딩 중입니다.</p>
-    </div>
+    <div class="grid-main-sidebar">
 
-    <!-- Category Grid -->
-    <div class="category-grid" id="category-articles-container" style="margin-top: 40px; margin-bottom: 60px;">
-      <!-- Dynamically filled standard cards -->
-      <div style="text-align: center; grid-column: span 3; padding: 60px 0; color: var(--text-muted);">
-        기사 데이터를 분석하여 정리하고 있습니다...
+      <div>
+        <!-- Category Header Info -->
+        <div class="category-intro">
+          <h1 id="category-title">카테고리</h1>
+          <p id="category-description">기사를 로딩 중입니다.</p>
+        </div>
+
+        <!-- Sort tabs -->
+        <div class="sort-tabs">
+          <a href="#" id="sort-latest" class="active">최신순</a>
+          <a href="#" id="sort-popular">인기순</a>
+        </div>
+
+        <!-- Article list -->
+        <div id="category-articles-container">
+          <!-- Dynamically filled row cards -->
+          <div style="text-align: center; padding: 60px 0; color: var(--text-muted);">
+            기사 데이터를 분석하여 정리하고 있습니다...
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="category-pagination"></div>
       </div>
+
+      <!-- Sidebar Area -->
+      <aside>
+        <!-- Real-time ranking widget -->
+        <div class="ranking-widget">
+          <div class="section-header">
+            <h2 class="section-title">실시간 인기기사</h2>
+          </div>
+          <div id="category-ranking-container">
+            <!-- Dynamically populated ranked list -->
+          </div>
+        </div>
+
+        <!-- Compact newsletter signup -->
+        <div class="newsletter-block compact">
+          <div class="newsletter-copy">
+            <h3>바이칼뉴스 뉴스레터</h3>
+            <p>매주 목요일, 엄선한 지역 소식을 받아보세요.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('구독해 주셔서 감사합니다! 입력하신 이메일로 메일이 발송됩니다.'); this.reset();">
+            <input type="email" placeholder="이메일 주소" class="newsletter-input" required aria-label="이메일 주소">
+            <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독하기</button>
+          </form>
+        </div>
+      </aside>
+
     </div>
 
   </main>

@@ -439,15 +439,75 @@ function renderCategoryPage() {
   const navEl = document.getElementById(navId);
   if (navEl) navEl.classList.add("active");
 
-  const filtered = getArticlesByCategory(cat);
+  const curation = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
+  const popularIds = curation.popularReadsIds || [];
+
+  // Sort: 최신순 (newest id first) / 인기순 (curated popular reads first)
+  const sort = getQueryParam("sort") === "popular" ? "popular" : "latest";
+  let filtered = getArticlesByCategory(cat);
+  if (sort === "popular") {
+    filtered = filtered.slice().sort((a, b) => {
+      const aIdx = popularIds.indexOf(a.id);
+      const bIdx = popularIds.indexOf(b.id);
+      if (aIdx === -1 && bIdx === -1) return b.id - a.id;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+  } else {
+    filtered = filtered.slice().sort((a, b) => b.id - a.id);
+  }
+
+  const sortLatestEl = document.getElementById("sort-latest");
+  const sortPopularEl = document.getElementById("sort-popular");
+  if (sortLatestEl) {
+    sortLatestEl.href = `category.html?cat=${cat}&sort=latest`;
+    sortLatestEl.classList.toggle("active", sort === "latest");
+  }
+  if (sortPopularEl) {
+    sortPopularEl.href = `category.html?cat=${cat}&sort=popular`;
+    sortPopularEl.classList.toggle("active", sort === "popular");
+  }
+
+  // Pagination
+  const PAGE_SIZE = 6;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  let page = parseInt(getQueryParam("page"), 10);
+  if (!page || page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const container = document.getElementById("category-articles-container");
-  
   if (container) {
     if (filtered.length === 0) {
-      container.innerHTML = `<p class="no-articles" style="grid-column: span 3; text-align: center; color: var(--text-muted); padding: 60px 0;">아직 게재된 기사가 없습니다.</p>`;
+      container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 60px 0;">아직 게재된 기사가 없습니다.</p>`;
     } else {
-      container.innerHTML = filtered.map(art => createArticleCardHTML(art, 'standard')).join('');
+      container.innerHTML = pageItems.map(art => createArticleCardHTML(art, 'row')).join('');
     }
+  }
+
+  const paginationEl = document.getElementById("category-pagination");
+  if (paginationEl) {
+    if (totalPages <= 1) {
+      paginationEl.innerHTML = '';
+    } else {
+      let pagesHTML = '';
+      for (let p = 1; p <= totalPages; p++) {
+        pagesHTML += `<a href="category.html?cat=${cat}&sort=${sort}&page=${p}" class="page-link${p === page ? ' active' : ''}">${p}</a>`;
+      }
+      paginationEl.innerHTML = pagesHTML;
+    }
+  }
+
+  // Sidebar ranking widget (실시간 인기기사 - reuses the same curation as the homepage)
+  const rankingContainer = document.getElementById("category-ranking-container");
+  if (rankingContainer) {
+    const published = window.ARTICLES.filter(a => a.status === 'published');
+    let rankingItems = published.filter(a => popularIds.includes(a.id)).slice(0, 5);
+    if (rankingItems.length === 0) {
+      rankingItems = published.slice(Math.max(0, published.length - 5));
+    }
+    rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
   }
 }
 

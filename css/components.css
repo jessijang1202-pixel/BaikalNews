@@ -291,20 +291,19 @@
 }
 
 /* ============================================================
-   Card Row - horizontal list item (thumbnail + text)
+   Card Row - horizontal list item (thumbnail + text), used by the
+   category archive page's article list
    ============================================================ */
 .card-row {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 220px 1fr;
   gap: 24px;
-  padding-bottom: 24px;
-  margin-bottom: 24px;
+  padding: 24px 0;
   border-bottom: 1px solid var(--border-light);
 }
 
 .card-row:last-child {
   border-bottom: none;
-  margin-bottom: 0;
 }
 
 .card-row .card-image-wrapper {
@@ -313,14 +312,14 @@
 }
 
 .card-row .card-title {
-  font-size: 1.1rem;
-  margin-bottom: 6px;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
 }
 
 .card-row .card-excerpt {
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   -webkit-line-clamp: 2;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 /* ============================================================
@@ -328,7 +327,8 @@
    ============================================================ */
 #editors-picks-container,
 #popular-reads-container,
-#article-ranking-container {
+#article-ranking-container,
+#category-ranking-container {
   counter-reset: ranklist;
 }
 
@@ -661,22 +661,21 @@
 
   /* Category/related article rows become compact thumbnail+text rows,
      matching the mobile reference (instead of full-width stacked cards) */
-  .home-row,
-  .category-grid {
+  .home-row {
     grid-template-columns: 1fr;
-    column-count: 1;
     gap: 20px;
   }
   .home-row .card,
-  .category-grid .card {
+  .card-row {
     flex-direction: row;
+    display: flex;
     gap: 14px;
     align-items: flex-start;
     padding-bottom: 20px;
     margin-bottom: 20px;
   }
   .home-row .card .card-image-wrapper,
-  .category-grid .card .card-image-wrapper {
+  .card-row .card-image-wrapper {
     width: 100px;
     height: 76px;
     aspect-ratio: auto;
@@ -684,7 +683,7 @@
     margin-bottom: 0;
   }
   .home-row .card .card-excerpt,
-  .category-grid .card .card-excerpt {
+  .card-row .card-excerpt {
     display: none;
   }
 
@@ -728,13 +727,6 @@
     flex: 0 0 130px;
   }
 
-  .card-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .card-row .card-image-wrapper {
-    aspect-ratio: 16 / 10;
-  }
   .newsletter-block {
     padding: 24px 20px;
   }
