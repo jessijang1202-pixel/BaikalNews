@@ -105,8 +105,8 @@ button, input, textarea {
 }
 
 .theme-toggle-btn {
-  background: transparent;
-  border: 1px solid oklch(100% 0 0 / 0.3);
+  background-color: var(--bg-dark-utility);
+  border: none;
   color: #ffffff;
   width: 30px;
   height: 30px;
@@ -116,10 +116,21 @@ button, input, textarea {
   justify-content: center;
   cursor: pointer;
   transition: var(--transition-smooth);
-  font-size: 0.85rem;
 }
 
 .theme-toggle-btn:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  background-color: var(--accent-cyan);
+  color: #ffffff;
+}
+
+.theme-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle-icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
 }

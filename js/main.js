@@ -99,6 +99,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // 1. Common features (Header, Footer, Mobile menu, Weather Widget)
 function initCommonFeatures() {
+  // Simple white line-icons (not emoji) so the toggle color stays fully
+  // controllable via CSS instead of rendering in each OS's fixed emoji colors
+  const MOON_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>';
+  const SUN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+
   // Theme Toggle Initialization & Dynamic Injection
   const headerTop = document.querySelector(".header-top");
   if (headerTop) {
@@ -108,7 +113,7 @@ function initCommonFeatures() {
       themeToggle.className = "theme-toggle-wrapper";
       themeToggle.innerHTML = `
         <button id="theme-toggle-btn" aria-label="테마 전환" class="theme-toggle-btn">
-          <span class="theme-toggle-icon">🌙</span>
+          <span class="theme-toggle-icon">${MOON_ICON}</span>
         </button>
       `;
       headerTop.appendChild(themeToggle);
@@ -116,10 +121,10 @@ function initCommonFeatures() {
       const themeBtn = document.getElementById("theme-toggle-btn");
       const savedTheme = localStorage.getItem("baikal-theme") || "light";
       document.documentElement.setAttribute("data-theme", savedTheme);
-      
+
       const iconSpan = themeBtn.querySelector(".theme-toggle-icon");
       if (iconSpan) {
-        iconSpan.textContent = savedTheme === "dark" ? "☀️" : "🌙";
+        iconSpan.innerHTML = savedTheme === "dark" ? SUN_ICON : MOON_ICON;
       }
 
       themeBtn.addEventListener("click", () => {
@@ -128,7 +133,7 @@ function initCommonFeatures() {
         document.documentElement.setAttribute("data-theme", newTheme);
         localStorage.setItem("baikal-theme", newTheme);
         if (iconSpan) {
-          iconSpan.textContent = newTheme === "dark" ? "☀️" : "🌙";
+          iconSpan.innerHTML = newTheme === "dark" ? SUN_ICON : MOON_ICON;
         }
       });
     }
