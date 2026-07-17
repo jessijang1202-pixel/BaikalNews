@@ -424,54 +424,36 @@ footer {
     display: none;
   }
 
-  /* The hamburger toggle is dropped in favor of an always-visible
-     horizontal-scroll category strip below the header. */
   .mobile-nav-toggle {
-    display: none;
+    display: block;
   }
 
   nav.nav-bar {
+    display: none;
+  }
+  nav.nav-bar.active {
     display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
     background-color: var(--bg-primary);
-    border-top: none;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 2px solid var(--accent-cyan);
+    z-index: 99;
   }
-  nav.nav-bar .container {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+  nav.nav-bar.active .nav-links {
+    flex-direction: column;
+    padding: 4px 0;
   }
-  .nav-links {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 10px;
-    padding: 12px 16px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .nav-links li {
-    flex-shrink: 0;
-  }
-  .nav-links li a {
-    background-color: var(--bg-secondary);
-    border-radius: 999px;
-    padding: 7px 16px;
-    font-size: 0.78rem;
-  }
-  .nav-links li a:hover,
-  .nav-links li.active a {
-    background-color: var(--accent-cyan);
-    color: var(--text-on-dark);
-  }
-  .nav-links li#nav-about,
-  .nav-links li#nav-contact {
+  .nav-links li#nav-about {
     margin-left: 0;
     border-left: none;
+    border-top: 1px solid var(--border-light);
   }
+  .nav-links li a,
   .nav-links li#nav-about a,
   .nav-links li#nav-contact a {
-    font-size: 0.78rem;
-    padding: 7px 16px;
-    color: var(--text-primary);
-    background-color: var(--bg-secondary);
+    padding: 12px 16px;
   }
 
   .grid-3,
