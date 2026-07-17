@@ -314,7 +314,16 @@ footer {
   color: oklch(74% 0.09 210);
 }
 
-/* Desktop: sits to the right of the brand block inside .footer-top */
+/* Desktop: links + compliance line share one right-hand column,
+   stacked below each other, beside the brand block in .footer-top */
+.footer-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  max-width: 480px;
+}
+
 .footer-links {
   display: flex;
   flex-wrap: wrap;
@@ -336,8 +345,9 @@ footer {
 }
 
 .footer-compliance {
-  padding: 16px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0;
+  border-bottom: none;
+  text-align: right;
 }
 
 .footer-compliance p {
@@ -483,6 +493,12 @@ footer {
     padding-bottom: 22px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   }
+  /* display:contents flattens the wrapper so footer-links and
+     footer-compliance fall back into footer-top's own column stack,
+     exactly as before this wrapper existed. */
+  .footer-right {
+    display: contents;
+  }
   .footer-links {
     flex-direction: column;
     justify-content: flex-start;
@@ -490,6 +506,11 @@ footer {
     gap: 12px;
     padding: 16px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .footer-compliance {
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: left;
   }
   .footer-bottom {
     flex-direction: column;
