@@ -954,6 +954,14 @@ async function duplicateArticle(id) {
   await renderArticlesList();
 }
 
+// Shortcut: force status to 'published' and save immediately, so publishing
+// doesn't require first discovering the status dropdown.
+async function publishArticleNow() {
+  document.getElementById("form-status").value = "published";
+  onStatusChangeInForm("published");
+  await saveArticle();
+}
+
 // Save Article
 async function saveArticle() {
   const idVal = document.getElementById("edit-article-id").value;
