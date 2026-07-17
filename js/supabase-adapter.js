@@ -3,19 +3,20 @@
 
 (function() {
   const Adapter = {
-    // 1. Connection states
+    // 1. Connection states (falls back to the site's baked-in project config
+    // in js/supabase-config.js if no per-browser override is set)
     isConfigured: function() {
-      const url = localStorage.getItem("baikal_supabase_url");
-      const key = localStorage.getItem("baikal_supabase_key");
+      const url = localStorage.getItem("baikal_supabase_url") || window.SUPABASE_URL;
+      const key = localStorage.getItem("baikal_supabase_key") || window.SUPABASE_ANON_KEY;
       return !!(url && key);
     },
 
     getClient: function() {
       if (!this.isConfigured()) return null;
-      
-      const url = localStorage.getItem("baikal_supabase_url");
-      const key = localStorage.getItem("baikal_supabase_key");
-      
+
+      const url = localStorage.getItem("baikal_supabase_url") || window.SUPABASE_URL;
+      const key = localStorage.getItem("baikal_supabase_key") || window.SUPABASE_ANON_KEY;
+
       // Initialize client globally if not cached
       if (!window.supabaseClient) {
         if (typeof supabase === 'undefined') {
