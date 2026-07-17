@@ -395,9 +395,8 @@ footer {
     position: relative;
     background-color: var(--bg-dark-utility);
     height: auto;
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 4px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
     margin-left: -16px;
     margin-right: -16px;
     padding: 8px 16px;
@@ -406,21 +405,22 @@ footer {
   .header-meta {
     margin-right: 0;
     gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-    white-space: normal;
-    overflow: visible;
+    flex-wrap: nowrap;
     min-width: 0;
+    overflow: hidden;
   }
   #current-date {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: nowrap;
-    max-width: none;
-  }
-  .weather-widget {
     flex-shrink: 0;
     white-space: nowrap;
+  }
+  .weather-widget {
+    display: inline-block;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
   }
   .header-top-links {
     display: none;
