@@ -65,6 +65,9 @@
       <li class="sidebar-item" data-tab="audit">
         <a>감사 로그</a>
       </li>
+      <li class="sidebar-item" data-tab="admins">
+        <a>관리자 정보 관리</a>
+      </li>
     </ul>
     
     <div class="sidebar-footer">
@@ -728,6 +731,53 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: ADMINS ================= -->
+      <section id="tab-admins" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">관리자 계정 관리</h3>
+          </div>
+
+          <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 24px;">
+            관리자 페이지(editor815.baikalnews.com)에 로그인할 수 있는 계정을 관리합니다. 등록된 이름·이메일·비밀번호가 모두 일치해야 로그인할 수 있습니다.
+          </p>
+
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>이메일</th>
+                  <th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="admins-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 32px 0;">
+
+          <h4 style="margin-bottom: 16px;">신규 관리자 추가</h4>
+          <form onsubmit="event.preventDefault(); addAdmin();" style="max-width: 480px;">
+            <div class="form-group-admin">
+              <label for="new-admin-name">이름</label>
+              <input type="text" id="new-admin-name" class="form-control-admin" placeholder="이름을 입력하세요" required>
+            </div>
+            <div class="form-group-admin" style="margin-top: 14px;">
+              <label for="new-admin-email">이메일</label>
+              <input type="email" id="new-admin-email" class="form-control-admin" placeholder="example@email.com" required>
+            </div>
+            <div class="form-group-admin" style="margin-top: 14px;">
+              <label for="new-admin-password">비밀번호</label>
+              <input type="password" id="new-admin-password" class="form-control-admin" placeholder="비밀번호를 입력하세요" required>
+            </div>
+            <button type="submit" class="btn-admin btn-admin-primary" style="margin-top: 20px;">관리자 추가</button>
+          </form>
         </div>
       </section>
 

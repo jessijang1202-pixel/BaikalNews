@@ -5,7 +5,25 @@ document.addEventListener("DOMContentLoaded", () => {
   loadGeminiApiKey();
 });
 
-// 0. Login gate (client-side only: any name/email/password is accepted, no approval step)
+// 0. Login gate (client-side only: validated against the registered admin account list)
+const DEFAULT_ADMINS = [
+  { name: "최상락", email: "baikalnews.choi@gmail.com", password: "815!815" },
+  { name: "장승희", email: "baikalnews.jang@gmail.com", password: "815!815" }
+];
+
+function getAdmins() {
+  let admins = JSON.parse(localStorage.getItem("baikal_admins") || "null");
+  if (!admins) {
+    admins = DEFAULT_ADMINS;
+    localStorage.setItem("baikal_admins", JSON.stringify(admins));
+  }
+  return admins;
+}
+
+function saveAdmins(admins) {
+  localStorage.setItem("baikal_admins", JSON.stringify(admins));
+}
+
 function getAdminSession() {
   try {
     return JSON.parse(localStorage.getItem("baikal_admin_session") || "null");
@@ -55,16 +73,89 @@ async function handleAdminLogin() {
 
   if (!name || !email || !password) return;
 
-  const session = { name, email, loginAt: new Date().toISOString() };
+  const matched = getAdmins().find(a =>
+    a.name === name && a.email.toLowerCase() === email.toLowerCase() && a.password === password
+  );
+
+  if (!matched) {
+    alert("등록된 관리자 정보와 일치하지 않습니다. 이름·이메일·비밀번호를 확인해 주세요.");
+    return;
+  }
+
+  const session = { name: matched.name, email: matched.email, loginAt: new Date().toISOString() };
   localStorage.setItem("baikal_admin_session", JSON.stringify(session));
 
   await showAdminApp(session);
-  await logAudit("관리자 로그인", null, `${name} (${email}) 님이 로그인했습니다.`);
+  await logAudit("관리자 로그인", null, `${matched.name} (${matched.email}) 님이 로그인했습니다.`);
 }
 
 function handleAdminLogout() {
   localStorage.removeItem("baikal_admin_session");
   location.reload();
+}
+
+// 관리자 계정 관리 (Admin account management tab)
+function renderAdminsList() {
+  const tbody = document.getElementById("admins-table-body");
+  if (!tbody) return;
+
+  const admins = getAdmins();
+  tbody.innerHTML = admins.map((a, i) => `
+    <tr>
+      <td>${a.name}</td>
+      <td>${a.email}</td>
+      <td><button type="button" class="btn-admin btn-admin-danger" onclick="deleteAdmin(${i})">삭제</button></td>
+    </tr>
+  `).join("");
+}
+
+async function addAdmin() {
+  const nameEl = document.getElementById("new-admin-name");
+  const emailEl = document.getElementById("new-admin-email");
+  const passwordEl = document.getElementById("new-admin-password");
+
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim();
+  const password = passwordEl.value;
+
+  if (!name || !email || !password) {
+    alert("이름, 이메일, 비밀번호를 모두 입력하세요.");
+    return;
+  }
+
+  const admins = getAdmins();
+  if (admins.some(a => a.email.toLowerCase() === email.toLowerCase())) {
+    alert("이미 등록된 이메일입니다.");
+    return;
+  }
+
+  admins.push({ name, email, password });
+  saveAdmins(admins);
+  renderAdminsList();
+
+  nameEl.value = "";
+  emailEl.value = "";
+  passwordEl.value = "";
+
+  await logAudit("관리자 계정 추가", null, `${name} (${email}) 계정이 추가되었습니다.`);
+}
+
+async function deleteAdmin(index) {
+  const admins = getAdmins();
+  const target = admins[index];
+  if (!target) return;
+
+  if (admins.length <= 1) {
+    alert("최소 1명 이상의 관리자 계정이 필요합니다.");
+    return;
+  }
+  if (!confirm(`${target.name} (${target.email}) 계정을 삭제하시겠습니까?`)) return;
+
+  admins.splice(index, 1);
+  saveAdmins(admins);
+  renderAdminsList();
+
+  await logAudit("관리자 계정 삭제", null, `${target.name} (${target.email}) 계정이 삭제되었습니다.`);
 }
 
 // Global state variables
@@ -409,6 +500,7 @@ async function initAdminDashboard() {
   await populateCurationDropdowns();
   await loadStaticPageContent();
   await renderAuditLogs();
+  renderAdminsList();
 }
 
 // Sidebar Tab switching
@@ -473,7 +565,7 @@ async function switchTab(tabName) {
     curation: "홈페이지 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
-    supabase: "Supabase 클라우드 데이터베이스 연동"
+    admins: "관리자 정보 관리"
   };
   const titleEl = document.getElementById("current-tab-title");
   if (titleEl) {
@@ -493,8 +585,8 @@ async function switchTab(tabName) {
     await populateCurationDropdowns();
   } else if (tabName === 'audit') {
     await renderAuditLogs();
-  } else if (tabName === 'supabase') {
-    loadSupabaseConfigForm();
+  } else if (tabName === 'admins') {
+    renderAdminsList();
   }
 }
 
