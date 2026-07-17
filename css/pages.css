@@ -578,10 +578,7 @@
 
 /* Boxed sections, matching the About page's value/team cards */
 .policy-section {
-  padding: 24px 28px;
-  margin-bottom: 20px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-light);
+  margin-bottom: 32px;
 }
 
 .policy-section h2 {
