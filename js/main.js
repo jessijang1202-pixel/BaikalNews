@@ -210,9 +210,10 @@ function initStaticPageOverrides() {
     const navEl = document.getElementById(navId);
     if (navEl) navEl.classList.add("active");
     
-    // If a custom override HTML is set in localStorage, replace the policy page content block
+    // If a custom override HTML is set in localStorage, replace the page's content block
+    // (about.html uses .about-page instead of the shared .policy-page wrapper)
     if (overrides[pageKey]) {
-      const policyContentEl = document.querySelector(".policy-page");
+      const policyContentEl = document.querySelector(".policy-page, .about-page");
       if (policyContentEl) {
         policyContentEl.innerHTML = overrides[pageKey];
       }

@@ -736,6 +736,112 @@ textarea.form-control-admin {
   padding-right: 20px;
 }
 
+/* Login screen */
+.admin-login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--admin-bg-body);
+  padding: 24px;
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--admin-bg-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--border-radius);
+  padding: 40px 32px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.admin-login-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--admin-text-primary);
+  text-align: center;
+}
+
+.admin-login-sub {
+  font-size: 0.82rem;
+  color: var(--admin-text-secondary);
+  text-align: center;
+  margin-top: 6px;
+  margin-bottom: 28px;
+}
+
+.admin-login-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--admin-bg-input);
+  border: 1px solid var(--admin-border-light);
+  border-bottom: none;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  padding: 8px;
+}
+
+.rich-editor-toolbar select,
+.rich-editor-toolbar button,
+.rich-editor-toolbar input[type="color"] {
+  background-color: var(--admin-bg-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  color: var(--admin-text-primary);
+  font-size: 0.8rem;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.rich-editor-toolbar input[type="color"] {
+  padding: 2px;
+  width: 34px;
+  height: 30px;
+}
+
+.rich-editor-toolbar button:hover,
+.rich-editor-toolbar select:hover {
+  background-color: var(--admin-border-light);
+}
+
+.rich-editor-toolbar .toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background-color: var(--admin-border);
+  margin: 0 4px;
+}
+
+.rich-editor-body {
+  min-height: 480px;
+  max-height: 720px;
+  overflow-y: auto;
+  border: 1px solid var(--admin-border-light);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  padding: 20px;
+  background-color: #ffffff;
+  color: var(--admin-text-primary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.rich-editor-body:focus {
+  outline: none;
+  border-color: var(--admin-accent-cyan);
+}
+
+.rich-editor-body img {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Responsive Media Queries */
 @media (max-width: 768px) {
   .sidebar-toggle-btn {

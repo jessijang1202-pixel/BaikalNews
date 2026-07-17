@@ -1,9 +1,71 @@
 // Baikal News - Admin CMS Javascript Logic
 document.addEventListener("DOMContentLoaded", () => {
-  initAdminDashboard();
+  initAdminAuth();
   setupEventListeners();
   loadGeminiApiKey();
 });
+
+// 0. Login gate (client-side only: any name/email/password is accepted, no approval step)
+function getAdminSession() {
+  try {
+    return JSON.parse(localStorage.getItem("baikal_admin_session") || "null");
+  } catch (e) {
+    return null;
+  }
+}
+
+function initAdminAuth() {
+  const session = getAdminSession();
+  if (session) {
+    showAdminApp(session);
+  } else {
+    showLoginScreen();
+  }
+
+  const loginForm = document.getElementById("admin-login-form");
+  if (loginForm) {
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      handleAdminLogin();
+    });
+  }
+}
+
+function showLoginScreen() {
+  document.getElementById("admin-login-screen").style.display = "flex";
+  document.getElementById("admin-app").style.display = "none";
+}
+
+async function showAdminApp(session) {
+  document.getElementById("admin-login-screen").style.display = "none";
+  document.getElementById("admin-app").style.display = "";
+
+  const labelEl = document.getElementById("sidebar-user-label");
+  if (labelEl) labelEl.textContent = `로그인 사용자: ${session.name}`;
+  const nameEl = document.getElementById("header-profile-name");
+  if (nameEl) nameEl.textContent = session.name;
+
+  await initAdminDashboard();
+}
+
+async function handleAdminLogin() {
+  const name = document.getElementById("login-name").value.trim();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+
+  if (!name || !email || !password) return;
+
+  const session = { name, email, loginAt: new Date().toISOString() };
+  localStorage.setItem("baikal_admin_session", JSON.stringify(session));
+
+  await showAdminApp(session);
+  await logAudit("관리자 로그인", null, `${name} (${email}) 님이 로그인했습니다.`);
+}
+
+function handleAdminLogout() {
+  localStorage.removeItem("baikal_admin_session");
+  location.reload();
+}
 
 // Global state variables
 let currentEditingId = null;
@@ -11,42 +73,327 @@ let currentStaticPageKey = 'about';
 let selectedMediaImage = '';
 
 // Default static contents (as backup fallback for the page manager editor)
+// Mirrors the real, currently-live content of each public page's content block,
+// so the admin editor opens showing exactly what readers see.
 const DEFAULT_PAGE_CONTENTS = {
-  about: `<h1>회사 소개 / About Us</h1>
-<div class="policy-meta-info">최종 수정일: 2026년 7월 11일</div>
-<div class="policy-section">
-  <h2>바이칼 뉴스 소개</h2>
-  <p><strong>바이칼 뉴스(Baikal News)</strong>는 맑고 투명한 호수의 빙판처럼 거짓 없는 보도로 우리 사회를 맑게 비추고, 성급한 속보 경쟁보다는 깊이 있는 성찰적 보도를 생산하는 것을 최우선 가치로 삼는 디지털 대안 언론사입니다. 우리는 단편적인 단어의 나열이나 말초적인 자극을 완벽히 지양하며, 정직하고 투명한 저널리즘을 실현하여 독자를 존중하고자 노력합니다.</p>
-</div>`,
-  'editorial-policy': `<h1>편집 규약 / Editorial Policy</h1>
+  about: `<section class="about-hero">
+  <span class="kicker">회사 소개</span>
+  <h1>바이칼 호수처럼, 깊고 투명한 세상을 향합니다</h1>
+  <p>바이칼미디어그룹은 지역과 세계를 잇는 소식을 정확하고 투명하게 전달하는 것을 목표로 합니다. 두꺼운 눈 아래에서도 에메랄드빛으로 맑게 비치는 바이칼의 얼음처럼, 우리는 겉으로 드러나지 않는 이야기까지 가장 깊은 곳부터 들여다봅니다.</p>
+</section>
+
+<section class="about-hero-image">
+  <img src="images/baikal_ice.png" alt="바이칼뉴스" fetchpriority="high" decoding="async">
+</section>
+
+<section class="about-values">
+  <div class="value-card">
+    <div class="value-icon"></div>
+    <h3>투명성</h3>
+    <p>취재 과정과 정보의 출처를 가능한 한 명확히 공개하며, 오보 발생 시 정정 이력을 기사 하단에 상시 공시합니다.</p>
+  </div>
+  <div class="value-card">
+    <div class="value-icon"></div>
+    <h3>깊이</h3>
+    <p>세계에서 가장 깊은 호수처럼, 단순한 사실 나열을 넘어 사건 이면의 맥락과 원인을 끝까지 추적합니다.</p>
+  </div>
+  <div class="value-card">
+    <div class="value-icon"></div>
+    <h3>절제된 신뢰</h3>
+    <p>자극적이고 선정적인 보도를 지양하며, 오직 취재원 확인과 편집국 교차 검수를 거친 인간 기자의 글만을 싣습니다.</p>
+  </div>
+</section>
+
+<section class="about-stats">
+  <div class="stat">
+    <div class="stat-value">2026년 8월 15일</div>
+    <div class="stat-label">창간일</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">5개</div>
+    <div class="stat-label">취재 부문</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">2022년 12월 12일</div>
+    <div class="stat-label">등록일</div>
+  </div>
+</section>
+
+<section class="about-team">
+  <h2>편집진 소개</h2>
+  <div class="team-grid">
+    <div class="team-item">
+      <h4>최상락</h4>
+      <p class="team-role">발행인</p>
+      <p>바른 언론을 지향하며, 모든 보도의 최종 편집 검수와 승인을 담당합니다.</p>
+    </div>
+    <div class="team-item">
+      <h4>장승희</h4>
+      <p class="team-role">편집인</p>
+      <p>바른 언론을 지향하며, 모든 보도의 최종 편집 검수와 승인을 담당합니다.</p>
+    </div>
+  </div>
+</section>
+
+<section class="about-pubinfo">
+  <h2>발행 정보</h2>
+  <div class="pubinfo-grid">
+    <div class="pubinfo-item"><span class="pubinfo-label">발행인</span><span class="pubinfo-value">최상락</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">편집인</span><span class="pubinfo-value">장승희</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">청소년보호책임자</span><span class="pubinfo-value">최상락</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">등록번호</span><span class="pubinfo-value">경기-아53480</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">등록일</span><span class="pubinfo-value">2022년 12월 12일</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">주소</span><span class="pubinfo-value">경기도 평택시 지제로 65-4, 105호(지제동)</span></div>
+    <div class="pubinfo-item"><span class="pubinfo-label">대표전화</span><span class="pubinfo-value">010-4282-3393</span></div>
+  </div>
+</section>
+
+<section class="about-contact">
+  <h2>문의 정보</h2>
+  <div class="contact-box">
+    취재 의뢰, 광고·협업 문의, 오보 정정 요청, 제보는 아래 연락처로 접수해 주세요.<br>
+    대표이메일 <strong>baikalnews815@gmail.com</strong><br>
+    제보이메일 <strong>baikalnews815.jebo@gmail.com</strong><br>
+    대표전화 <strong>010-4282-3393</strong>
+  </div>
+</section>`,
+  'editorial-policy': `<h1>편집 규약</h1>
 <div class="policy-meta-info">최종 공시일: 2026년 7월 11일 | 바이칼 뉴스 제정</div>
+
 <div class="policy-section">
   <h2>제1조 목적 및 사명</h2>
-  <p>본 규약은 바이칼 뉴스가 저널리즘 본연의 정직성과 공익성을 수호하고, 외부의 부당한 압력으로부터 편집의 독립성을 지킴으로써 독자의 알 권리와 신뢰를 충족시키는 것을 목적으로 합니다.</p>
-</div>`,
-  'privacy-policy': `<h1>개인정보처리방침 / Privacy Policy</h1>
-<div class="policy-meta-info">최종 공시 및 시행일: 2026년 7월 11일</div>
+  <p>
+    본 규약은 바이칼 뉴스(이하 "본지")가 저널리즘 본연의 정직성과 공익성을 수호하고, 외부의 부당한 압력으로부터 편집의 독립성을 지킴으로써 독자의 알 권리와 신뢰를 충족시키는 것을 목적으로 합니다.
+    본지는 "깊고 투명한 시선으로 세상을 비추다"라는 슬로건 아래, 자극적인 편견이나 도그마에 얽매이지 않고 세상을 있는 그대로 투명하게 보도할 의무를 가집니다.
+  </p>
+</div>
+
 <div class="policy-section">
-  <h2>1. 수집하는 개인정보 항목</h2>
-  <p>바이칼 뉴스는 뉴스레터 발송 및 독자 제보 처리를 위해 최소한의 이메일 주소를 수집합니다. Google AdSense 광고를 게재하며 쿠키를 사용할 수 있습니다.</p>
+  <h2>제2조 편집권의 독립 및 중립성</h2>
+  <p>
+    1. 본지의 기사 취재 및 편집 행위는 정치 권력, 종교 단체, 광고주 및 기타 사적 이익 집단으로부터 완벽히 독립하여 이루어집니다.<br>
+    2. 편집인은 경영진의 부당한 기사 개입 요구나 배제 지시를 거부할 권리와 의무를 집니다.<br>
+    3. 기자의 자유로운 취재 활동과 전문적 양심에 따른 보도는 본지의 양심 수호 메커니즘을 통해 철저히 보호받습니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제3조 철저한 팩트체크 및 기사의 정확성</h2>
+  <p>
+    1. 모든 기사는 객관적으로 입증할 수 있는 신뢰도 높은 정보원(Source)을 기반으로 작성되어야 하며, 중요한 팩트는 복수의 대조 수단을 거쳐 교차 확인하는 것을 기본으로 합니다.<br>
+    2. 정파적이거나 일방적인 주장을 보도할 경우, 상대측의 입장과 해명을 동일한 수준의 지면과 비중으로 다루어야 합니다.<br>
+    3. 기자는 취재 과정에서 획득한 자료와 기록을 신뢰성 검증 목적으로 일정 기간 철저히 안전하게 보관하여 보도의 정직성을 증빙할 준비를 마칩니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제4조 선정주의 배제 및 어조의 신중함</h2>
+  <p>
+    1. 독자의 호기심을 유도하여 트래픽을 늘릴 목적으로 극적인 조장, 의도적인 유포, 자극적 단어 선택 등의 클릭베이트(Clickbait) 행위를 완벽히 금지합니다.<br>
+    2. 범죄 보도나 비극적 사고 취재 시 자극적인 수식을 쓰지 않으며 피해자의 2차 피해 방지를 위해 최소한의 중립적 단어를 채택합니다.<br>
+    3. 기사 표제(Headline)는 본문 내용을 허위로 확장하거나 왜곡하지 않고 본질을 명확히 요약해야 합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제5조 투명한 정보 제공 및 수정 이력 관리</h2>
+  <p>
+    1. 취재원이나 기사 내부의 인용구가 보도 이후 사실 관계 오류로 확인된 경우, 본지는 지체 없이 정정 보도나 수정을 반영해야 합니다.<br>
+    2. 기사의 핵심적 내용이 수정되었을 때, 수정 사실과 구체적인 개정 사유를 기사 본문 하단에 '수정 이력(Revision Log)'으로 고정 게시하여 독자에게 명확한 투명성을 제공합니다.<br>
+    3. 오보 수정 절차에 대한 세부 사항은 본지의 <a href="corrections.html">오보정정정책</a>에 따릅니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제6조 독자 인권 존중 및 사생활 보호</h2>
+  <p>
+    1. 본지는 공익적인 정당성 없이 개인의 명예나 사생활 영역을 침해하지 않으며, 초상권과 성명권을 전적으로 존중합니다.<br>
+    2. 제보자의 신원 비밀 보호는 본지의 가장 엄격한 법률적·윤리적 책무로, 법원이나 공공기관의 강제적 요하에서도 제보자의 안전과 명예를 지키기 위해 비공개 원칙을 고수합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제7조 인공지능(AI) 자동 작성 배제 및 인간 저널리즘 원칙</h2>
+  <p>
+    1. 본지는 인터넷 공간의 무분별한 정보 복제 및 AI(인공지능) 기반 기사 자동 생성·송출 시스템을 엄격히 금지합니다.<br>
+    2. 모든 보도 기사는 취재 기자의 실제 사실 확인(현장 확인, 관계자 인터뷰, 문헌 검토 등)과 데스크(최상락, 장승희)의 교차 편집 검수 및 승인을 거쳐 게시되는 인간 저널리즘 무결성 보도만을 취급합니다.<br>
+    3. 기사 본문에 들어가는 모든 표현은 생성형 인공지능에 의한 맹목적 텍스트 복제를 배제하며, 독창적이고 심도 깊은 분석을 기반으로 작성되어야 합니다.
+  </p>
 </div>`,
-  terms: `<h1>이용약관 / Terms of Service</h1>
+  'privacy-policy': `<h1>개인정보처리방침</h1>
+<div class="policy-meta-info">최종 공시 및 시행일: 2026년 7월 11일</div>
+
+<div class="policy-section">
+  <h2>1. 수집하는 개인정보 항목 및 수집 방법</h2>
+  <p>
+    바이칼 뉴스(이하 "본지")는 독자에게 최적의 읽기 환경을 제공하고, 뉴스레터 발송 및 독자 제보 처리를 위해 필요 최소한의 개인정보를 수집하고 있습니다.<br>
+    • <strong>수집 항목 (뉴스레터 구독 신청 시)</strong>: 이메일 주소<br>
+    • <strong>수집 항목 (온라인 제보 및 제보 양식 작성 시)</strong>: 성명(닉네임 가능), 이메일 주소, 첨부 문서 내 기재된 개인정보<br>
+    • <strong>자동 수집 항목</strong>: 서비스 이용 과정에서 IP 주소, 쿠키(Cookie), 방문 일시, 기기 OS 종류 및 브라우저 정보가 자동으로 생성되어 수집될 수 있습니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>2. 쿠키(Cookie) 및 제3자 광고 파트너 정보 (Google AdSense)</h2>
+  <p>
+    본지는 독자의 서비스 사용 양상을 분석하고 편의성을 높이기 위해 '쿠키(Cookie)'를 저장하고 수시로 찾아내는 기술을 사용합니다. 쿠키란 본지의 웹사이트를 운영하는데 이용되는 서버가 독자의 브라우저에 보내는 아주 작은 텍스트 파일로 독자의 컴퓨터 하드디스크에 저장됩니다.
+  </p>
+  <p>
+    <strong>[중요 공시 - 제3자 광고 게재 및 쿠키 사용]</strong><br>
+    1. <strong>Google AdSense 광고 탑재</strong>: Google을 비롯한 제3자 판매자는 쿠키를 사용하여 독자가 본 웹사이트 또는 다른 웹사이트를 이전 방문한 이력을 바탕으로 광고를 게재합니다.<br>
+    2. <strong>광고 쿠키의 사용</strong>: Google의 광고 쿠키 사용을 통해 Google과 파트너사는 독자의 본 웹사이트 방문 및 인터넷 상의 타 사이트 방문 정보를 바탕으로 맞춤형 광고를 제공할 수 있습니다.<br>
+    3. <strong>쿠키 거부 권리</strong>: 독자는 브라우저의 옵션 설정을 조정하거나, <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google 광고 설정 페이지</a>를 방문하여 맞춤형 광고 게재를 거부(Opt-out)할 수 있습니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>3. 개인정보의 수집 및 이용 목적</h2>
+  <p>
+    본지가 수집한 개인정보는 다음의 목적 이외의 용도로는 사용되지 않으며, 이용 목적이 변경될 시에는 독자에게 사전에 명확히 공시하고 동의를 구할 예정입니다.<br>
+    • 뉴스레터 구독자에 대한 뉴스 및 정기 배포 서비스 제공<br>
+    • 독자의 제보 내용에 대한 팩트 확인 및 개별 회신<br>
+    • 방문 통계 분석을 통한 서비스 개선 및 트래픽 품질 관리
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>4. 개인정보의 보유 및 파기 절차</h2>
+  <p>
+    본지는 원칙적으로 개인정보 수집 및 이용 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다. 파기 절차 및 방법은 다음과 같습니다.<br>
+    • <strong>파기 절차</strong>: 이용자가 입력한 이메일 등의 정보는 목적이 달성된 후 별도의 DB로 옮겨져 관련 법령에 의한 정보보호 사유에 따라 일정 기간 저장된 후 파기됩니다.<br>
+    • <strong>파기 방법</strong>: 전자적 파일 형태로 저장된 개인정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 영구 삭제하며, 종이 문서의 경우 분쇄하거나 소각합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>5. 이용자의 권리 및 거부권 행사 방법</h2>
+  <p>
+    독자는 언제든지 등록되어 있는 자신의 개인정보를 조회하거나 수정할 수 있으며, 뉴스레터 수신 동의 철회 및 개인정보 삭제(가입 탈퇴)를 요청할 권리가 있습니다. 이메일(<a href="mailto:baikalnews815@gmail.com">baikalnews815@gmail.com</a>)로 연락주시면 지체 없이 필요한 조치를 취하겠습니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>6. 개인정보보호책임자 및 상담창구</h2>
+  <p>
+    본지는 독자의 개인정보를 보호하고 개인정보와 관련한 불만을 처리하기 위하여 아래와 같이 개인정보보호책임자를 지정하고 있습니다.<br>
+    • <strong>개인정보보호책임자:</strong> 최상락 (발행인)<br>
+    • <strong>이메일:</strong> <a href="mailto:baikalnews815@gmail.com">baikalnews815@gmail.com</a><br>
+    • <strong>전화번호:</strong> 010-4282-3393
+  </p>
+</div>`,
+  terms: `<h1>이용약관</h1>
 <div class="policy-meta-info">최종 개정 및 적용일: 2026년 7월 11일</div>
+
 <div class="policy-section">
   <h2>제1조 목적</h2>
-  <p>이 약관은 바이칼 뉴스가 제공하는 인터넷 정보 서비스 및 뉴스 콘텐츠를 이용자가 이용함에 있어 본지와 이용자 간의 권리와 책임을 규정합니다.</p>
+  <p>
+    이 이용약관(이하 "약관")은 바이칼 뉴스(이하 "본지")가 제공하는 인터넷 정보 서비스 및 뉴스 콘텐츠(이하 "서비스")를 이용자가 이용함에 있어 본지와 이용자 간의 권리, 의무, 책임 사항 및 서비스 이용에 관한 제반 사항을 규정함을 목적으로 합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제2조 콘텐츠 저작권 및 사용 조건</h2>
+  <p>
+    1. 본지가 생산하고 서비스하는 모든 뉴스 기사, 텍스트, 사진, 동영상, 이미지, 디자인 요소 및 소스 코드는 관련 저작권법에 의해 보호받는 본지의 지적 재산입니다.<br>
+    2. 이용자는 본지의 명시적인 사전 서면 승인 없이 본지 콘텐츠의 전부 혹은 일부를 복제, 배포, 전재, 방송하거나 영리적 목적으로 사용할 수 없습니다.<br>
+    3. 비상업적 목적의 단순 링크 공유나 SNS 인용 보도의 경우, 반드시 '바이칼 뉴스'라는 명확한 출처 표기와 해당 기사의 URL 링크를 포함해야 합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제3조 서비스 이용 제한 및 금지 행위</h2>
+  <p>
+    이용자는 서비스를 이용할 때 다음 각 호에 해당하는 행위를 해서는 안 됩니다.<br>
+    • 타인의 개인정보를 도용하거나 사칭하는 행위<br>
+    • 서비스 설비에 위해를 가하거나 안정적인 운영을 방해하는 행위<br>
+    • 본지의 동의 없이 서비스를 이용한 광고 또는 영업 활동을 하는 행위<br>
+    • 본지의 명예를 훼손하거나 저작권 등 제3자의 지적 재산권을 침해하는 행위
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제4조 면책 조항</h2>
+  <p>
+    1. 본지는 천재지변, 전시, 정전, 기간통신사업자의 회선 중단 등 불가항력적인 외부 원인으로 서비스를 제공할 수 없는 경우 이에 대한 책임을 지지 않습니다.<br>
+    2. 본지는 뉴스 및 칼럼 기사에 수록된 정보의 신뢰성과 정확성을 기하기 위해 최선의 노력을 다하지만, 독자가 기사 내용을 신뢰하여 행한 주식 투자, 부동산 계약 등의 경제적 결정에 따른 결과적 손실에 대해서는 책임지지 않습니다.<br>
+    3. 본지는 외부 기고 및 독자 투고의 주장에 대해 중립을 지키며, 기고문 내의 개인적 견해는 본지의 공식적인 편집 방향과 다를 수 있습니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>제5조 약관의 개정 및 분쟁 해결</h2>
+  <p>
+    1. 본지는 관계 법령의 개정 또는 합리적인 운영상의 사유가 있을 경우 본 약관을 개정할 수 있으며, 개정된 약관은 웹사이트 공시를 통해 효력을 발생합니다.<br>
+    2. 서비스 이용과 관련하여 본지와 이용자 간에 발생한 분쟁에 대하여는 대한민국의 관련 법령을 적용하며, 본지 소재지의 관할 법원을 합의 관할 법원으로 합니다.
+  </p>
 </div>`,
-  corrections: `<h1>오보 정정 및 개정 정책 / Corrections Policy</h1>
+  corrections: `<h1>오보 정정 및 개정 정책</h1>
 <div class="policy-meta-info">최종 제정 및 고시일: 2026년 7월 11일</div>
+
 <div class="policy-section">
   <h2>신뢰와 투명성을 위한 약속</h2>
-  <p>바이칼 뉴스는 실수를 숨기거나 묵인하는 대신, 신속하고 성실하게 오류를 수정하고 이를 독자에게 가감 없이 공개함으로써 언론사로서의 투명성을 유지합니다.</p>
-</div>`,
-  contact: `<h1>제보 및 문의 / Contact</h1>
-<div class="policy-meta-info">귀하의 소중한 의견과 제보는 바이칼 뉴스의 가장 귀중한 자산입니다.</div>
+  <p>
+    바이칼 뉴스(이하 "본지")는 팩트 검증을 최우선으로 삼지만, 보도 과정에서 예기치 못한 사실 오인이나 오타, 정보원의 왜곡된 진술로 오류가 발생할 수 있음을 겸허히 인정합니다.
+    본지는 실수를 숨기거나 묵인하는 대신, 신속하고 성실하게 오류를 수정하고 이를 독자에게 가감 없이 공개함으로써 언론사로서의 투명한 책임성과 품격을 유지합니다.
+  </p>
+</div>
+
 <div class="policy-section">
-  <h2>기사 제보 (Tips & Reports)</h2>
-  <p>익명이 보장되는 기사 관련 제보는 baikalnews815.jebo@gmail.com 으로 송부해 주시기 바랍니다.</p>
+  <h2>수정 이력 표시제</h2>
+  <p>
+    본지는 단순한 텍스트 침묵 수정을 금지하고, 의미 있는 사실 정정이 있을 시 개정 이력을 투명하게 남깁니다.
+  </p>
+  <ul>
+    <li><strong>단순 오탈자 및 문법 교정</strong>: 기사의 핵심적 맥락에 영향을 미치지 않는 단순 오타, 맞춤법 교정 등은 별도의 이력 고지 없이 수정될 수 있습니다.</li>
+    <li><strong>핵심 팩트 및 정보 정정</strong>: 수치, 인명, 일시, 기관명, 논리 구조 등 기사의 맥락을 바꾸는 중요한 수정 사항이 발생한 경우, 기사 하단의 <strong>[보도 정정 및 수정 이력 (Revision Log)]</strong> 영역에 수정 반영 일시 및 구체적인 수정 내용과 사유를 기록하여 영구히 남깁니다.</li>
+    <li><strong>공식 정정 및 반론 보도</strong>: 언론중재위원회의 직권 결정이나 당사자 간의 합의에 의해 작성된 공식 정정 보도문 및 반론 보도문은 해당 기사의 최상단 혹은 최초 게재 지면과 매칭되는 동일 비중의 뉴스 리스트에 직접 게재합니다.</li>
+  </ul>
+</div>
+
+<div class="policy-section">
+  <h2>오보 정정 및 조치 요청 절차</h2>
+  <p>
+    본지의 보도로 인해 권익을 침해당했거나 사실 관계의 위배를 목격하신 이용자는 다음과 같은 절차에 따라 정정 신청을 하실 수 있습니다.
+  </p>
+  <p>
+    1. <strong>신청 방법</strong>: 제보 및 문의 페이지의 온라인 접수 양식을 이용하시거나, 정정요청 이메일(<a href="mailto:baikalnews815.jebo@gmail.com">baikalnews815.jebo@gmail.com</a>)로 접수해 주십시오.<br>
+    2. <strong>제출 서류</strong>: 정정을 요청하시는 기사의 링크, 문제가 되는 본문 단락, 올바른 사실관계를 증빙할 수 있는 신뢰성 있는 객관적 자료(공문서, 팩트 자료, 통계 자료 등)를 첨부해 주십시오.<br>
+    3. <strong>심의 및 결과 회신</strong>: 편집국 데스크가 접수 즉시 팩트 검증을 재실행하며, 접수 후 48시간 이내에 반영 여부 및 향후 반영 조치 계획을 신청인에게 서면(이메일)으로 정중히 전달합니다.
+  </p>
+</div>
+
+<div class="policy-section">
+  <h2>기사 삭제에 관한 원칙</h2>
+  <p>
+    본지는 역사적 공익성과 저널리즘 아카이빙의 의무를 다하기 위해, 게재 완료된 기사의 자의적인 완전 영구 삭제는 지양합니다.
+    다만, 형사소송법상 무죄가 확정된 당사자의 사생활권 보호, 명예훼손에 따른 강력한 피해 유발 등 법률적인 구제 필요가 극명한 예외적 상황에 한해서만 편집위원회의 치열한 토론과 합의를 거쳐 제한적으로 비공개 또는 삭제 조치를 실행합니다.
+  </p>
+</div>`,
+  contact: `<h1>제보 및 문의</h1>
+<div class="policy-meta-info">귀하의 소중한 의견과 제보는 바이칼 뉴스의 가장 귀중한 자산입니다.</div>
+
+<p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 32px;">
+  바이칼 뉴스는 권력과 자본으로부터의 완전한 독립과 독자 보호를 위해 제보자의 익명성과 신원을 법률 이상으로 엄격히 보호합니다.
+  보도 오류에 대한 정정 요청, 기사 제보, 제휴 문의는 아래 양식 혹은 이메일을 통해 접수해 주시면 담당 데스크가 24시간 이내에 검토 및 답변 드립니다.
+</p>
+
+<div class="contact-info-block">
+  <div class="contact-method">
+    <h3>기사 제보</h3>
+    <p>익명이 보장되는 기사 관련 제보는 아래 이메일로 관련 첨부 자료 및 정황 문서를 송부해 주시기 바랍니다.</p>
+    <p style="margin-top: 4px; font-weight: 600; color: var(--accent-cyan);">baikalnews815.jebo@gmail.com</p>
+  </div>
+
+  <div class="contact-method">
+    <h3>일반 문의 및 광고/제휴</h3>
+    <p>언론사 제휴, 뉴스 제공 계약 및 광고 관련 문의는 경영관리팀으로 접수해 주십시오.</p>
+    <p style="margin-top: 4px; font-weight: 600; color: var(--accent-blue);">baikalnews815@gmail.com</p>
+  </div>
+
+  <div class="contact-method">
+    <h3>우편 접수 및 내방</h3>
+    <p>경기도 평택시 지제로 65-4, 105호(지제동), 바이칼 뉴스 2층 편집국</p>
+  </div>
 </div>`
 };
 
@@ -1019,22 +1366,48 @@ async function loadStaticPageContent() {
     overrides = await window.SupabaseAdapter.fetchStaticPages();
   }
   const editorEl = document.getElementById("page-html-editor");
-  
+
   if (editorEl) {
-    // Load custom text if override exists, otherwise load default static template fallback
-    editorEl.value = overrides[currentStaticPageKey] || DEFAULT_PAGE_CONTENTS[currentStaticPageKey] || "";
+    // Load custom content if override exists, otherwise load the real live-page content fallback
+    editorEl.innerHTML = overrides[currentStaticPageKey] || DEFAULT_PAGE_CONTENTS[currentStaticPageKey] || "";
   }
 }
 
 async function saveStaticPages() {
-  const text = document.getElementById("page-html-editor").value;
+  const html = document.getElementById("page-html-editor").innerHTML;
 
   if (window.SupabaseAdapter) {
-    await window.SupabaseAdapter.saveStaticPage(currentStaticPageKey, text);
+    await window.SupabaseAdapter.saveStaticPage(currentStaticPageKey, html);
   }
-  
-  await logAudit("정적 페이지 법률선언 개정", null, `문서 키: ${currentStaticPageKey} 의 HTML 내용을 수정함.`);
+
+  await logAudit("정적 페이지 법률선언 개정", null, `문서 키: ${currentStaticPageKey} 의 내용을 수정함.`);
   alert(`정적 문서 '${currentStaticPageKey.toUpperCase()}' 변경사항이 정상 공시되었습니다.`);
+}
+
+// Rich text editor toolbar commands (WYSIWYG for the static page manager)
+function rteExec(command, value) {
+  const editorEl = document.getElementById("page-html-editor");
+  editorEl.focus();
+  document.execCommand(command, false, value || null);
+}
+
+function rteInsertLink() {
+  const url = prompt("삽입할 링크 주소(URL)를 입력하세요:", "https://");
+  if (url) rteExec("createLink", url);
+}
+
+function rteInsertImage() {
+  document.getElementById("rte-image-input").click();
+}
+
+function rteHandleImageFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => rteExec("insertImage", e.target.result);
+  reader.readAsDataURL(file);
+  event.target.value = "";
 }
 
 // 8. Media Library Selector & simulated image prompts generator

@@ -10,6 +10,32 @@
 </head>
 <body>
 
+  <!-- Login Screen -->
+  <div id="admin-login-screen" class="admin-login-screen">
+    <form id="admin-login-form" class="admin-login-card">
+      <div class="admin-login-logo">바이칼 뉴스</div>
+      <div class="admin-login-sub">뉴스룸 통합관리 시스템 로그인</div>
+
+      <div class="form-group-admin">
+        <label for="login-name">이름</label>
+        <input type="text" id="login-name" class="form-control-admin" placeholder="이름을 입력하세요" required>
+      </div>
+      <div class="form-group-admin" style="margin-top: 14px;">
+        <label for="login-email">이메일</label>
+        <input type="email" id="login-email" class="form-control-admin" placeholder="example@email.com" required>
+      </div>
+      <div class="form-group-admin" style="margin-top: 14px;">
+        <label for="login-password">비밀번호</label>
+        <input type="password" id="login-password" class="form-control-admin" placeholder="비밀번호를 입력하세요" required>
+      </div>
+
+      <button type="submit" class="btn-admin btn-admin-primary admin-login-submit">로그인</button>
+    </form>
+  </div>
+
+  <!-- Admin App (hidden until login) -->
+  <div id="admin-app" style="display:none;">
+
   <!-- Sidebar Navigation Overlay for Mobile -->
   <div class="admin-sidebar-overlay" id="sidebar-overlay"></div>
 
@@ -42,8 +68,9 @@
     </ul>
     
     <div class="sidebar-footer">
-      <div>로그인 사용자: 편집부</div>
+      <div id="sidebar-user-label">로그인 사용자: 편집부</div>
       <div style="font-size: 0.65rem; margin-top: 4px;">시스템 날짜: 2026.07.11</div>
+      <button type="button" class="btn-admin btn-admin-secondary" style="margin-top: 10px; width: 100%;" onclick="handleAdminLogout()">로그아웃</button>
     </div>
   </aside>
 
@@ -62,7 +89,7 @@
       </div>
       <div class="user-profile-badge">
         <span class="profile-role-tag">최고 관리자</span>
-        <span class="profile-name">데스크 관리자 (방문자)</span>
+        <span class="profile-name" id="header-profile-name">데스크 관리자 (방문자)</span>
       </div>
     </header>
 
@@ -618,12 +645,55 @@
               </div>
             </div>
 
-            <!-- Right Rich HTML Editor box -->
+            <!-- Right Rich Text (WYSIWYG) Editor box -->
             <div>
               <h4 id="page-editor-title" style="margin-bottom: 12px; color: var(--admin-accent-cyan);">회사 소개 (About)</h4>
-              <div class="form-group-admin">
-                <textarea id="page-html-editor" class="form-control-admin" style="min-height: 480px; font-family: monospace; font-size: 0.85rem;" placeholder="정적 페이지의 HTML 소스코드를 입력해 주세요."></textarea>
+
+              <div class="rich-editor-toolbar">
+                <select id="rte-block-format" onchange="rteExec('formatBlock', this.value); this.selectedIndex = 0;">
+                  <option value="">서식</option>
+                  <option value="h1">제목 1</option>
+                  <option value="h2">제목 2</option>
+                  <option value="h3">제목 3</option>
+                  <option value="p">본문</option>
+                  <option value="blockquote">인용구</option>
+                </select>
+
+                <select id="rte-font-size" onchange="rteExec('fontSize', this.value); this.selectedIndex = 0;">
+                  <option value="">글자 크기</option>
+                  <option value="2">작게</option>
+                  <option value="3">보통</option>
+                  <option value="4">약간 크게</option>
+                  <option value="5">크게</option>
+                  <option value="6">아주 크게</option>
+                  <option value="7">제목 크기</option>
+                </select>
+
+                <span class="toolbar-divider"></span>
+
+                <button type="button" onclick="rteExec('bold')" title="굵게"><b>B</b></button>
+                <button type="button" onclick="rteExec('italic')" title="기울임"><i>I</i></button>
+                <button type="button" onclick="rteExec('underline')" title="밑줄"><u>U</u></button>
+                <input type="color" id="rte-color" title="글자 색상" value="#0f172a" onchange="rteExec('foreColor', this.value)">
+
+                <span class="toolbar-divider"></span>
+
+                <button type="button" onclick="rteExec('insertUnorderedList')" title="글머리 기호 목록">목록</button>
+                <button type="button" onclick="rteExec('insertOrderedList')" title="번호 매기기 목록">번호목록</button>
+                <button type="button" onclick="rteInsertLink()" title="링크 삽입">링크</button>
+                <button type="button" onclick="rteInsertImage()" title="이미지 삽입">이미지</button>
+                <button type="button" onclick="rteExec('insertHorizontalRule')" title="구분선 삽입">선삽입</button>
+
+                <span class="toolbar-divider"></span>
+
+                <button type="button" onclick="rteExec('removeFormat')" title="서식 지우기">서식지우기</button>
+                <button type="button" onclick="rteExec('undo')" title="실행 취소">되돌리기</button>
+                <button type="button" onclick="rteExec('redo')" title="다시 실행">다시하기</button>
+
+                <input type="file" id="rte-image-input" accept="image/*" style="display:none;" onchange="rteHandleImageFile(event)">
               </div>
+
+              <div id="page-html-editor" class="rich-editor-body" contenteditable="true"></div>
             </div>
           </div>
         </div>
@@ -664,6 +734,8 @@
     </main>
 
   </div>
+
+  </div> <!-- /#admin-app -->
 
   <!-- ================= MODAL: MEDIA LIBRARY & AI IMAGE GENERATOR ================= -->
   <div class="modal-admin" id="media-library-modal">
