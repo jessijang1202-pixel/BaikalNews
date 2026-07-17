@@ -270,6 +270,10 @@ footer {
 }
 
 .footer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
   padding-bottom: 22px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -310,12 +314,16 @@ footer {
   color: oklch(74% 0.09 210);
 }
 
+/* Desktop: sits to the right of the brand block inside .footer-top */
 .footer-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 22px;
-  padding: 20px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  justify-content: flex-end;
+  gap: 10px 22px;
+  max-width: 480px;
+  padding: 0;
+  border-bottom: none;
+  flex-shrink: 0;
 }
 
 .footer-links a {
@@ -462,10 +470,26 @@ footer {
     gap: 28px;
   }
 
+  /* Mobile keeps the original stacked footer: brand block (with its
+     own divider), then the link list below it - unchanged from before
+     the desktop side-by-side layout was introduced. */
+  .footer-top {
+    flex-direction: column;
+    gap: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  .footer-brand {
+    padding-bottom: 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
   .footer-links {
     flex-direction: column;
+    justify-content: flex-start;
+    max-width: none;
     gap: 12px;
     padding: 16px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .footer-bottom {
     flex-direction: column;
