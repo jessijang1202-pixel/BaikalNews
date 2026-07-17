@@ -192,7 +192,7 @@ window.ARTICLES = [
     author: {
       name: "최상락",
       role: "바이칼 뉴스 편집인",
-      email: "baikalnews815@gmail.com",
+      email: "baikalnews.choi@gmail.com",
       bio: "20여 년간 국내 주요 일간지 사회부와 문화부에서 일했으며, 바이칼 뉴스의 공동 창립 및 편집장으로 활동하고 있습니다."
     },
     image: "images/opinion_editor.png",

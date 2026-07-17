@@ -641,7 +641,7 @@ function renderArticlePage() {
       : article.author.bio;
   }
   if (reporterEmailEl) {
-    const email = article.approver ? `${article.approver === '최상락' ? 'sr.choi' : 'sh.jang'}@baikalnews.com` : article.author.email;
+    const email = article.approver ? (article.approver === '최상락' ? 'baikalnews.choi@gmail.com' : 'baikalnews.jang@gmail.com') : article.author.email;
     reporterEmailEl.textContent = email;
     reporterEmailEl.href = `mailto:${email}`;
   }
