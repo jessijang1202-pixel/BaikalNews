@@ -162,6 +162,10 @@ nav.nav-bar {
   flex-wrap: wrap;
   align-items: stretch;
   list-style: none;
+  /* Pull back the first link's own left padding so its text lines up
+     with the container edge, matching the date/category/headline text
+     below it instead of sitting ~22px further right. */
+  margin-left: -22px;
 }
 
 .nav-links li a {
@@ -461,6 +465,7 @@ footer {
   }
   nav.nav-bar.active .nav-links {
     flex-direction: column;
+    margin-left: 0;
     padding: 4px 0;
   }
   .nav-links li#nav-about {

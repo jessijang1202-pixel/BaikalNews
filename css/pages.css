@@ -11,6 +11,12 @@
   color: var(--text-muted);
 }
 
+/* Match the article body's font size, larger than the small kicker
+   used for category badges elsewhere on the site */
+#article-category-badge {
+  font-size: 1.03rem;
+}
+
 .article-headline {
   font-family: var(--font-serif);
   font-size: 2.35rem;
