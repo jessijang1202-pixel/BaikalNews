@@ -328,6 +328,7 @@ footer {
   flex-direction: column;
   align-items: flex-end;
   max-width: 480px;
+  margin-top: 8px;
 }
 
 .footer-links {
