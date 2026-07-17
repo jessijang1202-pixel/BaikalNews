@@ -551,39 +551,42 @@
 .policy-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: 48px 0;
+  padding: 56px 0 40px;
 }
 
 .policy-page h1 {
   font-family: var(--font-serif);
-  font-size: 2.4rem;
+  font-size: 2.1rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 16px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--accent-cyan);
+  text-align: center;
+  line-height: 1.4;
+  margin-bottom: 12px;
 }
 
 .policy-meta-info {
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin-bottom: 32px;
+  text-align: center;
+  margin-bottom: 48px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
+/* Boxed sections, matching the About page's value/team cards */
 .policy-section {
-  margin-bottom: 36px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-light);
 }
 
 .policy-section h2 {
   font-family: var(--font-sans);
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 14px;
-  padding-top: 14px;
-  border-top: 3px solid var(--accent-cyan);
 }
 
 .policy-section p, .policy-section li {
@@ -591,6 +594,10 @@
   color: var(--text-secondary);
   line-height: 1.7;
   margin-bottom: 16px;
+}
+
+.policy-section p:last-child, .policy-section ul:last-child {
+  margin-bottom: 0;
 }
 
 .policy-section ul {
@@ -602,19 +609,20 @@
 .contact-grid {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
-  gap: 56px;
+  gap: 32px;
   margin-top: 32px;
 }
 
 .contact-info-block {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .contact-method {
-  border-left: 3px solid var(--accent-cyan);
-  padding-left: 16px;
+  padding: 20px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-light);
 }
 
 .contact-method h3 {
@@ -630,9 +638,9 @@
 }
 
 .contact-form-wrapper {
-  background: none;
-  border-top: 2px solid var(--accent-cyan);
-  padding: 28px 0 0 0;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  padding: 28px;
 }
 
 .form-group {
@@ -708,7 +716,11 @@ textarea.form-control {
     padding: 20px 16px;
   }
   .policy-page h1 {
-    font-size: 1.9rem;
+    font-size: 1.6rem;
+  }
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
   .about-hero h1 {
     font-size: 1.6rem;
