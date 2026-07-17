@@ -12,6 +12,17 @@ const CATEGORY_LABELS = {
   opinion: "오피니언"
 };
 
+// A "scheduled" article becomes visible on its own once scheduledAt has passed --
+// there's no server/cron to flip its status, so this check happens at render time.
+function isArticleLive(article) {
+  if (!article) return false;
+  if (article.status === 'published') return true;
+  if (article.status === 'scheduled' && article.scheduledAt) {
+    return new Date(article.scheduledAt) <= new Date();
+  }
+  return false;
+}
+
 // 0. Database initialization via localStorage (Self-Executing)
 (function initDatabase() {
   // Database version control to force reset old Baikal/Siberia geography articles
@@ -224,7 +235,7 @@ function initStaticPageOverrides() {
 // Helper: Get published articles in category
 function getArticlesByCategory(category) {
   if (!window.ARTICLES) return [];
-  return window.ARTICLES.filter(a => a.category === category && a.status === 'published');
+  return window.ARTICLES.filter(a => a.category === category && isArticleLive(a));
 }
 
 // Helper: Get URL query parameters
@@ -307,7 +318,7 @@ function createArticleCardHTML(article, mode = 'standard') {
 function renderHomepage() {
   if (!window.ARTICLES || window.ARTICLES.length === 0) return;
 
-  const published = window.ARTICLES.filter(a => a.status === 'published');
+  const published = window.ARTICLES.filter(a => isArticleLive(a));
   if (published.length === 0) return;
 
   // Load Curation
@@ -511,7 +522,7 @@ function renderCategoryPage() {
   // Sidebar ranking widget (실시간 인기기사 - reuses the same curation as the homepage)
   const rankingContainer = document.getElementById("category-ranking-container");
   if (rankingContainer) {
-    const published = window.ARTICLES.filter(a => a.status === 'published');
+    const published = window.ARTICLES.filter(a => isArticleLive(a));
     let rankingItems = published.filter(a => popularIds.includes(a.id)).slice(0, 5);
     if (rankingItems.length === 0) {
       rankingItems = published.slice(Math.max(0, published.length - 5));
@@ -534,8 +545,8 @@ function renderArticlePage() {
   // Find article from the database (localStorage loaded window.ARTICLES)
   const article = window.ARTICLES.find(a => a.id === id);
   
-  // Prevent reader access if not published, unless in preview mode
-  if (!article || (article.status !== 'published' && !isPreview)) {
+  // Prevent reader access if not live yet, unless in preview mode
+  if (!article || (!isArticleLive(article) && !isPreview)) {
     const container = document.getElementById("article-main-content");
     if (container) {
       container.innerHTML = `
@@ -564,7 +575,10 @@ function renderArticlePage() {
     previewBanner.style.fontSize = "0.9rem";
     previewBanner.style.fontWeight = "600";
     previewBanner.style.color = "var(--text-primary)";
-    previewBanner.innerHTML = `⚠️ [미리보기 모드] 이 기사는 현재 <strong>${article.status.toUpperCase()}</strong> 상태이며 승인 대기 중입니다. 일반 독자에게는 보이지 않습니다.`;
+    const statusMsg = article.status === 'scheduled' && article.scheduledAt
+      ? `예약 발행 상태이며 ${new Date(article.scheduledAt).toLocaleString("ko-KR")}에 자동 공개됩니다`
+      : `<strong>${article.status.toUpperCase()}</strong> 상태이며 승인 대기 중입니다`;
+    previewBanner.innerHTML = `⚠️ [미리보기 모드] 이 기사는 현재 ${statusMsg}. 일반 독자에게는 보이지 않습니다.`;
     
     const wrapper = document.getElementById("article-main-content");
     if (wrapper) {
@@ -713,7 +727,7 @@ function renderArticlePage() {
   // Render Related Articles (same category, up to 3 articles, excluding current)
   const relatedContainer = document.getElementById("related-sidebar-container");
   if (relatedContainer) {
-    const publishedList = window.ARTICLES.filter(a => a.status === 'published');
+    const publishedList = window.ARTICLES.filter(a => isArticleLive(a));
     const related = publishedList
       .filter(a => a.category === article.category && a.id !== article.id)
       .slice(0, 3);
@@ -731,7 +745,7 @@ function renderArticlePage() {
   const rankingContainer = document.getElementById("article-ranking-container");
   if (rankingContainer) {
     const curationData = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
-    const publishedForRanking = window.ARTICLES.filter(a => a.status === 'published');
+    const publishedForRanking = window.ARTICLES.filter(a => isArticleLive(a));
     let rankingItems = publishedForRanking
       .filter(a => curationData.popularReadsIds.includes(a.id) && a.id !== article.id)
       .slice(0, 5);

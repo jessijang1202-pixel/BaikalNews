@@ -778,6 +778,7 @@ function showArticleCreateForm() {
   // Hide widgets
   document.getElementById("btn-soft-delete").style.display = "none";
   onStatusChangeInForm("draft");
+  updateContentCharCount();
 }
 
 function hideArticleForm() {
@@ -809,7 +810,7 @@ function onStatusChangeInForm(status) {
     document.getElementById("wf-step-draft").classList.add("active");
     document.getElementById("wf-step-review").classList.add("active");
     document.getElementById("wf-conn-review").classList.add("active");
-  } else if (status === 'approved') {
+  } else if (status === 'approved' || status === 'scheduled') {
     document.getElementById("wf-step-draft").classList.add("active");
     document.getElementById("wf-step-review").classList.add("active");
     document.getElementById("wf-step-approved").classList.add("active");
@@ -825,9 +826,9 @@ function onStatusChangeInForm(status) {
     document.getElementById("wf-conn-published").classList.add("active");
   }
 
-  // Show approver selector if status is approved or published
+  // Show approver selector if status is approved, scheduled, or published
   const approverGroup = document.getElementById("approver-select-group");
-  if (status === 'approved' || status === 'published') {
+  if (status === 'approved' || status === 'published' || status === 'scheduled') {
     approverGroup.style.display = "block";
     document.getElementById("form-approver").setAttribute("required", "required");
   } else {
@@ -842,6 +843,25 @@ function onStatusChangeInForm(status) {
   } else {
     rejectionGroup.style.display = "none";
   }
+
+  // Show scheduled publish datetime picker only when status is 'scheduled'
+  const scheduledGroup = document.getElementById("scheduled-at-group");
+  const scheduledInput = document.getElementById("form-scheduled-at");
+  if (status === 'scheduled') {
+    scheduledGroup.style.display = "block";
+    scheduledInput.setAttribute("required", "required");
+  } else {
+    scheduledGroup.style.display = "none";
+    scheduledInput.removeAttribute("required");
+  }
+}
+
+function updateContentCharCount() {
+  const el = document.getElementById("form-content");
+  const counterEl = document.getElementById("form-content-charcount");
+  if (!el || !counterEl) return;
+  const noSpaceCount = el.value.replace(/\s/g, '').length;
+  counterEl.textContent = `공백 제외 ${noSpaceCount.toLocaleString("ko-KR")}자`;
 }
 
 // Edit existing article
@@ -875,12 +895,22 @@ async function editArticle(id) {
   
   document.getElementById("form-status").value = art.status;
   document.getElementById("form-approver").value = art.approver || "";
-  
+  document.getElementById("form-scheduled-at").value = toDatetimeLocalValue(art.scheduledAt);
+
   // Show delete button
   document.getElementById("btn-soft-delete").style.display = "block";
-  
+
   // Trigger status visual logic
   onStatusChangeInForm(art.status);
+  updateContentCharCount();
+}
+
+function toDatetimeLocalValue(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return "";
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // Preview before publishing
@@ -913,6 +943,7 @@ async function duplicateArticle(id) {
     approver: null,
     byline: "",
     approvedAt: null,
+    scheduledAt: null,
     revisionHistory: [{"date": new Date().toLocaleString("ko-KR"), "action": "기사 복제본 초안 생성"}]
   };
 
@@ -947,6 +978,7 @@ async function saveArticle() {
   const status = document.getElementById("form-status").value;
   const approver = document.getElementById("form-approver").value;
   const rejectionNote = document.getElementById("form-rejection-note").value;
+  const scheduledAtRaw = document.getElementById("form-scheduled-at").value;
 
   // Category labels mapping
   const catLabels = {
@@ -958,9 +990,24 @@ async function saveArticle() {
   };
 
   // Critical Validation: Approval requires an Approver name
-  if ((status === 'approved' || status === 'published') && !approver) {
-    alert("승인 완료(Approved) 또는 발행 공개(Published) 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
+  if ((status === 'approved' || status === 'published' || status === 'scheduled') && !approver) {
+    alert("승인 완료·예약 발행·공개 발행 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
     return;
+  }
+
+  // Scheduled publish requires a future datetime
+  let scheduledAt = null;
+  if (status === 'scheduled') {
+    if (!scheduledAtRaw) {
+      alert("예약 발행 일시를 지정해 주세요.");
+      return;
+    }
+    scheduledAt = new Date(scheduledAtRaw);
+    if (scheduledAt <= new Date()) {
+      alert("예약 발행 일시는 현재보다 미래여야 합니다.");
+      return;
+    }
+    scheduledAt = scheduledAt.toISOString();
   }
 
   let art = null;
@@ -975,14 +1022,16 @@ async function saveArticle() {
     // Log the change
     actionName = `기사 편집 및 상태 변경 (${status.toUpperCase()})`;
     let revisionMsg = `기사 내용 수정 및 보완 (상태: ${status})`;
-    
+
     if (art.status !== status) {
       revisionMsg = `상태 변경: ${art.status} -> ${status}`;
       if (status === 'published') {
         revisionMsg = `보도 최종 승인 및 공개 발행 (승인인: ${approver})`;
+      } else if (status === 'scheduled') {
+        revisionMsg = `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`;
       }
     }
-    
+
     art.title = title;
     art.subtitle = subtitle;
     art.lead = lead;
@@ -995,11 +1044,11 @@ async function saveArticle() {
     art.seoTitle = seoTitle;
     art.seoMeta = seoMeta;
     art.slug = slug;
-    
+
     // Workflow updates
     if (status !== art.status) {
       art.status = status;
-      if (status === 'approved' || status === 'published') {
+      if (status === 'approved' || status === 'published' || status === 'scheduled') {
         art.approver = approver;
         art.byline = `${approver} 기자`;
         art.approvedAt = new Date().toISOString();
@@ -1009,7 +1058,8 @@ async function saveArticle() {
         art.approvedAt = null;
       }
     }
-    
+    art.scheduledAt = status === 'scheduled' ? scheduledAt : null;
+
     // Add to revision log
     if (!art.revisionHistory) art.revisionHistory = [];
     art.revisionHistory.push({
@@ -1039,10 +1089,11 @@ async function saveArticle() {
         email: "gd.hong@baikalnews.com",
         bio: "바른 시각으로 우리 사회와 환경을 보도하는 저널리스트."
       },
-      approver: (status === 'approved' || status === 'published') ? approver : null,
-      byline: (status === 'approved' || status === 'published') ? `${approver} 기자` : "",
+      approver: (status === 'approved' || status === 'published' || status === 'scheduled') ? approver : null,
+      byline: (status === 'approved' || status === 'published' || status === 'scheduled') ? `${approver} 기자` : "",
       draftedBy: "홍길동",
-      approvedAt: (status === 'approved' || status === 'published') ? new Date().toISOString() : null,
+      approvedAt: (status === 'approved' || status === 'published' || status === 'scheduled') ? new Date().toISOString() : null,
+      scheduledAt: status === 'scheduled' ? scheduledAt : null,
       revisionHistory: [{
         date: new Date().toLocaleString("ko-KR"),
         action: `신규 초안 등록 (상태: ${status})`
@@ -1111,6 +1162,13 @@ function switchAiMode(mode) {
 function setAiLoaderText(text) {
   const el = document.querySelector("#ai-loader h4");
   if (el) el.textContent = text;
+}
+
+// Shared target length (character count, excluding whitespace) for all 4 generation modes
+function getTargetLength() {
+  const el = document.getElementById("ai-target-length");
+  const val = el ? parseInt(el.value, 10) : NaN;
+  return (!isNaN(val) && val > 0) ? val : 1500;
 }
 
 // Shared SEO instructions injected into every generation prompt (Naver/Daum/Google)
@@ -1199,6 +1257,7 @@ async function generateTopicDraft() {
   if (!topic) throw new Error("기사 주제 키워드를 입력해 주세요.");
 
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+  const targetLength = getTargetLength();
 
   const prompt = `
 제공된 주제와 지침을 바탕으로 신뢰감 있고 완성도 높은 뉴스 기사를 작성하십시오.
@@ -1216,7 +1275,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 완벽하게 따르고 핵심 키워드를 포함한 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
-3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 1500자 내외로 상세하게 작성)
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -1254,6 +1313,7 @@ async function generateLinkDraft() {
   }
 
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+  const targetLength = getTargetLength();
 
   setAiLoaderText("원문을 분석하고 새로운 관점의 기사로 재구성하는 중...");
 
@@ -1273,7 +1333,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -1386,6 +1446,7 @@ async function generateTrendingDraft() {
   }
 
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+  const targetLength = getTargetLength();
 
   setAiLoaderText("오늘의 화제 기사를 참고하여 새로운 기사를 집필하는 중...");
 
@@ -1408,7 +1469,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -1481,6 +1542,7 @@ async function generateInfoDraft() {
   if (!topic) throw new Error("정보성 기사 주제를 추천받거나 직접 입력해 주세요.");
 
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+  const targetLength = getTargetLength();
 
   const prompt = `
 아래 생활 정보성 주제를 바탕으로, 독자가 실제로 신청·활용할 수 있도록 구체적이고 실용적인 정보를 담은 뉴스 기사를 작성하십시오. 신청 대상, 조건, 신청 방법, 유의사항 등을 가능한 한 구체적으로 안내하되, 확정되지 않은 수치나 날짜는 단정적으로 서술하지 말고 "관계 기관 공지를 확인해야 한다"는 취지로 안내하십시오.
@@ -1498,7 +1560,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 독자의 실질적 관심을 끌고 핵심 키워드를 포함한 정보성 기사 제목
 2. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함)
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 

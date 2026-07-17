@@ -288,7 +288,8 @@
                 <div class="form-group-admin">
                   <label for="form-content">기사 본문 (본문 내용)</label>
                   <div class="help-text" style="margin-bottom: 8px;">서식 있는 텍스트 형식의 HTML 코드를 입력하거나 일반 텍스트 문단을 작성할 수 있습니다.</div>
-                  <textarea id="form-content" class="form-control-admin" style="min-height: 350px;" required placeholder="본문 문단을 작성하세요. <p>, <h2> 등을 활용할 수 있습니다."></textarea>
+                  <textarea id="form-content" class="form-control-admin" style="min-height: 350px;" required placeholder="본문 문단을 작성하세요. <p>, <h2> 등을 활용할 수 있습니다." oninput="updateContentCharCount()"></textarea>
+                  <div class="help-text" id="form-content-charcount" style="text-align: right; margin-top: 4px;">공백 제외 0자</div>
                 </div>
               </div>
 
@@ -361,9 +362,17 @@
                       <option value="draft">초안 작성 (임시 저장)</option>
                       <option value="review">검토 요청</option>
                       <option value="approved">승인 완료</option>
-                      <option value="published">공개 발행</option>
+                      <option value="scheduled">예약 발행</option>
+                      <option value="published">즉시 발행 (공개)</option>
                       <option value="archived">기사 아카이브 보관</option>
                     </select>
+                  </div>
+
+                  <!-- Scheduled publish datetime -->
+                  <div class="form-group-admin" id="scheduled-at-group" style="display: none;">
+                    <label for="form-scheduled-at" style="color: #fbbf24;">발행 예약 일시</label>
+                    <input type="datetime-local" id="form-scheduled-at" class="form-control-admin" style="border-color: #fbbf24;">
+                    <div class="help-text">지정한 일시가 되면 독자 사이트에 자동으로 공개됩니다. (그 전까지는 승인만 된 비공개 상태)</div>
                   </div>
 
                   <!-- Critical: Approver Selector -->
@@ -452,6 +461,12 @@
                     <span>④ 정보성 기사 추천 (정책·세금·복지)</span>
                   </label>
                 </div>
+              </div>
+
+              <div class="form-group-admin">
+                <label for="ai-target-length">목표 글자수 (공백 제외)</label>
+                <input type="number" id="ai-target-length" class="form-control-admin" value="1500" min="300" max="6000" step="100">
+                <div class="help-text">모든 작성 모드에 공통으로 적용되는 본문 목표 분량입니다.</div>
               </div>
 
               <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 20px 0;">

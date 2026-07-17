@@ -27,6 +27,7 @@
   --status-draft: #64748b;         /* Gray */
   --status-review: #d97706;        /* Darker Yellow/Amber for visibility on light bg */
   --status-approved: var(--color-green-deep);
+  --status-scheduled: #7c3aed;      /* Purple - approved but not yet live */
   --status-published: var(--color-blue-light);
   --status-archived: #94a3b8;      /* Slate */
   --status-rejected: #ef4444;      /* Red */
@@ -369,6 +370,7 @@ body {
 .badge-draft { background-color: rgba(148, 163, 184, 0.15); color: var(--status-draft); border: 1px solid rgba(148, 163, 184, 0.3); }
 .badge-review { background-color: rgba(251, 191, 36, 0.15); color: var(--status-review); border: 1px solid rgba(251, 191, 36, 0.3); }
 .badge-approved { background-color: rgba(34, 197, 94, 0.15); color: var(--status-approved); border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-scheduled { background-color: rgba(124, 58, 237, 0.15); color: var(--status-scheduled); border: 1px solid rgba(124, 58, 237, 0.3); }
 .badge-published { background-color: rgba(6, 182, 212, 0.15); color: var(--status-published); border: 1px solid rgba(6, 182, 212, 0.3); }
 .badge-archived { background-color: rgba(100, 116, 139, 0.15); color: var(--status-archived); border: 1px solid rgba(100, 116, 139, 0.3); }
 .badge-rejected { background-color: rgba(239, 68, 68, 0.15); color: var(--status-rejected); border: 1px solid rgba(239, 68, 68, 0.3); }

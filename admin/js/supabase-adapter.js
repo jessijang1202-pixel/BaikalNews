@@ -2,6 +2,39 @@
 // Exposes window.SupabaseAdapter globally
 
 (function() {
+  // Maps a raw snake_case Supabase `articles` row to the camelCase shape the
+  // rest of admin.js expects (matching the localStorage-stored shape exactly).
+  function mapArticleRow(row) {
+    if (!row) return row;
+    return {
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle,
+      lead: row.lead,
+      content: row.content,
+      category: row.category,
+      categoryLabel: row.category_label,
+      date: row.date,
+      status: row.status,
+      image: row.image,
+      author: row.author,
+      approver: row.approver,
+      byline: row.byline,
+      draftedBy: row.drafted_by,
+      approvedAt: row.approved_at,
+      scheduledAt: row.scheduled_at,
+      revisionHistory: row.revision_history,
+      seoTitle: row.seo_title,
+      seoMeta: row.seo_meta,
+      slug: row.slug,
+      canonicalUrl: row.canonical_url,
+      isYMYL: row.is_ymyl,
+      isPinned: row.is_pinned,
+      isFeatured: row.is_featured,
+      views: row.views || 0
+    };
+  }
+
   const Adapter = {
     // 1. Connection states (falls back to the site's baked-in project config
     // in admin/js/supabase-config.js if no per-browser override is set)
@@ -40,13 +73,13 @@
               .order('id', { ascending: true });
             
             if (error) throw error;
-            return data || [];
+            return (data || []).map(mapArticleRow);
           } catch (err) {
             console.error("Supabase fetchArticles error, falling back to LocalStorage:", err);
           }
         }
       }
-      
+
       // Fallback
       return JSON.parse(localStorage.getItem("baikal_articles") || "[]");
     },
@@ -62,9 +95,9 @@
               .select('*')
               .eq('id', id)
               .maybeSingle();
-            
+
             if (error) throw error;
-            return data;
+            return mapArticleRow(data);
           } catch (err) {
             console.error(`Supabase fetchArticleById (${id}) error, falling back to LocalStorage:`, err);
           }
@@ -99,6 +132,7 @@
               byline: article.byline,
               drafted_by: article.draftedBy,
               approved_at: article.approvedAt,
+              scheduled_at: article.scheduledAt || null,
               revision_history: article.revisionHistory,
               seo_title: article.seoTitle,
               seo_meta: article.seoMeta,
