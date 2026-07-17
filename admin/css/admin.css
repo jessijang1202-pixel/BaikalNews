@@ -57,6 +57,14 @@ body {
   overflow-x: hidden;
 }
 
+/* #admin-app wraps the sidebar + main content so it can be hidden behind
+   the login screen; it must still behave like body's old flex row did. */
+#admin-app {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
 /* Sidebar Navigation */
 .admin-sidebar {
   width: 260px;
@@ -70,6 +78,7 @@ body {
   bottom: 0;
   left: 0;
   z-index: 10;
+  overflow-y: auto;
 }
 
 .sidebar-header {
