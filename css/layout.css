@@ -436,7 +436,8 @@ footer {
     letter-spacing: 0.16em;
   }
   .slogan {
-    font-size: 0.85rem;
+    font-size: 0.68rem;
+    margin-top: 3px;
   }
 
   .mobile-nav-toggle {
