@@ -728,4 +728,13 @@ textarea.form-control {
   .pubinfo-grid {
     grid-template-columns: 1fr;
   }
+  /* 창간일 / 취재 부문 stats read too large on narrow screens */
+  .about-stats .stat:nth-child(1) .stat-value,
+  .about-stats .stat:nth-child(2) .stat-value {
+    font-size: 1.3rem;
+  }
+  .about-stats .stat:nth-child(1) .stat-label,
+  .about-stats .stat:nth-child(2) .stat-label {
+    font-size: 0.72rem;
+  }
 }
