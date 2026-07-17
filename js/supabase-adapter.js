@@ -105,7 +105,8 @@
               canonical_url: article.canonicalUrl || "",
               is_ymyl: article.isYMYL || false,
               is_pinned: article.isPinned || false,
-              is_featured: article.isFeatured || false
+              is_featured: article.isFeatured || false,
+              views: article.views || 0
             };
 
             const { data, error } = await client
@@ -379,7 +380,8 @@
                 canonicalUrl: row.canonical_url,
                 isYMYL: row.is_ymyl,
                 isPinned: row.is_pinned,
-                isFeatured: row.is_featured
+                isFeatured: row.is_featured,
+                views: row.views || 0
               }));
               
               localStorage.setItem("baikal_articles", JSON.stringify(camelCased));
@@ -391,6 +393,49 @@
           }
         }
       }
+    },
+
+    // 9. Article page-view tracking
+    incrementArticleView: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error: fetchErr } = await client
+              .from('articles')
+              .select('views')
+              .eq('id', id)
+              .maybeSingle();
+            if (fetchErr) throw fetchErr;
+
+            const newViews = ((data && data.views) || 0) + 1;
+            const { error } = await client
+              .from('articles')
+              .update({ views: newViews })
+              .eq('id', id);
+            if (error) throw error;
+
+            // Keep the local cache warm so this reader's own view reflects immediately
+            const cached = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+            const idx = cached.findIndex(a => a.id === id);
+            if (idx !== -1) {
+              cached[idx].views = newViews;
+              localStorage.setItem("baikal_articles", JSON.stringify(cached));
+            }
+            return newViews;
+          } catch (err) {
+            console.error(`Supabase incrementArticleView (${id}) error, falling back to LocalStorage:`, err);
+          }
+        }
+      }
+
+      // Fallback: local-only counter
+      const articles = JSON.parse(localStorage.getItem("baikal_articles") || "[]");
+      const idx = articles.findIndex(a => a.id === id);
+      if (idx === -1) return 0;
+      articles[idx].views = (articles[idx].views || 0) + 1;
+      localStorage.setItem("baikal_articles", JSON.stringify(articles));
+      return articles[idx].views;
     }
   };
 

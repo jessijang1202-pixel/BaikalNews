@@ -126,6 +126,11 @@
             <span class="stat-number" id="stat-total-count">0</span>
             <span class="stat-trend">전체 데이터베이스</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-title">총 조회수</span>
+            <span class="stat-number" id="stat-total-views">0</span>
+            <span class="stat-trend">전체 기사 누적 조회</span>
+          </div>
         </div>
 
         <!-- Dashboard Content Grid -->
@@ -174,6 +179,28 @@
             </div>
           </aside>
         </div>
+
+        <!-- View analytics -->
+        <div class="panel" style="margin-top: 24px; padding: 24px;">
+          <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
+            <h3 class="panel-title">조회수 현황</h3>
+          </div>
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>순위</th>
+                  <th>카테고리</th>
+                  <th>기사 제목</th>
+                  <th>조회수</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-top-viewed-list">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- ================= TAB: ARTICLES ================= -->
@@ -195,6 +222,7 @@
                   <th>최종 승인인</th>
                   <th>상태</th>
                   <th>날짜</th>
+                  <th>조회수</th>
                   <th>작업</th>
                 </tr>
               </thead>

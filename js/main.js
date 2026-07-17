@@ -549,6 +549,11 @@ function renderArticlePage() {
     return;
   }
 
+  // Count this as a real page view (skip preview mode so editors reviewing drafts don't inflate counts)
+  if (!isPreview && window.SupabaseAdapter) {
+    window.SupabaseAdapter.incrementArticleView(article.id);
+  }
+
   // If viewing preview, show preview banner at the top of the body
   if (isPreview) {
     const previewBanner = document.createElement("div");

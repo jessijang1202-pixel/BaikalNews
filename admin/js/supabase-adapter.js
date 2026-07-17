@@ -105,7 +105,8 @@
               canonical_url: article.canonicalUrl || "",
               is_ymyl: article.isYMYL || false,
               is_pinned: article.isPinned || false,
-              is_featured: article.isFeatured || false
+              is_featured: article.isFeatured || false,
+              views: article.views || 0
             };
 
             const { data, error } = await client

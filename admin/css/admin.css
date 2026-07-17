@@ -199,7 +199,7 @@ body {
 /* Dashboard Widgets & Cards */
 .admin-grid-4 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 24px;
   margin-bottom: 32px;
 }
@@ -233,6 +233,10 @@ body {
 
 .stat-card:nth-child(4) {
   background: linear-gradient(135deg, var(--color-green-light), #72e0c7);
+}
+
+.stat-card:nth-child(5) {
+  background: linear-gradient(135deg, #b8860b, #e0c25e);
 }
 
 .stat-card:nth-child(n) .stat-title {

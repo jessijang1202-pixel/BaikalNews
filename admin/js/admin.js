@@ -497,6 +497,7 @@ async function initAdminDashboard() {
   await refreshStats();
   await renderArticlesList();
   await renderPendingList();
+  await renderTopViewedList();
   await populateCurationDropdowns();
   await loadStaticPageContent();
   await renderAuditLogs();
@@ -577,6 +578,7 @@ async function switchTab(tabName) {
   if (tabName === 'dashboard') {
     await refreshStats();
     await renderPendingList();
+    await renderTopViewedList();
   } else if (tabName === 'articles') {
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
@@ -655,11 +657,44 @@ async function refreshStats() {
   const draft = articles.filter(a => a.status === 'draft').length;
   const review = articles.filter(a => a.status === 'review').length;
   const published = articles.filter(a => a.status === 'published').length;
-  
+  const totalViews = articles.reduce((sum, a) => sum + (a.views || 0), 0);
+
   document.getElementById("stat-draft-count").textContent = draft;
   document.getElementById("stat-review-count").textContent = review;
   document.getElementById("stat-published-count").textContent = published;
   document.getElementById("stat-total-count").textContent = articles.length;
+  document.getElementById("stat-total-views").textContent = totalViews.toLocaleString("ko-KR");
+}
+
+// Render Dashboard Top-Viewed list
+async function renderTopViewedList() {
+  const listEl = document.getElementById("dashboard-top-viewed-list");
+  if (!listEl) return;
+
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+
+  const topViewed = articles
+    .filter(a => a.status === 'published')
+    .slice()
+    .sort((a, b) => (b.views || 0) - (a.views || 0))
+    .slice(0, 5);
+
+  if (topViewed.length === 0) {
+    listEl.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--admin-text-muted); padding: 24px 0;">발행된 기사가 없거나 아직 조회 기록이 없습니다.</td></tr>`;
+    return;
+  }
+
+  listEl.innerHTML = topViewed.map((art, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><span class="ai-tag" style="margin:0;">${art.categoryLabel || art.category}</span></td>
+      <td style="font-weight: 500; color: var(--admin-text-primary);">${art.title}</td>
+      <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
+    </tr>
+  `).join('');
 }
 
 // Render Dashboard Review list
@@ -702,7 +737,7 @@ async function renderArticlesList() {
   }
   
   if (articles.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
   }
 
@@ -715,6 +750,7 @@ async function renderArticlesList() {
       <td>${art.approver || '<span style="color: var(--admin-text-muted);">미지정</span>'}</td>
       <td><span class="badge badge-${art.status}">${art.status.toUpperCase()}</span></td>
       <td style="white-space: nowrap;">${art.date}</td>
+      <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
       <td class="action-links">
         <a onclick="editArticle(${art.id})">편집</a>
         <a onclick="previewArticle(${art.id})">미리보기</a>
