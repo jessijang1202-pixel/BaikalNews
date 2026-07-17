@@ -1908,6 +1908,16 @@ function rteExec(command, value, targetId = 'page-html-editor') {
   document.execCommand(command, false, value || null);
 }
 
+// Pasting normally carries over the source's own font/size/color as inline
+// styles, which then override this editor's (and the site's) typography.
+// Force plain text on paste so pasted content always inherits whatever
+// font/size is defined here, regardless of where it was copied from.
+function handleRichEditorPaste(event) {
+  event.preventDefault();
+  const text = (event.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, text);
+}
+
 function rteInsertLink(targetId = 'page-html-editor') {
   const url = prompt("삽입할 링크 주소(URL)를 입력하세요:", "https://");
   if (url) rteExec("createLink", url, targetId);

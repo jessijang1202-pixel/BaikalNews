@@ -293,9 +293,7 @@
                     <select id="article-block-format" onchange="rteExec('formatBlock', this.value, 'form-content'); this.selectedIndex = 0;">
                       <option value="">서식</option>
                       <option value="h2">소제목</option>
-                      <option value="h3">소소제목</option>
                       <option value="p">본문</option>
-                      <option value="blockquote">인용구</option>
                     </select>
 
                     <span class="toolbar-divider"></span>
@@ -321,7 +319,7 @@
                     <input type="file" id="article-content-image-input" accept="image/*" style="display:none;" onchange="rteHandleImageFile(event, 'form-content')">
                   </div>
 
-                  <div id="form-content" class="rich-editor-body" contenteditable="true" style="min-height: 350px;" oninput="updateContentCharCount()"></div>
+                  <div id="form-content" class="rich-editor-body" contenteditable="true" style="min-height: 350px;" oninput="updateContentCharCount()" onpaste="handleRichEditorPaste(event)"></div>
                   <div class="help-text" id="form-content-charcount" style="text-align: right; margin-top: 4px;">공백 제외 0자</div>
                 </div>
               </div>
@@ -880,7 +878,7 @@
                 <input type="file" id="rte-image-input" accept="image/*" style="display:none;" onchange="rteHandleImageFile(event)">
               </div>
 
-              <div id="page-html-editor" class="rich-editor-body" contenteditable="true"></div>
+              <div id="page-html-editor" class="rich-editor-body" contenteditable="true" onpaste="handleRichEditorPaste(event)"></div>
             </div>
           </div>
         </div>
