@@ -860,7 +860,7 @@ function updateContentCharCount() {
   const el = document.getElementById("form-content");
   const counterEl = document.getElementById("form-content-charcount");
   if (!el || !counterEl) return;
-  const noSpaceCount = el.value.replace(/\s/g, '').length;
+  const noSpaceCount = (el.innerText || "").replace(/\s/g, '').length;
   counterEl.textContent = `공백 제외 ${noSpaceCount.toLocaleString("ko-KR")}자`;
 }
 
@@ -883,7 +883,7 @@ async function editArticle(id) {
   document.getElementById("form-title").value = art.title;
   document.getElementById("form-subtitle").value = art.subtitle || "";
   document.getElementById("form-lead").value = art.lead || "";
-  document.getElementById("form-content").value = art.content || "";
+  document.getElementById("form-content").innerHTML = art.content || "";
   document.getElementById("form-category").value = art.category;
   document.getElementById("form-date").value = art.date;
   document.getElementById("form-ymyl").checked = art.isYMYL || false;
@@ -965,7 +965,7 @@ async function saveArticle() {
   const title = document.getElementById("form-title").value;
   const subtitle = document.getElementById("form-subtitle").value;
   const lead = document.getElementById("form-lead").value;
-  const content = document.getElementById("form-content").value;
+  const content = document.getElementById("form-content").innerHTML;
   const category = document.getElementById("form-category").value;
   const date = document.getElementById("form-date").value;
   const isYMYL = document.getElementById("form-ymyl").checked;
@@ -1749,7 +1749,7 @@ function transferAiDraftToEditor() {
   document.getElementById("form-title").value = generatedDraftData.title;
   document.getElementById("form-subtitle").value = generatedDraftData.subtitle;
   document.getElementById("form-lead").value = generatedDraftData.lead;
-  document.getElementById("form-content").value = generatedDraftData.content;
+  document.getElementById("form-content").innerHTML = generatedDraftData.content;
   document.getElementById("form-category").value = generatedDraftData.category;
   document.getElementById("form-date").value = generatedDraftData.date;
   document.getElementById("form-image").value = generatedDraftData.image;
@@ -1760,7 +1760,8 @@ function transferAiDraftToEditor() {
   // Set draft state
   document.getElementById("form-status").value = "draft";
   onStatusChangeInForm("draft");
-  
+  updateContentCharCount();
+
   alert("인공지능 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청 및 최종 데스크 서명을 획득하세요.");
 }
 
@@ -1892,27 +1893,28 @@ async function saveStaticPages() {
 }
 
 // Rich text editor toolbar commands (WYSIWYG for the static page manager)
-function rteExec(command, value) {
-  const editorEl = document.getElementById("page-html-editor");
+function rteExec(command, value, targetId = 'page-html-editor') {
+  const editorEl = document.getElementById(targetId);
+  if (!editorEl) return;
   editorEl.focus();
   document.execCommand(command, false, value || null);
 }
 
-function rteInsertLink() {
+function rteInsertLink(targetId = 'page-html-editor') {
   const url = prompt("삽입할 링크 주소(URL)를 입력하세요:", "https://");
-  if (url) rteExec("createLink", url);
+  if (url) rteExec("createLink", url, targetId);
 }
 
-function rteInsertImage() {
-  document.getElementById("rte-image-input").click();
+function rteInsertImage(inputId = 'rte-image-input') {
+  document.getElementById(inputId).click();
 }
 
-function rteHandleImageFile(event) {
+function rteHandleImageFile(event, targetId = 'page-html-editor') {
   const file = event.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = (e) => rteExec("insertImage", e.target.result);
+  reader.onload = (e) => rteExec("insertImage", e.target.result, targetId);
   reader.readAsDataURL(file);
   event.target.value = "";
 }
@@ -1971,9 +1973,10 @@ function renderMediaLibraryGrid() {
   gridEl.innerHTML = mediaList.map(src => {
     const filename = src.substring(src.lastIndexOf('/') + 1);
     const isSelected = selectedMediaImage === src;
+    const displaySrc = /^https?:\/\//i.test(src) ? src : `https://baikalnews.com/${src}`;
     return `
       <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${src}')">
-        <img src="https://baikalnews.com/${src}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <img src="${displaySrc}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div class="media-card-info">${filename}</div>
       </div>
     `;
@@ -1996,35 +1999,198 @@ function confirmSelectedImage() {
   alert(`기사 대표 이미지로 '${selectedMediaImage}' 파일이 적용되었습니다.`);
 }
 
-function triggerAiImageGeneration() {
-  const prompt = document.getElementById("ai-image-prompt").value;
-  if (!prompt) {
-    alert("프롬프트를 간략하게 입력해 주세요.");
+// Uploads a File or Blob to the Supabase Storage "article-images" bucket and
+// returns its public URL. Requires the bucket + public read/insert policies
+// to already exist (see admin setup docs) -- throws a clear error otherwise.
+async function uploadImageToStorage(fileOrBlob, extHint) {
+  if (!window.SupabaseAdapter) {
+    throw new Error("Supabase 연동 모듈을 찾을 수 없습니다.");
+  }
+  const client = window.SupabaseAdapter.getClient();
+  if (!client) {
+    throw new Error("Supabase가 연결되어 있지 않습니다.");
+  }
+
+  const nameExt = fileOrBlob.name ? fileOrBlob.name.split('.').pop() : null;
+  const ext = (extHint || nameExt || 'png').toLowerCase().replace('jpeg', 'jpg');
+  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const contentType = fileOrBlob.type || `image/${ext}`;
+
+  const { error } = await client.storage.from('article-images').upload(path, fileOrBlob, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType
+  });
+  if (error) {
+    throw new Error(`${error.message || error}  (버킷 "article-images"가 없거나 업로드 정책이 설정되지 않았을 수 있습니다.)`);
+  }
+
+  const { data } = client.storage.from('article-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// Direct upload from the sidebar's "내 컴퓨터에서 업로드" file input
+async function handleArticleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById("image-upload-status");
+  if (statusEl) statusEl.textContent = "업로드 중...";
+
+  try {
+    const url = await uploadImageToStorage(file);
+    document.getElementById("form-image").value = url;
+    if (statusEl) statusEl.textContent = "업로드 완료: 기사 대표 이미지로 적용되었습니다.";
+  } catch (err) {
+    console.error("Image upload error:", err);
+    if (statusEl) statusEl.textContent = "업로드 실패: " + err.message;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+// Builds an image-generation prompt from the article's current title/lead/body via Gemini
+async function autoGenerateImagePrompt() {
+  const title = document.getElementById("form-title").value.trim();
+  const lead = document.getElementById("form-lead").value.trim();
+  const contentEl = document.getElementById("form-content");
+  const bodyText = contentEl ? (contentEl.innerText || "") : "";
+
+  if (!title && !lead && !bodyText) {
+    alert("먼저 기사 제목이나 본문을 작성한 후 프롬프트를 생성해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("auto-prompt-btn");
+  const promptEl = document.getElementById("ai-image-prompt");
+  const originalText = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "프롬프트 생성 중..."; }
+
+  try {
+    const analysisPrompt = `
+아래 뉴스 기사 내용을 바탕으로, 이 기사의 대표 이미지를 생성하기 위한 이미지 생성 AI용 프롬프트를 작성하십시오.
+
+[기사 제목]
+${title}
+
+[리드 문단]
+${lead}
+
+[본문 요약]
+${bodyText.substring(0, 1000)}
+
+[작성 지침]
+- 실제 인물의 얼굴, 자극적이거나 선정적인 이미지는 피하고, 차분하고 신뢰감 있는 에디토리얼 사진/일러스트 스타일로 묘사하십시오.
+- 기사 주제를 은유적으로 표현하는 사물, 풍경, 구도를 구체적으로 서술하십시오.
+- 다른 설명이나 마크다운 없이, 한 문단의 프롬프트 본문만 출력하십시오.
+`;
+    const resultText = await callGeminiApi(analysisPrompt, "당신은 신문 편집 디자인 전문가입니다.");
+    if (promptEl) promptEl.value = resultText.trim();
+  } catch (err) {
+    alert("프롬프트 자동생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  }
+}
+
+// Resolves an image-generation-capable Gemini model for this API key (same
+// auto-discovery approach as resolveGeminiModel(), filtered to image models).
+async function resolveGeminiImageModel(apiKey) {
+  const cacheKey = "baikal_gemini_image_model";
+  const cacheTimeKey = "baikal_gemini_image_model_cached_at";
+  const cached = localStorage.getItem(cacheKey);
+  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cachedAt) < oneDayMs) {
+    return cached;
+  }
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
+  const data = await res.json();
+  const models = (data.models || []).filter(m =>
+    (m.supportedGenerationMethods || []).includes("generateContent") && /image/i.test(m.name)
+  );
+
+  if (models.length === 0) {
+    throw new Error("이 API 키로 사용 가능한 이미지 생성 모델을 찾지 못했습니다. Google AI Studio에서 이미지 생성 모델 접근 권한을 확인해 주세요.");
+  }
+
+  const chosen = models.find(m => /flash/i.test(m.name)) || models[0];
+  const modelName = chosen.name.replace(/^models\//, '');
+  localStorage.setItem(cacheKey, modelName);
+  localStorage.setItem(cacheTimeKey, String(Date.now()));
+  return modelName;
+}
+
+// Calls Gemini's image-capable model and returns a data: URI
+async function generateGeminiImage(promptText) {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
+  }
+
+  const model = await resolveGeminiImageModel(apiKey);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    if (response.status === 404) {
+      localStorage.removeItem("baikal_gemini_image_model");
+      localStorage.removeItem("baikal_gemini_image_model_cached_at");
+    }
+    throw new Error(`AI 이미지 생성 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  const imagePart = parts.find(p => p.inlineData && p.inlineData.data);
+  if (!imagePart) {
+    throw new Error("AI가 이미지를 반환하지 않았습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.");
+  }
+
+  const mimeType = imagePart.inlineData.mimeType || "image/png";
+  return `data:${mimeType};base64,${imagePart.inlineData.data}`;
+}
+
+async function triggerAiImageGeneration() {
+  const promptText = document.getElementById("ai-image-prompt").value.trim();
+  if (!promptText) {
+    alert("프롬프트를 간략하게 입력하거나 자동생성 버튼을 눌러주세요.");
     return;
   }
 
   const loader = document.getElementById("ai-image-loader");
   loader.style.display = "flex";
 
-  setTimeout(() => {
-    loader.style.display = "none";
-    
-    // Simulate generating a new asset from the prompt
-    const newAssetSrc = `images/news_editorial.png`; // Fallback asset
-    
-    // Register into the list
+  try {
+    const dataUrl = await generateGeminiImage(promptText);
+    const blob = await (await fetch(dataUrl)).blob();
+    const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    const publicUrl = await uploadImageToStorage(blob, ext);
+
     const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
-    
-    const simulatedFilename = `images/ai_gen_${Date.now()}.png`;
-    mediaList.unshift(simulatedFilename);
+    mediaList.unshift(publicUrl);
     localStorage.setItem("baikal_media_library", JSON.stringify(mediaList));
 
-    selectedMediaImage = simulatedFilename;
+    selectedMediaImage = publicUrl;
     switchModalMediaTab('select');
     renderMediaLibraryGrid();
-    
-    alert(`AI 이미지 엔진: 프롬프트에 입각한 정갈한 에디토리얼 이미지가 빌드되어 '${simulatedFilename}' 파일명으로 미디어 라이브러리에 자동 보관되었습니다.`);
-  }, 1800);
+
+    alert("AI 이미지가 생성되어 미디어 라이브러리에 등록되었습니다.");
+  } catch (err) {
+    console.error("AI image generation error:", err);
+    alert("AI 이미지 생성 실패: " + err.message);
+  } finally {
+    loader.style.display = "none";
+  }
 }
 
 // 9. Supabase settings configuration forms logic

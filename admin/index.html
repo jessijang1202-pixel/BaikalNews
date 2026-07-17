@@ -287,8 +287,41 @@
 
                 <div class="form-group-admin">
                   <label for="form-content">기사 본문 (본문 내용)</label>
-                  <div class="help-text" style="margin-bottom: 8px;">서식 있는 텍스트 형식의 HTML 코드를 입력하거나 일반 텍스트 문단을 작성할 수 있습니다.</div>
-                  <textarea id="form-content" class="form-control-admin" style="min-height: 350px;" required placeholder="본문 문단을 작성하세요. <p>, <h2> 등을 활용할 수 있습니다." oninput="updateContentCharCount()"></textarea>
+                  <div class="help-text" style="margin-bottom: 8px;">"서식" 드롭다운에서 소제목/본문을 선택해 문단마다 구조를 구분해 주세요.</div>
+
+                  <div class="rich-editor-toolbar">
+                    <select id="article-block-format" onchange="rteExec('formatBlock', this.value, 'form-content'); this.selectedIndex = 0;">
+                      <option value="">서식</option>
+                      <option value="h2">소제목</option>
+                      <option value="h3">소소제목</option>
+                      <option value="p">본문</option>
+                      <option value="blockquote">인용구</option>
+                    </select>
+
+                    <span class="toolbar-divider"></span>
+
+                    <button type="button" onclick="rteExec('bold', null, 'form-content')" title="굵게"><b>B</b></button>
+                    <button type="button" onclick="rteExec('italic', null, 'form-content')" title="기울임"><i>I</i></button>
+                    <button type="button" onclick="rteExec('underline', null, 'form-content')" title="밑줄"><u>U</u></button>
+
+                    <span class="toolbar-divider"></span>
+
+                    <button type="button" onclick="rteExec('insertUnorderedList', null, 'form-content')" title="글머리 기호 목록">목록</button>
+                    <button type="button" onclick="rteExec('insertOrderedList', null, 'form-content')" title="번호 매기기 목록">번호목록</button>
+                    <button type="button" onclick="rteInsertLink('form-content')" title="링크 삽입">링크</button>
+                    <button type="button" onclick="rteInsertImage('article-content-image-input')" title="이미지 삽입">이미지</button>
+                    <button type="button" onclick="rteExec('insertHorizontalRule', null, 'form-content')" title="구분선 삽입">선삽입</button>
+
+                    <span class="toolbar-divider"></span>
+
+                    <button type="button" onclick="rteExec('removeFormat', null, 'form-content')" title="서식 지우기">서식지우기</button>
+                    <button type="button" onclick="rteExec('undo', null, 'form-content')" title="실행 취소">되돌리기</button>
+                    <button type="button" onclick="rteExec('redo', null, 'form-content')" title="다시 실행">다시하기</button>
+
+                    <input type="file" id="article-content-image-input" accept="image/*" style="display:none;" onchange="rteHandleImageFile(event, 'form-content')">
+                  </div>
+
+                  <div id="form-content" class="rich-editor-body" contenteditable="true" style="min-height: 350px;" oninput="updateContentCharCount()"></div>
                   <div class="help-text" id="form-content-charcount" style="text-align: right; margin-top: 4px;">공백 제외 0자</div>
                 </div>
               </div>
@@ -326,9 +359,14 @@
                 <div class="editor-sidebar-widget">
                   <h4>기사 대표 이미지</h4>
                   <div class="form-group-admin">
-                    <label for="form-image">이미지 파일 경로</label>
+                    <label for="form-image-upload">내 컴퓨터에서 업로드</label>
+                    <input type="file" id="form-image-upload" class="form-control-admin" accept="image/*" onchange="handleArticleImageUpload(event)">
+                    <div class="help-text" id="image-upload-status">이미지 파일을 선택하면 자동으로 업로드됩니다.</div>
+                  </div>
+                  <div class="form-group-admin">
+                    <label for="form-image">이미지 파일 경로 / URL</label>
                     <input type="text" id="form-image" class="form-control-admin" placeholder="images/culture_shamanism.png">
-                    <div class="help-text">미디어 라이브러리에서 선택하거나 생성된 AI 이미지를 자동 적용합니다.</div>
+                    <div class="help-text">업로드, 미디어 라이브러리 선택, AI 생성 중 하나를 사용하면 자동으로 채워집니다.</div>
                   </div>
                   <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="openMediaLibraryModal()">
                     미디어 선택 / AI 제작
@@ -954,6 +992,9 @@
 
       <!-- Option 2: AI Prompt generation -->
       <div id="modal-media-generate" style="display: none;">
+        <button type="button" id="auto-prompt-btn" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-bottom: 12px;" onclick="autoGenerateImagePrompt()">
+          기사 내용으로 프롬프트 자동생성
+        </button>
         <div class="form-group-admin">
           <label for="ai-image-prompt">화가/사진 묘사 프롬프트</label>
           <textarea id="ai-image-prompt" class="form-control-admin" placeholder="예: 맑고 정갈한 미디어 데스크 위의 노란 전구와 노트, 정돈된 사무실 구도, 신뢰감 주는 사진" style="min-height: 80px;"></textarea>
