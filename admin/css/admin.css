@@ -741,6 +741,7 @@ textarea.form-control-admin {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 100vh;
   background-color: var(--admin-bg-body);
   padding: 24px;
