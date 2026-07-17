@@ -2309,16 +2309,57 @@ async function scrapeExternalLink(url) {
   }
 }
 
+// Resolves which Gemini model this API key can actually use, instead of hardcoding a
+// version string that Google can deprecate at any time (as happened with gemini-2.5-flash).
+// Cached for a day so normal usage doesn't add an extra request per generation.
+async function resolveGeminiModel(apiKey) {
+  const cacheKey = "baikal_gemini_model";
+  const cacheTimeKey = "baikal_gemini_model_cached_at";
+  const cached = localStorage.getItem(cacheKey);
+  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cachedAt) < oneDayMs) {
+    return cached;
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) throw new Error("ListModels failed with status " + res.status);
+    const data = await res.json();
+    const models = (data.models || []).filter(m =>
+      (m.supportedGenerationMethods || []).includes("generateContent")
+    );
+    if (models.length === 0) throw new Error("No generateContent-capable models available");
+
+    // Prefer a fast/cheap "flash" text model over specialized non-text variants
+    const pick = (predicate) => models.find(predicate);
+    const chosen =
+      pick(m => /flash-latest$/i.test(m.name)) ||
+      pick(m => /flash/i.test(m.name) && !/image|audio|tts|embedding|vision/i.test(m.name)) ||
+      pick(m => !/image|audio|tts|embedding|vision/i.test(m.name)) ||
+      models[0];
+
+    const modelName = chosen.name.replace(/^models\//, '');
+    localStorage.setItem(cacheKey, modelName);
+    localStorage.setItem(cacheTimeKey, String(Date.now()));
+    return modelName;
+  } catch (err) {
+    console.error("Gemini model auto-discovery failed, falling back:", err);
+    return cached || "gemini-flash-latest";
+  }
+}
+
 // Gemini API Caller
 async function callGeminiApi(prompt, systemInstruction = "") {
   const apiKey = localStorage.getItem("baikal_gemini_key");
   if (!apiKey) {
     throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
   }
-  
-  // Using gemini-2.5-flash which has system instruction support
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  
+
+  const model = await resolveGeminiModel(apiKey);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
   const requestBody = {
     contents: [
       {
@@ -2347,7 +2388,13 @@ async function callGeminiApi(prompt, systemInstruction = "") {
   
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}): ${errText}`);
+    if (response.status === 404) {
+      // The cached/discovered model name turned out to be invalid or has since been
+      // deprecated -- clear the cache so the next call re-discovers a working one.
+      localStorage.removeItem("baikal_gemini_model");
+      localStorage.removeItem("baikal_gemini_model_cached_at");
+    }
+    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
   }
   
   const data = await response.json();
