@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /supabase/
 
-Sitemap: https://baikalnews815.github.io/sitemap.xml
+Sitemap: https://baikalnews.com/sitemap.xml

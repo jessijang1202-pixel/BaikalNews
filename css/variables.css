@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Font is loaded via <link> tags in each page's <head> (with
+   preconnect) instead of @import here, since @import blocks this
+   stylesheet from being used until the imported one finishes too. */
 
 :root {
   /* Core palette - icy winter daylight (from the Baikal News homepage reference) */

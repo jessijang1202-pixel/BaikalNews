@@ -241,7 +241,7 @@ function createArticleCardHTML(article, mode = 'standard') {
     return `
       <article class="card card-hero">
         <a href="article.html?id=${article.id}" class="card-image-wrapper">
-          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image" loading="eager" fetchpriority="high" decoding="async">
         </a>
         <div class="card-content">
           <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
@@ -258,7 +258,7 @@ function createArticleCardHTML(article, mode = 'standard') {
     return `
       <article class="card card-row">
         <a href="article.html?id=${article.id}" class="card-image-wrapper">
-          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image" loading="lazy" decoding="async">
         </a>
         <div class="card-content">
           <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
@@ -286,7 +286,7 @@ function createArticleCardHTML(article, mode = 'standard') {
     return `
       <article class="card">
         <a href="article.html?id=${article.id}" class="card-image-wrapper">
-          <img src="${imageUrl}" alt="${article.title}" class="card-image">
+          <img src="${imageUrl}" alt="${article.title}" class="card-image" loading="lazy" decoding="async">
         </a>
         <div class="card-content">
           <span class="category-badge badge-${article.category}">${CATEGORY_LABELS[article.category] || article.categoryLabel}</span>
@@ -395,7 +395,7 @@ function renderHomepage() {
         return `
           <figure class="photo-item">
             <a class="photo-tile" href="article.html?id=${art.id}">
-              <img src="${imageUrl}" alt="${art.title}">
+              <img src="${imageUrl}" alt="${art.title}" loading="lazy" decoding="async">
             </a>
             <p class="photo-caption">${art.title}</p>
           </figure>
@@ -433,6 +433,9 @@ function renderCategoryPage() {
   const catDescEl = document.getElementById("category-description");
   if (catTitleEl) catTitleEl.textContent = titleText;
   if (catDescEl) catDescEl.textContent = descText;
+
+  const canonicalEl = document.getElementById("canonical-link");
+  if (canonicalEl) canonicalEl.href = `https://baikalnews.com/category.html?cat=${cat}`;
 
   const breadCategoryEl = document.getElementById("bread-category");
   if (breadCategoryEl) {
@@ -565,7 +568,12 @@ function renderArticlePage() {
 
   // Set Page Title and SEO meta
   document.title = `${article.title} - Baikal News`;
-  
+
+  const canonicalEl = document.getElementById("canonical-link");
+  if (canonicalEl) {
+    canonicalEl.href = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
+  }
+
   // Set meta description dynamically
   let metaDesc = document.querySelector('meta[name="description"]');
   if (metaDesc) {
@@ -599,6 +607,32 @@ function renderArticlePage() {
   if (authorNameEl) {
     authorNameEl.textContent = bylineText;
   }
+
+  // Inject NewsArticle structured data so crawlers (including the
+  // AdSense reviewer) can read the article's real content/metadata
+  // even before any images/JS-rendered elements finish painting
+  const existingLd = document.getElementById("article-ld-json");
+  if (existingLd) existingLd.remove();
+  const ldScript = document.createElement("script");
+  ldScript.type = "application/ld+json";
+  ldScript.id = "article-ld-json";
+  const articleImageUrl = new URL(article.image || 'images/baikal_ice.png', window.location.href).href;
+  ldScript.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": article.title,
+    "description": article.seoMeta || article.lead,
+    "image": [articleImageUrl],
+    "datePublished": article.approvedAt || article.date,
+    "dateModified": article.approvedAt || article.date,
+    "author": { "@type": "Person", "name": bylineText },
+    "publisher": { "@type": "Organization", "name": "바이칼 뉴스" },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`
+    }
+  });
+  document.head.appendChild(ldScript);
 
   // Featured Image
   const featuredImg = document.getElementById("article-main-image");
