@@ -605,6 +605,50 @@ textarea.form-control-admin {
   margin-right: 6px;
 }
 
+/* Trending / info-topic pick lists (AI writer modes 3 & 4) */
+.trending-list-box {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--border-radius);
+  padding: 8px;
+  background-color: var(--admin-bg-input);
+}
+
+.trending-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.trending-item:hover {
+  background-color: var(--admin-border-light);
+}
+
+.trending-item input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* AI 글쓰기 학습 sample list */
+.training-sample-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--admin-border-light);
+  font-size: 0.85rem;
+}
+
+.training-sample-item:last-child {
+  border-bottom: none;
+}
+
 /* Modal Popup Styles */
 .modal-admin {
   display: none;
@@ -1014,10 +1058,4 @@ textarea.form-control-admin {
 
 .ai-api-config-panel h4:hover {
   color: var(--color-blue-deep);
-}
-
-#ai-style-status-help {
-  font-size: 0.8rem;
-  margin-top: 6px;
-  font-weight: 500;
 }

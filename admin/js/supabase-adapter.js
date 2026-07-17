@@ -406,13 +406,15 @@
               .select('*')
               .order('name', { ascending: true });
             if (error) throw error;
-            
+
             // Map snake_case from DB to camelCase for JS if needed
             return (data || []).map(row => ({
               id: row.id,
               name: row.name,
               description: row.description,
               styleRules: row.style_rules,
+              scope: row.scope || 'global',
+              ownerEmail: row.owner_email || '',
               updatedAt: row.updated_at
             }));
           } catch (err) {
@@ -433,6 +435,8 @@
               name: style.name,
               description: style.description,
               style_rules: style.styleRules,
+              scope: style.scope || 'global',
+              owner_email: style.ownerEmail || '',
               updated_at: new Date().toISOString()
             };
             const { error } = await client
@@ -454,6 +458,27 @@
         styles.push(style);
       }
       localStorage.setItem("baikal_writing_styles", JSON.stringify(styles));
+      return true;
+    },
+
+    deleteWritingStyle: async function(styleId) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            await client.from('writing_samples').delete().eq('style_id', styleId);
+            const { error } = await client.from('writing_styles').delete().eq('id', styleId);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteWritingStyle error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const styles = JSON.parse(localStorage.getItem("baikal_writing_styles") || "[]").filter(s => s.id !== styleId);
+      localStorage.setItem("baikal_writing_styles", JSON.stringify(styles));
+      const samples = JSON.parse(localStorage.getItem("baikal_writing_samples") || "[]").filter(s => (s.styleId || s.style_id) !== styleId);
+      localStorage.setItem("baikal_writing_samples", JSON.stringify(samples));
       return true;
     },
 
@@ -514,6 +539,24 @@
       sample.styleId = sample.styleId || sample.style_id;
       sample.createdAt = sample.createdAt || new Date().toISOString();
       samples.unshift(sample);
+      localStorage.setItem("baikal_writing_samples", JSON.stringify(samples));
+      return true;
+    },
+
+    deleteWritingSample: async function(sampleId) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { error } = await client.from('writing_samples').delete().eq('id', sampleId);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteWritingSample error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const samples = JSON.parse(localStorage.getItem("baikal_writing_samples") || "[]").filter(s => s.id !== sampleId);
       localStorage.setItem("baikal_writing_samples", JSON.stringify(samples));
       return true;
     }

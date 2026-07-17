@@ -562,6 +562,7 @@ async function switchTab(tabName) {
     dashboard: "뉴스룸 현황 대시보드",
     articles: "기사 통합 데스크 관리",
     'ai-writer': "AI 어시스턴트 집필실",
+    'ai-training': "AI 글쓰기 학습",
     curation: "홈페이지 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
@@ -581,6 +582,9 @@ async function switchTab(tabName) {
   } else if (tabName === 'ai-writer') {
     loadGeminiApiKey();
     await loadWritingStyles();
+  } else if (tabName === 'ai-training') {
+    loadGeminiApiKey();
+    await populateTrainingStyleSelect();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
   } else if (tabName === 'audit') {
@@ -1049,9 +1053,18 @@ async function softDeleteArticleInForm() {
   }
 }
 
-// 5. AI Assisted Article Generation Engine (Simulated human-like drafts)
+// 5. AI Assisted Article Generation Engine
+// 4 modes: 주제 입력, 링크 재구성, 오늘의 화제 기사(네이버 랭킹), 정보성 기사 추천
 let activeAiMode = 'topic';
 let generatedDraftData = null;
+
+const AI_CATEGORY_LABELS = {
+  culture: "문화·예술",
+  economy: "경제·산업",
+  tech: "기술·미디어",
+  local: "지역·평택",
+  opinion: "오피니언"
+};
 
 function switchAiMode(mode) {
   activeAiMode = mode;
@@ -1059,108 +1072,46 @@ function switchAiMode(mode) {
   document.getElementById(`ai-input-${mode}`).style.display = "block";
 }
 
-// Mock AI daily news database for angle suggester
-const DAILY_MAJOR_NEWS = {
-  T1: {
-    headline: "친환경 화물 열차 노선 통합 운임 협상 개시",
-    local: {
-      title: "글로벌 철도 요금 개편 and 평택항 배후단지의 물류 다각화 방안",
-      lead: "글로벌 연계 화물 철도망의 요금 개편이 본격적으로 추진됨에 따라, 평택 포승 배후 물류단지 기업들의 장기 대안 마련이 촉구됩니다.",
-      body: `<h2>평택항 연계 대륙 물류망의 변동성 예측</h2>
-<p>세계 대륙 철도 연합과의 요금 개편 회의가 본 궤도에 오름에 따라 블라디보스토크를 거쳐 유럽으로 나아가는 철도 운송 단가가 조정 국면을 맞았습니다. 이는 평택항을 기점으로 자동차 부품 및 무역 기자재를 납품해오던 로컬 공급망 기업들에게 직접적인 손익 변화를 의미합니다.</p>
-<h2>로컬 친환경 물류 경쟁력 강화를 위한 대안</h2>
-<p>전문가들은 이번 물류비 요금 협상 결과에 따라 장기 운송 계약 건들에 대한 손실 보전 장치를 마련해야 한다고 진단합니다. 동시에 친환경 철도 연계망 인프라 활성화를 통해 해운 탄소세 위기를 예방하는 로컬 다각화 노력이 필요한 시점입니다.</p>`
-    },
-    culture: {
-      title: "기차 운임 조정 회의와 철도 물류망 주변 원주민 보호 구역 소사",
-      lead: "대륙 철도망 운임 협상이 추진되는 한편, 이 철로 건설 과정에서 삶의 터전을 옮겨야 했던 원주민 공동체의 잊혀진 문화적 기억들이 재조명받고 있습니다.",
-      body: `<h2>거대 인프라에 가려진 원주민의 역사</h2>
-<p>글로벌 대륙 철도망은 동서양을 하나로 이은 인류의 획기적 발명품이지만, 노선 통과 구역 원주민 공동체에게는 강제 해체와 문화 융합의 뼈아픈 역사를 수반합니다.</p>
-<h2>시간을 잇는 정신적 유대를 그리다</h2>
-<p>오늘날 지역 사회의 문학계와 미술가들은 철길 위를 달리는 차가운 기차 소리 속에서 생태의 소중함과 구전 설화를 결합하는 보전 작업을 이어가고 있습니다. 이는 단순한 하드웨어 개발에 머물지 않고 문명과 조화를 이루는 지적인 태도입니다.</p>`
-    },
-    economy: {
-      title: "글로벌 철도 단가 재협상과 지속 가능 원목 원자재 수출 경제성 분석",
-      lead: "철도 단가 협상이 가동되면서 국내 목재 및 물류 배후단지 원자재 공급망 단가에 미칠 경제적 여파를 수치 분석해 봅니다.",
-      body: `<h2>원자재 운임 상승 압박과 공급망 타격</h2>
-<p>이번 대륙 노선의 운임비 증가는 지속 가능 인증 삼림 지대에서 임가공되는 원목 자원을 국내로 수입해오던 유통 경제성에 비상등을 켰습니다. 운임이 5% 이상 상승할 경우 대체 공급로의 타당성 조사가 불가피합니다.</p>
-<h2>에코 자원 공급망 보전을 위한 재정 지출</h2>
-<p>지자체 친환경 가공 물류 허브 지국에서는 친환경 단가 협정을 연계해 지속 가능 인증 원자재에 대해서는 할인을 제공하는 특별 생태 요금제를 제안하고 있습니다. 이는 자원 보존과 실리를 결합하는 에코 비즈니스의 좋은 단서입니다.</p>`
-    }
-  },
-  T2: {
-    headline: "도심지 열섬 현상 심화와 대기 질소산화물 감시 규제 논의",
-    local: {
-      title: "도심 대기 오염 여파에 대응하는 평택 환경 보전 연대 포럼",
-      lead: "도심 대기 온난화 및 배기가스 노출 위험성이 고조되면서 평택항 친환경 모니터링 연대도 학술 포럼을 출범하고 연대 대응에 나섰습니다.",
-      body: `<h2>도시 기후 변화 위기와 평택 환경 정책의 연계</h2>
-<p>기후 변화로 가속화되는 지구적 열돔 현상은 경기 서해안 일대의 평균 기온 변화와 해수면 고도 변화에 무관하지 않다는 연구가 제기되었습니다. 로컬 기후 거버넌스는 이러한 기후 변화 현안을 정밀 검토 중입니다.</p>`
-    },
-    culture: {
-      title: "[칼럼] 급격한 동절기 이상고온과 지역 축제 안전 대책의 긴급성",
-      lead: "급격한 기온 상승으로 얼음 두께가 얇아지면서 지역 주민 공동체의 겨울 야외 빙판 행사 개최에 안전 비상이 걸렸습니다.",
-      body: `<h2>빙판 안전성 감소에 따른 실천적 대책 마련</h2>
-<p>수백 년 동안 얼어붙은 영롱한 파란 빙판 위에서 말달리기와 전통 활쏘기를 연마하던 지역 겨울 행사가 빙판 균열 위험으로 전격 연기 및 취소되고 있습니다. 이는 기후 이변이 원주민 고유 문화 상속을 어떻게 물리적으로 단절시키는지를 보여줍니다.</p>`
-    },
-    economy: {
-      title: "지구 대기 정밀 모니터링 시장 개막과 국내 중소기업 환경 감시 기술 제휴 기회",
-      lead: "도심지 대기 상태 측정을 위한 정밀 센서 및 IoT 관제 시장이 글로벌 탄소 중립 모니터링 투자 계획과 맞물려 한국 벤처 기술에 기회 요인으로 작용하고 있습니다.",
-      body: `<h2>위성과 저전력 IoT 대기·기후 센서 비즈니스 개화</h2>
-<p>도심지 대기 환경 정밀 모니터링용 기후 센서 구축비가 국외 환경 재단으로부터 대량 조달되면서, 국내 초정밀 IoT 장비 공급망들의 비즈니스 수출 통로 확보가 유력하게 대두됩니다.</p>`
-    }
-  }
-};
-
-function onMajorTopicChange(topicVal) {
-  // Can adapt interface dynamically if needed
+function setAiLoaderText(text) {
+  const el = document.querySelector("#ai-loader h4");
+  if (el) el.textContent = text;
 }
 
-// Generate the draft
-async function generateAiDraft() {
-  document.getElementById("ai-empty-state").style.display = "none";
-  document.getElementById("ai-draft-viewer").style.display = "none";
-  document.getElementById("ai-loader").style.display = "flex";
-  
-  const loaderTitle = document.querySelector("#ai-loader h4");
-  if (loaderTitle) loaderTitle.textContent = "AI 뉴스 초안 및 논조 분석 작업 중...";
-
+function parseAiJsonResponse(resultText) {
+  const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
   try {
-    let headline = "";
-    let lead = "";
-    let body = "";
-    let category = "culture";
-    
-    if (activeAiMode === 'topic') {
-      const topic = document.getElementById("ai-topic-input").value.trim();
-      category = document.getElementById("ai-topic-category").value;
-      const selectedStyleId = document.getElementById("ai-style-select").value;
-      
-      if (!topic) {
-        throw new Error("기사 주제 키워드를 입력해 주세요.");
-      }
-      
-      let stylePrompt = "정직하고 깊이 있는 저널리즘 스타일로 작성해 주세요.";
-      let fewShotPrompt = "";
-      
-      if (selectedStyleId) {
-        const styles = await window.SupabaseAdapter.fetchWritingStyles();
-        const style = styles.find(s => s.id === selectedStyleId);
-        if (style) {
-          stylePrompt = `
+    return JSON.parse(cleanedText);
+  } catch (err) {
+    console.error("Gemini output parsing failed. Raw text:", resultText);
+    throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
+  }
+}
+
+// Builds the system-instruction style prompt + few-shot samples for a selected style id
+async function buildStylePromptFromSelection(styleId) {
+  if (!styleId) {
+    return { stylePrompt: "정직하고 깊이 있는 저널리즘 스타일로 작성해 주세요.", fewShotPrompt: "" };
+  }
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  const style = styles.find(s => s.id === styleId);
+  if (!style) {
+    return { stylePrompt: "정직하고 깊이 있는 저널리즘 스타일로 작성해 주세요.", fewShotPrompt: "" };
+  }
+
+  const stylePrompt = `
 당신은 다음 스타일 가이드라인을 엄격하게 지켜 기사를 작성해야 합니다:
 - 매체/논조 스타일: ${style.name}
 - 주요 톤앤매너 설명: ${style.description}
 - 반드시 준수해야 할 스타일 규칙:
 ${(style.styleRules || []).map(r => `  * ${r}`).join('\n')}
 `;
-          
-          // Get few-shot samples
-          const samples = await window.SupabaseAdapter.fetchWritingSamples(selectedStyleId);
-          if (samples && samples.length > 0) {
-            // Take up to 2 latest samples
-            const latestSamples = samples.slice(0, 2);
-            fewShotPrompt = `
-아래는 당신이 모방해야 할 이 매체의 실제 기사 예시(Few-shot)입니다. 톤앤매너, 문체, 문장 구성, 헤드라인 느낌을 완벽하게 따라 하십시오.
+
+  let fewShotPrompt = "";
+  const samples = await window.SupabaseAdapter.fetchWritingSamples(styleId);
+  if (samples && samples.length > 0) {
+    const latestSamples = samples.slice(0, 2);
+    fewShotPrompt = `
+아래는 당신이 모방해야 할 이 스타일의 실제 기사 예시(Few-shot)입니다. 톤앤매너, 문체, 문장 구성, 헤드라인 느낌을 완벽하게 따라 하십시오.
 
 ${latestSamples.map((s, idx) => `
 [기사 예시 ${idx + 1}]
@@ -1170,11 +1121,22 @@ ${s.content.substring(0, 800)}
 ---
 `).join('\n')}
 `;
-          }
-        }
-      }
-      
-      const generationPrompt = `
+  }
+
+  return { stylePrompt, fewShotPrompt };
+}
+
+// ---- Mode 1: 주제 입력 ----
+async function generateTopicDraft() {
+  const topic = document.getElementById("ai-topic-input").value.trim();
+  const category = document.getElementById("ai-topic-category").value;
+  const styleId = document.getElementById("ai-topic-style").value;
+
+  if (!topic) throw new Error("기사 주제 키워드를 입력해 주세요.");
+
+  const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+
+  const prompt = `
 제공된 주제와 지침을 바탕으로 신뢰감 있고 완성도 높은 뉴스 기사를 작성하십시오.
 
 [작성할 기사 주제]
@@ -1187,113 +1149,307 @@ ${fewShotPrompt}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
-1. "title": 이 매체의 스타일을 완벽하게 따른 기사 제목 (오마이뉴스라면 따옴표를 활용한 서사체, 민들레라면 선명하고 날카로운 은유 등 스타일 반영)
-2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단 (바이칼 뉴스 본문 구조에 적합한 형태)
-3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조 및 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 1500자 내외로 상세하게 작성)
-`;
-      
-      const resultText = await callGeminiApi(generationPrompt, stylePrompt);
-      let draftJson;
-      try {
-        const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-        draftJson = JSON.parse(cleanedText);
-      } catch (err) {
-        console.error("Gemini output parsing failed. Raw text:", resultText);
-        throw new Error("기사 초안 생성 결과 파싱에 실패했습니다: " + err.message);
-      }
-      
-      headline = draftJson.title;
-      lead = draftJson.lead;
-      body = draftJson.body;
-      
-    } else if (activeAiMode === 'link') {
-      const styleName = document.getElementById("ai-link-style-name").value.trim();
-      const url = document.getElementById("ai-link-url").value.trim();
-      const rawText = document.getElementById("ai-link-raw-text").value.trim();
-      category = document.getElementById("ai-link-category").value;
-      
-      if (!styleName) {
-        throw new Error("학습할 대상 매체/스타일 명칭을 입력해 주세요. (예: 오마이뉴스)");
-      }
-      if (!url && !rawText) {
-        throw new Error("출처 링크(URL) 또는 기사 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
-      }
-      
-      let articleText = rawText;
-      if (!articleText && url) {
-        if (loaderTitle) loaderTitle.textContent = "외부 링크에서 본문을 크롤링하고 있습니다 (CORS Proxy 활용)...";
-        try {
-          articleText = await scrapeExternalLink(url);
-        } catch (err) {
-          throw new Error("CORS Proxy를 통한 외부 기사 크롤링에 실패했습니다. 본문 텍스트를 하단에 직접 복사해서 입력해 주세요.");
-        }
-      }
-      
-      if (!articleText || articleText.length < 50) {
-        throw new Error("가져온 기사 본문이 너무 짧거나 비어 있습니다. 기사 본문을 직접 붙여넣어 주세요.");
-      }
-      
-      // Step 1: Learn the style
-      if (loaderTitle) loaderTitle.textContent = `'${styleName}' 스타일을 분석하고 학습 가이드를 도출 중...`;
-      const learningResult = await learnWritingStyle(styleName, url, articleText);
-      
-      // Load newly updated styles to select list
-      await loadWritingStyles();
-      
-      // Step 2: Generate alternative article with similar tone but slightly different content/focus
-      if (loaderTitle) loaderTitle.textContent = `학습 완료! '${styleName}' 스타일로 유사한 새 기사를 집필하는 중...`;
-      
-      const stylePrompt = `
-당신은 다음 스타일 가이드라인을 엄격하게 지켜 기사를 작성해야 합니다:
-- 매체/논조 스타일: ${styleName}
-- 주요 톤앤매너 설명: ${learningResult.description}
-- 반드시 준수해야 할 스타일 규칙:
-${(learningResult.rules || []).map(r => `  * ${r}`).join('\n')}
+1. "title": 지정된 논조 스타일을 완벽하게 따른 기사 제목
+2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 1500자 내외로 상세하게 작성)
 `;
 
-      const rephrasePrompt = `
-원천 기사 주제: "${learningResult.title}"
+  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const draft = parseAiJsonResponse(resultText);
+  return { headline: draft.title, lead: draft.lead, body: draft.body, category };
+}
 
-위 원천 기사의 핵심 사실관계나 주제와 유사하지만, 다른 각도(또는 다른 인물, 다른 지역, 다른 관점)에서 서술하는 새로운 독창적 기사를 작성하십시오. 절대 원본을 그대로 베껴서는 안 되며, 논조와 어조만 완벽히 모방하십시오.
+// ---- Mode 2: 링크 재구성 ----
+async function generateLinkDraft() {
+  const styleId = document.getElementById("ai-link-style").value;
+  const url = document.getElementById("ai-link-url").value.trim();
+  const rawText = document.getElementById("ai-link-raw-text").value.trim();
+  const category = document.getElementById("ai-link-category").value;
+
+  if (!url && !rawText) {
+    throw new Error("출처 링크(URL) 또는 기사 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
+  }
+
+  let articleText = rawText;
+  if (!articleText && url) {
+    setAiLoaderText("외부 링크에서 본문을 가져오는 중입니다 (CORS 우회 프록시 사용)...");
+    try {
+      articleText = await scrapeExternalLink(url);
+    } catch (err) {
+      throw new Error("외부 기사 크롤링에 실패했습니다. 본문 텍스트를 직접 붙여넣어 주세요.");
+    }
+  }
+
+  if (!articleText || articleText.length < 50) {
+    throw new Error("가져온 기사 본문이 너무 짧거나 비어 있습니다. 기사 본문을 직접 붙여넣어 주세요.");
+  }
+
+  const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+
+  setAiLoaderText("원문을 분석하고 새로운 관점의 기사로 재구성하는 중...");
+
+  const prompt = `
+아래 원천 기사의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다.
+
+[원천 기사 본문]
+${articleText.substring(0, 4000)}
+
+[카테고리]
+${category}
+
+${fewShotPrompt}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
-1. "title": 원천 기사의 톤앤매너를 본뜬 새로운 독창적 기사 제목
-2. "lead": 독자의 관심을 이끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락들로 구성된 뉴스 본문 HTML 코드 (오마이뉴스라면 경어체/독백체, 민들레라면 선명한 단어 사용 등 스타일 반영)
+1. "title": 지정된 논조 스타일을 반영한 새로운 독창적 기사 제목
+2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML
 `;
 
-      const resultText = await callGeminiApi(rephrasePrompt, stylePrompt);
-      let rephrasedJson;
-      try {
-        const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-        rephrasedJson = JSON.parse(cleanedText);
-      } catch (err) {
-        console.error("Gemini output parsing failed:", resultText);
-        throw new Error("대안 기사 초안 생성 결과 파싱에 실패했습니다: " + err.message);
+  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const draft = parseAiJsonResponse(resultText);
+  return { headline: draft.title, lead: draft.lead, body: draft.body, category };
+}
+
+// ---- Mode 3: 오늘의 화제 기사 (네이버 랭킹 뉴스) ----
+let trendingArticles = [];
+let selectedTrendingArticle = null;
+
+async function fetchNaverTrending() {
+  const targetUrl = 'https://news.naver.com/main/ranking/popularDay.naver';
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+  const response = await fetch(proxyUrl);
+  if (!response.ok) throw new Error("HTTP error " + response.status);
+  const html = await response.text();
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  const extract = (selector) => {
+    const out = [];
+    doc.querySelectorAll(selector).forEach(a => {
+      const title = (a.textContent || "").trim();
+      const href = a.getAttribute("href") || "";
+      if (title.length >= 8 && href.includes("/article/")) {
+        out.push({ title, url: href.startsWith("http") ? href : `https://news.naver.com${href}` });
       }
-      
-      headline = rephrasedJson.title;
-      lead = rephrasedJson.lead;
-      body = rephrasedJson.body;
-      
-    } else if (activeAiMode === 'angles') {
-      const major = document.getElementById("ai-major-topic-select").value;
-      const angle = document.querySelector('input[name="ai-angle"]:checked').value;
-      
-      const source = DAILY_MAJOR_NEWS[major] || DAILY_MAJOR_NEWS.T1;
-      const contentData = source[angle] || source.local;
-      
-      category = angle === 'local' ? 'local' : (angle === 'culture' ? 'culture' : 'economy');
-      headline = contentData.title;
-      lead = contentData.lead;
-      body = contentData.body;
+    });
+    return out;
+  };
+
+  let items = extract(".rankingnews_list .list_title");
+  if (items.length === 0) items = extract("a.list_title");
+  if (items.length === 0) items = extract("a[href*='/article/']");
+
+  const seen = new Set();
+  const unique = [];
+  for (const item of items) {
+    if (!seen.has(item.title)) {
+      seen.add(item.title);
+      unique.push(item);
+    }
+    if (unique.length >= 15) break;
+  }
+
+  if (unique.length === 0) {
+    throw new Error("네이버 랭킹 뉴스 목록을 파싱하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+  return unique;
+}
+
+async function loadTrendingArticles() {
+  const listEl = document.getElementById("trending-list");
+  const btn = document.getElementById("trending-load-btn");
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="help-text">네이버 랭킹 뉴스를 불러오는 중...</div>';
+  if (btn) btn.disabled = true;
+  try {
+    trendingArticles = await fetchNaverTrending();
+    selectedTrendingArticle = null;
+    renderTrendingList();
+  } catch (err) {
+    listEl.innerHTML = `<div class="help-text" style="color:#ef4444;">${err.message}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderTrendingList() {
+  const listEl = document.getElementById("trending-list");
+  if (!listEl) return;
+  if (trendingArticles.length === 0) {
+    listEl.innerHTML = '<div class="help-text">불러온 화제 뉴스가 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = trendingArticles.map((item, i) => `
+    <label class="trending-item">
+      <input type="radio" name="trending-pick" value="${i}" onchange="selectTrendingArticle(${i})">
+      <span>${item.title}</span>
+    </label>
+  `).join('');
+}
+
+function selectTrendingArticle(i) {
+  selectedTrendingArticle = trendingArticles[i];
+}
+
+async function generateTrendingDraft() {
+  if (!selectedTrendingArticle) {
+    throw new Error("먼저 '네이버 화제 뉴스 불러오기'로 목록을 불러오고 기사를 하나 선택해 주세요.");
+  }
+  const styleId = document.getElementById("ai-trending-style").value;
+  const category = document.getElementById("ai-trending-category").value;
+
+  setAiLoaderText("선택한 화제 기사 원문을 가져오는 중...");
+  let sourceText = "";
+  try {
+    sourceText = await scrapeExternalLink(selectedTrendingArticle.url);
+  } catch (err) {
+    sourceText = "";
+  }
+  if (!sourceText || sourceText.length < 50) {
+    sourceText = selectedTrendingArticle.title;
+  }
+
+  const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+
+  setAiLoaderText("오늘의 화제 기사를 참고하여 새로운 기사를 집필하는 중...");
+
+  const prompt = `
+아래는 오늘 네이버에서 화제가 된 뉴스의 제목과 본문 정보입니다. 이 사실관계와 화제성을 참고하되, 절대 원문을 그대로 베끼지 말고 완전히 새로운 취재 각도와 문장으로 독창적인 기사를 작성하십시오.
+
+[오늘의 화제 뉴스 제목]
+${selectedTrendingArticle.title}
+
+[참고 원문 발췌]
+${sourceText.substring(0, 3000)}
+
+[카테고리]
+${category}
+
+${fewShotPrompt}
+
+[작성 지침]
+반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
+1. "title": 지정된 논조 스타일을 반영한 새로운 독창적 기사 제목
+2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML
+`;
+
+  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const draft = parseAiJsonResponse(resultText);
+  return { headline: draft.title, lead: draft.lead, body: draft.body, category };
+}
+
+// ---- Mode 4: 정보성 기사 추천 (정책지원금/세금/복지 등 시의성 주제) ----
+let infoTopicSuggestions = [];
+
+async function loadInfoTopicSuggestions() {
+  const listEl = document.getElementById("info-topic-list");
+  const btn = document.getElementById("info-topic-load-btn");
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="help-text">이 시기에 맞는 추천 주제를 분석 중...</div>';
+  if (btn) btn.disabled = true;
+  try {
+    const dateStr = new Date().toLocaleDateString("ko-KR", { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const prompt = `
+오늘은 ${dateStr}입니다. 대한민국 독자들이 이 시기에 특히 관심을 가질 만한 "정보성 기사" 주제를 5개 추천해 주십시오.
+정부 정책지원금, 세금 신고 및 환급금, 노인 복지, 청년 지원금, 연말정산, 각종 신청 마감일 등 실생활에 밀접한 정보를 우선적으로 고려하고, 현재 월/계절에 맞는 시의성을 반드시 반영하십시오.
+
+반드시 다음 구조의 JSON 배열 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 배열 자체만 출력해야 합니다.
+[
+  { "title": "추천 기사 주제", "reason": "왜 지금 이 주제가 시의성이 있는지 1~2문장 설명" }
+]
+`;
+    const resultText = await callGeminiApi(prompt, "당신은 대한민국 생활 정보 전문 기자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    infoTopicSuggestions = parseAiJsonResponse(resultText);
+    renderInfoTopicList();
+  } catch (err) {
+    listEl.innerHTML = `<div class="help-text" style="color:#ef4444;">추천 주제를 가져오지 못했습니다: ${err.message}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderInfoTopicList() {
+  const listEl = document.getElementById("info-topic-list");
+  if (!listEl) return;
+  if (!infoTopicSuggestions || infoTopicSuggestions.length === 0) {
+    listEl.innerHTML = '<div class="help-text">추천 주제가 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = infoTopicSuggestions.map((item, i) => `
+    <label class="trending-item">
+      <input type="radio" name="info-topic-pick" value="${i}" onchange="selectInfoTopic(${i})">
+      <span><strong>${item.title}</strong><br><span class="help-text">${item.reason || ''}</span></span>
+    </label>
+  `).join('');
+}
+
+function selectInfoTopic(i) {
+  const item = infoTopicSuggestions[i];
+  if (!item) return;
+  const input = document.getElementById("ai-info-topic-input");
+  if (input) input.value = item.title;
+}
+
+async function generateInfoDraft() {
+  const topic = document.getElementById("ai-info-topic-input").value.trim();
+  const category = document.getElementById("ai-info-category").value;
+  const styleId = document.getElementById("ai-info-style").value;
+
+  if (!topic) throw new Error("정보성 기사 주제를 추천받거나 직접 입력해 주세요.");
+
+  const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+
+  const prompt = `
+아래 생활 정보성 주제를 바탕으로, 독자가 실제로 신청·활용할 수 있도록 구체적이고 실용적인 정보를 담은 뉴스 기사를 작성하십시오. 신청 대상, 조건, 신청 방법, 유의사항 등을 가능한 한 구체적으로 안내하되, 확정되지 않은 수치나 날짜는 단정적으로 서술하지 말고 "관계 기관 공지를 확인해야 한다"는 취지로 안내하십시오.
+
+[정보성 기사 주제]
+${topic}
+
+[카테고리]
+${category}
+
+${fewShotPrompt}
+
+[작성 지침]
+반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
+1. "title": 독자의 실질적 관심을 끄는 정보성 기사 제목
+2. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함)
+`;
+
+  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const draft = parseAiJsonResponse(resultText);
+  return { headline: draft.title, lead: draft.lead, body: draft.body, category };
+}
+
+// Dispatch + render the draft output (shared by all 4 modes)
+async function generateAiDraft() {
+  document.getElementById("ai-empty-state").style.display = "none";
+  document.getElementById("ai-draft-viewer").style.display = "none";
+  document.getElementById("ai-loader").style.display = "flex";
+  setAiLoaderText("AI 뉴스 초안을 작성하는 중...");
+
+  try {
+    let result;
+    if (activeAiMode === 'topic') {
+      result = await generateTopicDraft();
+    } else if (activeAiMode === 'link') {
+      result = await generateLinkDraft();
+    } else if (activeAiMode === 'trending') {
+      result = await generateTrendingDraft();
+    } else if (activeAiMode === 'info') {
+      result = await generateInfoDraft();
     }
 
-    // Build generated object variables
+    const { headline, lead, body, category } = result;
+
     generatedDraftData = {
       title: headline,
-      subtitle: `${category.toUpperCase()} 부문 심층 인공지능 초안`,
+      subtitle: `${AI_CATEGORY_LABELS[category] || category} 부문 AI 작성 초안`,
       lead: lead,
       content: body,
       category: category,
@@ -1304,14 +1460,13 @@ ${(learningResult.rules || []).map(r => `  * ${r}`).join('\n')}
       slug: `ai-draft-${Date.now()}`
     };
 
-    // Render inside generated panel UI
     document.getElementById("ai-out-headline").textContent = headline;
     document.getElementById("ai-out-lead").textContent = lead;
     document.getElementById("ai-out-body").innerHTML = body;
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
     document.getElementById("ai-out-seo-meta").textContent = generatedDraftData.seoMeta;
     document.getElementById("ai-out-slug").textContent = generatedDraftData.slug;
-    
+
     document.getElementById("ai-loader").style.display = "none";
     document.getElementById("ai-draft-viewer").style.display = "block";
 
@@ -1747,42 +1902,105 @@ function loadGeminiApiKey() {
   }
 }
 
-let loadedWritingStyles = [];
+// Two shared "논조" reference styles the newsroom studies, seeded once and then
+// refined over time via the AI 글쓰기 학습 page. Each admin also gets their own
+// personal style container that only their samples feed into.
+const GLOBAL_STYLE_PRESETS = [
+  {
+    name: "시민언론 민들레",
+    description: "권력과 자본에 대한 비판적 문제의식을 바탕으로, 노동·인권·환경 등 구조적 이슈를 심층 추적하는 진보 성향의 탐사보도 매체입니다.",
+    styleRules: [
+      "권력기관, 자본, 기득권에 대한 비판적 관점을 명확히 드러낸다",
+      "노동자, 소수자, 사회적 약자의 목소리와 구체적 증언을 중심에 둔다",
+      "표면적 사실 나열보다 구조적 원인과 책임 소재를 끝까지 추적한다",
+      "날카롭고 선명한 은유와 단정적인 문장으로 논지를 전달한다",
+      "현장 취재와 자료에 기반한 탐사보도 형식을 선호한다",
+      "결론에서 연대와 대안적 행동을 촉구하는 어조를 취한다"
+    ]
+  },
+  {
+    name: "오마이뉴스",
+    description: "'모든 시민은 기자다'라는 창간 정신에 따라 시민 기자의 생생한 현장 경험과 진보적 시각을 결합한 시민 저널리즘 매체입니다.",
+    styleRules: [
+      "생활 속 구체적 장면 묘사나 개인적 경험으로 기사를 시작한다",
+      "따옴표를 활용한 인용형·대화체 제목을 즐겨 쓴다",
+      "직설적이고 생생한 구어체 어조를 사용한다",
+      "정치·사회 권력에 대해 비판적이고 개혁적인 시각을 견지한다",
+      "기자 개인의 소감이나 문제의식을 1인칭으로 드러내는 경우가 많다",
+      "약자와 시민의 눈높이에서 사안을 바라보는 서술을 우선한다"
+    ]
+  }
+];
 
-async function loadWritingStyles() {
-  const select = document.getElementById("ai-style-select");
-  const help = document.getElementById("ai-style-status-help");
-  
-  if (!select) return;
-  
-  try {
-    loadedWritingStyles = await window.SupabaseAdapter.fetchWritingStyles();
-    
-    // Clear select, keep only first option
-    select.innerHTML = '<option value="">-- 기본 스타일 (중립) --</option>';
-    
-    if (loadedWritingStyles && loadedWritingStyles.length > 0) {
-      loadedWritingStyles.forEach(style => {
-        const option = document.createElement("option");
-        option.value = style.id;
-        option.textContent = `${style.name} (${style.styleRules ? style.styleRules.length : 0}개 규칙)`;
-        select.appendChild(option);
-      });
-      help.textContent = `현재 ${loadedWritingStyles.length}개의 학습된 스타일이 등록되어 있습니다.`;
-      help.style.color = "var(--admin-text-secondary)";
-    } else {
-      help.textContent = "아직 등록된 학습 스타일이 없습니다. '외부 기사/링크 재구성' 탭에서 학습을 먼저 진행해 주세요.";
-      help.style.color = "#fbbf24";
+async function seedGlobalStyles() {
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  for (const preset of GLOBAL_STYLE_PRESETS) {
+    const exists = styles.some(s => s.name === preset.name && s.scope !== 'personal');
+    if (!exists) {
+      const newStyle = {
+        id: crypto.randomUUID ? crypto.randomUUID() : 'style-' + Date.now() + Math.random().toString(36).slice(2),
+        name: preset.name,
+        description: preset.description,
+        styleRules: preset.styleRules,
+        scope: 'global',
+        ownerEmail: ''
+      };
+      await window.SupabaseAdapter.saveWritingStyle(newStyle);
     }
-  } catch (err) {
-    console.error("Failed to load writing styles:", err);
-    help.textContent = "스타일을 불러오는 중 오류가 발생했습니다.";
-    help.style.color = "#ef4444";
   }
 }
 
-function onStyleSelectChange(styleId) {
-  // Can expand logic if needed
+async function getOrCreatePersonalStyle(session) {
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  let personal = styles.find(s => s.scope === 'personal' && s.ownerEmail === session.email);
+  if (personal) return personal;
+
+  personal = {
+    id: crypto.randomUUID ? crypto.randomUUID() : 'style-' + Date.now() + Math.random().toString(36).slice(2),
+    name: `${session.name}의 개인 문체`,
+    description: `${session.name} 기자가 직접 학습시킨 개인 문체입니다.`,
+    styleRules: [],
+    scope: 'personal',
+    ownerEmail: session.email
+  };
+  await window.SupabaseAdapter.saveWritingStyle(personal);
+  return personal;
+}
+
+// Populates a generation-mode <select> with: 기본(중립) + 공용 논조 스타일 + 내 개인 문체
+async function populateStyleSelect(selectEl) {
+  if (!selectEl) return;
+  const session = getAdminSession();
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+
+  const globalStyles = styles.filter(s => s.scope !== 'personal');
+  const personalStyle = session ? styles.find(s => s.scope === 'personal' && s.ownerEmail === session.email) : null;
+
+  let html = '<option value="">-- 기본 스타일 (중립) --</option>';
+
+  if (globalStyles.length > 0) {
+    html += '<optgroup label="공용 논조 스타일">';
+    globalStyles.forEach(s => {
+      html += `<option value="${s.id}">${s.name} (${(s.styleRules || []).length}개 규칙)</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (personalStyle) {
+    html += '<optgroup label="내 개인 문체">';
+    html += `<option value="${personalStyle.id}">${personalStyle.name} (${(personalStyle.styleRules || []).length}개 규칙)</option>`;
+    html += '</optgroup>';
+  }
+
+  selectEl.innerHTML = html;
+}
+
+async function loadWritingStyles() {
+  await seedGlobalStyles();
+  await populateStyleSelect(document.getElementById("ai-topic-style"));
+  await populateStyleSelect(document.getElementById("ai-link-style"));
+  await populateStyleSelect(document.getElementById("ai-trending-style"));
+  await populateStyleSelect(document.getElementById("ai-info-style"));
 }
 
 // CORS Proxy Scraper helper
@@ -1881,16 +2099,19 @@ async function callGeminiApi(prompt, systemInstruction = "") {
 }
 
 // Learning style loop
-async function learnWritingStyle(styleName, sourceUrl, textContent) {
-  if (!styleName || !textContent) {
-    throw new Error("스타일 이름과 분석할 본문 텍스트가 모두 필요합니다.");
+// Accumulates a new sample into an EXISTING style record (personal or global) --
+// this is the "이런 식으로 써줘" repeated-training mechanism.
+async function learnWritingStyle(styleId, sourceUrl, textContent) {
+  if (!styleId || !textContent) {
+    throw new Error("학습 대상 스타일과 분석할 본문 텍스트가 모두 필요합니다.");
   }
-  
-  // Step 1: Query existing styles to check if styleName already exists
+
   const styles = await window.SupabaseAdapter.fetchWritingStyles();
-  let existingStyle = styles.find(s => s.name.trim() === styleName.trim());
-  
-  // Step 2: Use Gemini to analyze the writing style
+  const existingStyle = styles.find(s => s.id === styleId);
+  if (!existingStyle) {
+    throw new Error("학습 대상 스타일을 찾을 수 없습니다.");
+  }
+
   const analysisPrompt = `
 당신은 베테랑 언론사 데스크이자 문체 분석가입니다. 아래 제공되는 기사 본문 텍스트를 정밀 분석하여, 작성 기자가 사용하는 독특한 문체적 특징(스타일 가이드라인)을 도출하십시오.
 
@@ -1907,41 +2128,17 @@ ${textContent}
 `;
 
   const analysisResultText = await callGeminiApi(analysisPrompt, "You are a professional writing style analyzer. Answer strictly in JSON format matching the specifications.");
-  
-  let analysisJson;
-  try {
-    const cleanedText = analysisResultText.replace(/```json/g, '').replace(/```/g, '').trim();
-    analysisJson = JSON.parse(cleanedText);
-  } catch (err) {
-    console.error("Gemini JSON parse failed. Raw response:", analysisResultText);
-    throw new Error("스타일 분석 결과 파싱에 실패했습니다: " + err.message);
-  }
-  
-  let styleId;
-  if (existingStyle) {
-    styleId = existingStyle.id;
-    
-    // Merge rules (avoid duplicates)
-    const currentRules = existingStyle.styleRules || [];
-    const newRules = analysisJson.rules || [];
-    const mergedRules = Array.from(new Set([...currentRules, ...newRules]));
-    
-    existingStyle.description = analysisJson.description || existingStyle.description;
-    existingStyle.styleRules = mergedRules;
-    
-    await window.SupabaseAdapter.saveWritingStyle(existingStyle);
-  } else {
-    styleId = crypto.randomUUID ? crypto.randomUUID() : 'style-' + Date.now();
-    const newStyle = {
-      id: styleId,
-      name: styleName,
-      description: analysisJson.description || `${styleName} 기사 스타일`,
-      styleRules: analysisJson.rules || []
-    };
-    await window.SupabaseAdapter.saveWritingStyle(newStyle);
-  }
-  
-  // Step 3: Save writing sample as few-shot data
+  const analysisJson = parseAiJsonResponse(analysisResultText);
+
+  // Merge rules (avoid duplicates)
+  const currentRules = existingStyle.styleRules || [];
+  const newRules = analysisJson.rules || [];
+  const mergedRules = Array.from(new Set([...currentRules, ...newRules]));
+
+  existingStyle.description = analysisJson.description || existingStyle.description;
+  existingStyle.styleRules = mergedRules;
+  await window.SupabaseAdapter.saveWritingStyle(existingStyle);
+
   const sampleId = crypto.randomUUID ? crypto.randomUUID() : 'sample-' + Date.now();
   const newSample = {
     id: sampleId,
@@ -1953,11 +2150,194 @@ ${textContent}
     createdAt: new Date().toISOString()
   };
   await window.SupabaseAdapter.saveWritingSample(newSample);
-  
+
   return {
     styleId: styleId,
-    description: analysisJson.description,
-    rules: analysisJson.rules,
+    description: existingStyle.description,
+    rules: mergedRules,
     title: analysisJson.title
   };
+}
+
+// ==========================================================
+// AI 글쓰기 학습 (style training) tab
+// ==========================================================
+let currentTrainingStyleId = null;
+
+async function populateTrainingStyleSelect() {
+  const select = document.getElementById("training-style-select");
+  if (!select) return;
+
+  const session = getAdminSession();
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  const globalStyles = styles.filter(s => s.scope !== 'personal');
+  let personalStyle = session ? styles.find(s => s.scope === 'personal' && s.ownerEmail === session.email) : null;
+  if (session && !personalStyle) {
+    personalStyle = await getOrCreatePersonalStyle(session);
+  }
+
+  let html = '';
+  if (personalStyle) {
+    html += `<optgroup label="내 개인 문체"><option value="${personalStyle.id}">${personalStyle.name}</option></optgroup>`;
+  }
+  if (globalStyles.length > 0) {
+    html += '<optgroup label="공용 논조 스타일">';
+    globalStyles.forEach(s => { html += `<option value="${s.id}">${s.name}</option>`; });
+    html += '</optgroup>';
+  }
+  html += '<option value="__new__">+ 새 공용 스타일 만들기</option>';
+
+  select.innerHTML = html;
+
+  if (!currentTrainingStyleId || !styles.some(s => s.id === currentTrainingStyleId)) {
+    currentTrainingStyleId = personalStyle ? personalStyle.id : (globalStyles[0] ? globalStyles[0].id : null);
+  }
+  if (currentTrainingStyleId) select.value = currentTrainingStyleId;
+
+  onTrainingStyleSelectChange();
+}
+
+function onTrainingStyleSelectChange() {
+  const select = document.getElementById("training-style-select");
+  const newNameGroup = document.getElementById("training-new-style-name-group");
+  if (!select) return;
+
+  if (select.value === '__new__') {
+    currentTrainingStyleId = null;
+    if (newNameGroup) newNameGroup.style.display = 'block';
+    renderTrainingStyleDetail(null);
+  } else {
+    currentTrainingStyleId = select.value;
+    if (newNameGroup) newNameGroup.style.display = 'none';
+    renderTrainingStyleDetail(currentTrainingStyleId);
+  }
+}
+
+async function renderTrainingStyleDetail(styleId) {
+  const detailEl = document.getElementById("training-style-detail");
+  const samplesEl = document.getElementById("training-samples-list");
+  if (!detailEl || !samplesEl) return;
+
+  if (!styleId) {
+    detailEl.innerHTML = '<div class="help-text">새 스타일 이름을 입력하고 첫 샘플을 학습시켜 주세요.</div>';
+    samplesEl.innerHTML = '';
+    return;
+  }
+
+  const styles = await window.SupabaseAdapter.fetchWritingStyles();
+  const style = styles.find(s => s.id === styleId);
+  if (!style) {
+    detailEl.innerHTML = '<div class="help-text">스타일 정보를 찾을 수 없습니다.</div>';
+    samplesEl.innerHTML = '';
+    return;
+  }
+
+  detailEl.innerHTML = `
+    <p style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-bottom: 10px;">${style.description || '아직 분석된 설명이 없습니다.'}</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+      ${(style.styleRules || []).map(r => `<span class="ai-tag">${r}</span>`).join('') || '<span class="help-text">아직 학습된 규칙이 없습니다.</span>'}
+    </div>
+    ${style.scope !== 'personal' ? `<button type="button" class="btn-admin btn-admin-danger" style="margin-top: 16px;" onclick="deleteStyleFromTraining('${style.id}')">이 스타일 삭제</button>` : ''}
+  `;
+
+  const samples = await window.SupabaseAdapter.fetchWritingSamples(styleId);
+  if (samples.length === 0) {
+    samplesEl.innerHTML = '<div class="help-text">아직 학습시킨 샘플이 없습니다.</div>';
+  } else {
+    samplesEl.innerHTML = samples.map(s => `
+      <div class="training-sample-item">
+        <div>
+          <strong>${s.title}</strong>
+          <div class="help-text">${new Date(s.createdAt).toLocaleString("ko-KR")}${s.url ? ` · <a href="${s.url}" target="_blank" rel="noopener">원문 링크</a>` : ''}</div>
+        </div>
+        <button type="button" class="btn-admin btn-admin-danger" onclick="deleteSampleFromTraining('${s.id}', '${styleId}')">삭제</button>
+      </div>
+    `).join('');
+  }
+}
+
+async function submitStyleTraining() {
+  const select = document.getElementById("training-style-select");
+  const newNameInput = document.getElementById("training-new-style-name");
+  const urlInput = document.getElementById("training-sample-url");
+  const textInput = document.getElementById("training-sample-text");
+  const submitBtn = document.getElementById("training-submit-btn");
+
+  const url = urlInput.value.trim();
+  let text = textInput.value.trim();
+
+  if (!url && !text) {
+    alert("학습시킬 기사 링크(URL) 또는 본문 텍스트 중 하나는 반드시 입력해야 합니다.");
+    return;
+  }
+
+  let styleId = select.value;
+  if (styleId === '__new__') {
+    const newName = newNameInput.value.trim();
+    if (!newName) {
+      alert("새 스타일의 이름을 입력해 주세요.");
+      return;
+    }
+    const newStyle = {
+      id: crypto.randomUUID ? crypto.randomUUID() : 'style-' + Date.now(),
+      name: newName,
+      description: `${newName} 기사 스타일`,
+      styleRules: [],
+      scope: 'global',
+      ownerEmail: ''
+    };
+    await window.SupabaseAdapter.saveWritingStyle(newStyle);
+    styleId = newStyle.id;
+  }
+
+  submitBtn.disabled = true;
+  const originalText = submitBtn.textContent;
+
+  try {
+    if (!text && url) {
+      submitBtn.textContent = "원문을 가져오는 중...";
+      try {
+        text = await scrapeExternalLink(url);
+      } catch (err) {
+        throw new Error("링크에서 본문을 가져오지 못했습니다. 본문 텍스트를 직접 붙여넣어 주세요.");
+      }
+    }
+
+    if (!text || text.length < 50) {
+      throw new Error("학습할 본문이 너무 짧거나 비어 있습니다. 본문을 더 길게 붙여넣어 주세요.");
+    }
+
+    submitBtn.textContent = "문체를 분석하고 학습하는 중...";
+    await learnWritingStyle(styleId, url, text);
+
+    urlInput.value = "";
+    textInput.value = "";
+    if (newNameInput) newNameInput.value = "";
+
+    currentTrainingStyleId = styleId;
+    await populateTrainingStyleSelect();
+    await loadWritingStyles();
+
+    alert("학습이 완료되었습니다. 이 스타일로 기사를 생성하면 방금 배운 문체가 반영됩니다.");
+  } catch (err) {
+    console.error("Style training error:", err);
+    alert("학습 실패: " + err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+}
+
+async function deleteSampleFromTraining(sampleId, styleId) {
+  if (!confirm("이 학습 샘플을 삭제하시겠습니까?")) return;
+  await window.SupabaseAdapter.deleteWritingSample(sampleId);
+  await renderTrainingStyleDetail(styleId);
+}
+
+async function deleteStyleFromTraining(styleId) {
+  if (!confirm("이 스타일과 학습된 모든 샘플을 삭제하시겠습니까?")) return;
+  await window.SupabaseAdapter.deleteWritingStyle(styleId);
+  currentTrainingStyleId = null;
+  await populateTrainingStyleSelect();
+  await loadWritingStyles();
 }

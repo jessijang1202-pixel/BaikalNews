@@ -56,6 +56,9 @@
       <li class="sidebar-item" data-tab="ai-writer">
         <a>AI 기사 집필실</a>
       </li>
+      <li class="sidebar-item" data-tab="ai-training">
+        <a>AI 글쓰기 학습</a>
+      </li>
       <li class="sidebar-item" data-tab="curation">
         <a>홈페이지 편집</a>
       </li>
@@ -406,15 +409,19 @@
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="radio" name="ai-mode" value="topic" checked onclick="switchAiMode('topic')">
-                    <span>주제 및 키워드로 기사 생성</span>
+                    <span>① 주제 입력으로 작성</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="radio" name="ai-mode" value="link" onclick="switchAiMode('link')">
-                    <span>외부 기사/링크 재구성 (논조 학습)</span>
+                    <span>② 마음에 든 기사 링크 재구성</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="radio" name="ai-mode" value="angles" onclick="switchAiMode('angles')">
-                    <span>일일 메이저 토픽 앵글 변환</span>
+                    <input type="radio" name="ai-mode" value="trending" onclick="switchAiMode('trending')">
+                    <span>③ 오늘의 화제 기사 (네이버 랭킹)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="radio" name="ai-mode" value="info" onclick="switchAiMode('info')">
+                    <span>④ 정보성 기사 추천 (정책·세금·복지)</span>
                   </label>
                 </div>
               </div>
@@ -428,11 +435,10 @@
                   <input type="text" id="ai-topic-input" class="form-control-admin" placeholder="예: 탄소 저감 순환 비즈니스 모델의 가치 분석">
                 </div>
                 <div class="form-group-admin">
-                  <label for="ai-style-select">적용할 논조 스타일 (학습 데이터 기반)</label>
-                  <select id="ai-style-select" class="form-control-admin" onchange="onStyleSelectChange(this.value)">
+                  <label for="ai-topic-style">적용할 논조 스타일</label>
+                  <select id="ai-topic-style" class="form-control-admin">
                     <option value="">-- 기본 스타일 (중립) --</option>
                   </select>
-                  <div class="help-text" id="ai-style-status-help">로딩 중...</div>
                 </div>
                 <div class="form-group-admin">
                   <label for="ai-topic-category">대상 카테고리</label>
@@ -440,6 +446,7 @@
                     <option value="culture">문화·예술</option>
                     <option value="economy">경제·산업</option>
                     <option value="tech">기술·미디어</option>
+                    <option value="local">지역·평택</option>
                     <option value="opinion">오피니언</option>
                   </select>
                 </div>
@@ -448,18 +455,20 @@
               <!-- INPUT CONTAINER 2: LINK -->
               <div id="ai-input-link" class="ai-input-group" style="display: none;">
                 <div class="form-group-admin">
-                  <label for="ai-link-style-name">학습 대상 매체/스타일 명칭</label>
-                  <input type="text" id="ai-link-style-name" class="form-control-admin" placeholder="예: 오마이뉴스, 시민언론 민들레">
-                  <div class="help-text">기존 매체명을 쓰면 해당 스타일에 분석 결과가 누적 학습됩니다.</div>
+                  <label for="ai-link-style">적용할 논조 스타일</label>
+                  <select id="ai-link-style" class="form-control-admin">
+                    <option value="">-- 기본 스타일 (중립) --</option>
+                  </select>
+                  <div class="help-text">새 스타일을 가르치려면 좌측 메뉴의 "AI 글쓰기 학습"을 이용해 주세요.</div>
                 </div>
                 <div class="form-group-admin">
-                  <label for="ai-link-url">원천 자료 출처 링크 (URL)</label>
+                  <label for="ai-link-url">마음에 든 기사 링크 (URL)</label>
                   <input type="url" id="ai-link-url" class="form-control-admin" placeholder="https://news.example.com/article/123">
-                  <div class="help-text">글 분석을 위해 파싱을 자동 시도합니다.</div>
+                  <div class="help-text">자동으로 본문을 가져오며, 실패 시 아래에 직접 붙여넣어 주세요.</div>
                 </div>
                 <div class="form-group-admin">
-                  <label for="ai-link-raw-text">기사 본문 직접 입력 (CORS 대체용)</label>
-                  <textarea id="ai-link-raw-text" class="form-control-admin" style="min-height: 100px; font-size: 0.8rem;" placeholder="CORS 제한 등으로 자동 파싱이 안 되는 경우 기사 본문을 여기에 복사해 붙여넣으십시오."></textarea>
+                  <label for="ai-link-raw-text">기사 본문 직접 입력 (자동 파싱 실패 시)</label>
+                  <textarea id="ai-link-raw-text" class="form-control-admin" style="min-height: 100px; font-size: 0.8rem;" placeholder="자동 파싱이 안 되는 경우 기사 본문을 여기에 복사해 붙여넣으십시오."></textarea>
                 </div>
                 <div class="form-group-admin">
                   <label for="ai-link-category">발행 타겟 카테고리</label>
@@ -473,32 +482,66 @@
                 </div>
               </div>
 
-              <!-- INPUT CONTAINER 3: ANGLES -->
-              <div id="ai-input-angles" class="ai-input-group" style="display: none;">
+              <!-- INPUT CONTAINER 3: TRENDING (Naver ranking) -->
+              <div id="ai-input-trending" class="ai-input-group" style="display: none;">
                 <div class="form-group-admin">
-                  <label>금일 주요 글로벌 연합 토픽</label>
-                  <select id="ai-major-topic-select" class="form-control-admin" onchange="onMajorTopicChange(this.value)">
-                    <option value="T1">1. 유라시아 횡단 기차 노선 요금 전면 조율 회의</option>
-                    <option value="T2">2. 바이칼 주변 영구 동토대 해빙에 따른 메탄 방출 규제 협약</option>
-                    <option value="T3">3. 극동 지역 한인 박물관 건립 기금 성금 지원</option>
+                  <button type="button" class="btn-admin btn-admin-secondary" id="trending-load-btn" style="width: 100%; justify-content: center;" onclick="loadTrendingArticles()">네이버 화제 뉴스 불러오기</button>
+                  <div class="help-text">네이버 랭킹 뉴스 페이지에서 오늘 많이 본 기사 목록을 실시간으로 가져옵니다.</div>
+                </div>
+                <div class="form-group-admin">
+                  <label>화제 기사 선택</label>
+                  <div id="trending-list" class="trending-list-box">
+                    <div class="help-text">위 버튼을 눌러 화제 뉴스 목록을 불러오세요.</div>
+                  </div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-trending-style">적용할 논조 스타일</label>
+                  <select id="ai-trending-style" class="form-control-admin">
+                    <option value="">-- 기본 스타일 (중립) --</option>
                   </select>
                 </div>
                 <div class="form-group-admin">
-                  <label>추천 보도 시점 (관점 선택)</label>
-                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="radio" name="ai-angle" value="local" checked>
-                      <span>평택/로컬 교류 관점</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="radio" name="ai-angle" value="culture">
-                      <span>부랴트인 인문 유산 관점</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="radio" name="ai-angle" value="economy">
-                      <span>신재생 에너지 타당성</span>
-                    </label>
+                  <label for="ai-trending-category">대상 카테고리</label>
+                  <select id="ai-trending-category" class="form-control-admin">
+                    <option value="culture">문화·예술</option>
+                    <option value="economy">경제·산업</option>
+                    <option value="tech">기술·미디어</option>
+                    <option value="local">지역·평택</option>
+                    <option value="opinion">오피니언</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- INPUT CONTAINER 4: INFO (policy/tax/welfare) -->
+              <div id="ai-input-info" class="ai-input-group" style="display: none;">
+                <div class="form-group-admin">
+                  <button type="button" class="btn-admin btn-admin-secondary" id="info-topic-load-btn" style="width: 100%; justify-content: center;" onclick="loadInfoTopicSuggestions()">이번 시기 추천 주제 보기</button>
+                  <div class="help-text">오늘 날짜를 기준으로 정부지원금·세금신고·환급금·노인복지·청년지원금 등 시의성 있는 주제를 추천합니다.</div>
+                </div>
+                <div class="form-group-admin">
+                  <div id="info-topic-list" class="trending-list-box">
+                    <div class="help-text">위 버튼을 눌러 추천 주제를 불러오세요.</div>
                   </div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-info-topic-input">기사 주제 (추천 선택 또는 직접 입력)</label>
+                  <input type="text" id="ai-info-topic-input" class="form-control-admin" placeholder="예: 2026년 하반기 청년 월세 지원금 신청 방법">
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-info-style">적용할 논조 스타일</label>
+                  <select id="ai-info-style" class="form-control-admin">
+                    <option value="">-- 기본 스타일 (중립) --</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-info-category">대상 카테고리</label>
+                  <select id="ai-info-category" class="form-control-admin">
+                    <option value="local">지역·평택</option>
+                    <option value="economy">경제·산업</option>
+                    <option value="culture">문화·예술</option>
+                    <option value="tech">기술·미디어</option>
+                    <option value="opinion">오피니언</option>
+                  </select>
                 </div>
               </div>
 
@@ -565,6 +608,58 @@
 
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: AI TRAINING (writing style teaching) ================= -->
+      <section id="tab-ai-training" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">AI 글쓰기 학습</h3>
+            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">기자별 개인 문체 + 공용 논조 스타일</span>
+          </div>
+
+          <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 24px;">
+            마음에 드는 기사를 링크나 본문으로 붙여넣고 "이 글처럼 써줘"라고 반복 학습시키면, AI가 문체 규칙을 누적 학습합니다. 로그인한 기자별로 "내 개인 문체"가 따로 기억되며, "시민언론 민들레"·"오마이뉴스" 등 공용 논조 스타일은 두 기자가 함께 다듬어 나갈 수 있습니다.
+          </p>
+
+          <div class="ai-action-panel">
+            <div class="ai-controls">
+              <div class="form-group-admin">
+                <label for="training-style-select">학습시킬 스타일</label>
+                <select id="training-style-select" class="form-control-admin" onchange="onTrainingStyleSelectChange()"></select>
+              </div>
+
+              <div class="form-group-admin" id="training-new-style-name-group" style="display: none;">
+                <label for="training-new-style-name">새 스타일 이름</label>
+                <input type="text" id="training-new-style-name" class="form-control-admin" placeholder="예: 조선일보, 한겨레 등">
+              </div>
+
+              <div class="form-group-admin">
+                <label for="training-sample-url">학습시킬 기사 링크 (URL)</label>
+                <input type="url" id="training-sample-url" class="form-control-admin" placeholder="https://news.example.com/article/123">
+              </div>
+
+              <div class="form-group-admin">
+                <label for="training-sample-text">기사 본문 붙여넣기 (링크 자동 파싱 실패 시 필수)</label>
+                <textarea id="training-sample-text" class="form-control-admin" style="min-height: 160px; font-size: 0.85rem;" placeholder="마음에 드는 기사 본문을 여기에 붙여넣으세요."></textarea>
+              </div>
+
+              <button type="button" class="btn-admin btn-admin-primary" id="training-submit-btn" style="width: 100%; justify-content: center; padding: 12px 0;" onclick="submitStyleTraining()">
+                이 글처럼 써줘 (학습하기)
+              </button>
+            </div>
+
+            <div class="ai-output-box">
+              <h4 style="margin-bottom: 12px; color: var(--admin-accent-cyan);">현재 스타일 학습 현황</h4>
+              <div id="training-style-detail"></div>
+
+              <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+              <h4 style="margin-bottom: 12px;">학습된 샘플 목록</h4>
+              <div id="training-samples-list"></div>
+            </div>
           </div>
         </div>
       </section>
