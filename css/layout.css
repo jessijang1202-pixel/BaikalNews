@@ -171,7 +171,7 @@ nav.nav-bar {
 .nav-links li a {
   display: block;
   font-family: var(--font-sans);
-  font-size: 1.12rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text-primary);
@@ -191,7 +191,7 @@ nav.nav-bar {
 
 .nav-links li#nav-about a,
 .nav-links li#nav-contact a {
-  font-size: 0.99rem;
+  font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-muted);
   padding: 13px 16px;
