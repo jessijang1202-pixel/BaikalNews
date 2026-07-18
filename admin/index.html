@@ -1075,6 +1075,10 @@
       <!-- Option 1: Select Existing Image -->
       <div id="modal-media-select">
         <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 12px;">원하는 기사 대표 자산을 라이브러리에서 클릭하여 지정하세요.</p>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <button type="button" class="btn-admin btn-admin-secondary" id="bulk-compress-btn" onclick="bulkCompressExistingImages()">기존 이미지 용량 압축하기</button>
+          <span id="bulk-compress-status" style="font-size: 0.78rem; color: var(--admin-text-secondary);"></span>
+        </div>
         <div class="media-grid" id="modal-media-grid">
           <!-- Loaded dynamically -->
         </div>

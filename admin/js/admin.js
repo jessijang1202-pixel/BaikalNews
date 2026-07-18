@@ -2451,6 +2451,30 @@ async function resizeAndCompressImage(fileOrBlob, options) {
   return blob;
 }
 
+// Raw upload of an already-processed blob to the "article-images" bucket --
+// no resizing/compression here, callers decide whether that already happened.
+async function uploadRawBlobToStorage(blob, ext) {
+  const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
+  if (!client) {
+    throw new Error("Supabase가 연결되어 있지 않습니다.");
+  }
+
+  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const contentType = ext === 'jpg' ? 'image/jpeg' : (blob.type || `image/${ext}`);
+
+  const { error } = await client.storage.from('article-images').upload(path, blob, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType
+  });
+  if (error) {
+    throw new Error(`${error.message || error}  (버킷 "article-images"가 없거나 업로드 정책이 설정되지 않았을 수 있습니다.)`);
+  }
+
+  const { data } = client.storage.from('article-images').getPublicUrl(path);
+  return { publicUrl: data.publicUrl, path };
+}
+
 // Uploads a File or Blob to the Supabase Storage "article-images" bucket and
 // returns its public URL. Requires the bucket + public read/insert policies
 // to already exist (see admin setup docs) -- throws a clear error otherwise.
@@ -2459,10 +2483,6 @@ async function resizeAndCompressImage(fileOrBlob, options) {
 async function uploadImageToStorage(fileOrBlob, extHint) {
   if (!window.SupabaseAdapter) {
     throw new Error("Supabase 연동 모듈을 찾을 수 없습니다.");
-  }
-  const client = window.SupabaseAdapter.getClient();
-  if (!client) {
-    throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
 
   let uploadBlob = fileOrBlob;
@@ -2476,20 +2496,134 @@ async function uploadImageToStorage(fileOrBlob, extHint) {
     ext = (extHint || nameExt || 'png').toLowerCase().replace('jpeg', 'jpg');
   }
 
-  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const contentType = ext === 'jpg' ? 'image/jpeg' : (uploadBlob.type || `image/${ext}`);
+  const { publicUrl } = await uploadRawBlobToStorage(uploadBlob, ext);
+  return publicUrl;
+}
 
-  const { error } = await client.storage.from('article-images').upload(path, uploadBlob, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType
-  });
-  if (error) {
-    throw new Error(`${error.message || error}  (버킷 "article-images"가 없거나 업로드 정책이 설정되지 않았을 수 있습니다.)`);
+// Extracts the storage object path from a public article-images URL, e.g.
+// ".../storage/v1/object/public/article-images/articles/123-abc.jpg" -> "articles/123-abc.jpg"
+function extractStoragePath(url) {
+  const marker = '/object/public/article-images/';
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length).split('?')[0];
+}
+
+// Bulk-recompresses every already-uploaded image that still lives in our own
+// "article-images" bucket: media library entries, article representative
+// images, and any matching <img src> left inside article bodies. Downloads
+// each once, runs it through the same resizeAndCompressImage() pipeline as
+// new uploads, re-uploads the smaller result, rewrites every reference to
+// the new URL, then best-effort deletes the old, larger storage object.
+async function bulkCompressExistingImages() {
+  if (!window.SupabaseAdapter || !window.SupabaseAdapter.getClient()) {
+    alert("Supabase가 연결되어 있지 않아 기존 이미지를 압축할 수 없습니다.");
+    return;
   }
 
-  const { data } = client.storage.from('article-images').getPublicUrl(path);
-  return data.publicUrl;
+  const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
+  const bucketMarker = '/object/public/article-images/';
+  const isOurBucketUrl = (url) => typeof url === 'string' && url.includes(bucketMarker);
+
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+
+  const targetUrls = new Set();
+  mediaList.filter(isOurBucketUrl).forEach(u => targetUrls.add(u));
+  articles.forEach(art => {
+    if (isOurBucketUrl(art.image)) targetUrls.add(art.image);
+    if (art.content) {
+      const matches = art.content.match(/<img[^>]+src="([^"]+)"/g) || [];
+      matches.forEach(tag => {
+        const src = tag.match(/src="([^"]+)"/)[1];
+        if (isOurBucketUrl(src)) targetUrls.add(src);
+      });
+    }
+  });
+
+  if (targetUrls.size === 0) {
+    alert("압축할 기존 이미지가 없습니다. (모든 이미지가 이미 처리되었거나, 외부/기본 이미지만 있습니다.)");
+    return;
+  }
+
+  if (!confirm(`Supabase에 저장된 이미지 ${targetUrls.size}개를 다운로드하여 압축 후 재업로드합니다. 참조된 미디어 라이브러리/기사 이미지가 새 URL로 자동 교체됩니다. 이미지 수에 따라 시간이 걸릴 수 있습니다. 계속하시겠습니까?`)) {
+    return;
+  }
+
+  const btn = document.getElementById("bulk-compress-btn");
+  const statusEl = document.getElementById("bulk-compress-status");
+  if (btn) btn.disabled = true;
+
+  const urlList = Array.from(targetUrls);
+  const urlMap = {}; // oldUrl -> newUrl (only when actually replaced)
+  let processed = 0, skipped = 0, failed = 0;
+  let bytesBefore = 0, bytesAfter = 0;
+
+  for (const oldUrl of urlList) {
+    processed++;
+    if (statusEl) statusEl.textContent = `처리 중... (${processed}/${urlList.length})`;
+    try {
+      const res = await fetch(oldUrl);
+      if (!res.ok) throw new Error(`원본 다운로드 실패 (HTTP ${res.status})`);
+      const originalBlob = await res.blob();
+
+      const compressedBlob = await resizeAndCompressImage(originalBlob);
+      if (compressedBlob.size >= originalBlob.size) {
+        skipped++;
+        continue; // Already smaller than any re-encode would produce -- leave it alone.
+      }
+
+      const { publicUrl: newUrl } = await uploadRawBlobToStorage(compressedBlob, 'jpg');
+      urlMap[oldUrl] = newUrl;
+      bytesBefore += originalBlob.size;
+      bytesAfter += compressedBlob.size;
+
+      // Best-effort cleanup of the old, larger object -- not fatal if it fails.
+      const oldPath = extractStoragePath(oldUrl);
+      if (oldPath) {
+        try { await window.SupabaseAdapter.getClient().storage.from('article-images').remove([oldPath]); }
+        catch (cleanupErr) { console.warn("이전 이미지 삭제 실패:", cleanupErr); }
+      }
+    } catch (err) {
+      failed++;
+      console.warn(`이미지 압축 실패 (${oldUrl}):`, err);
+    }
+  }
+
+  // Rewrite every reference to the newly compressed URLs.
+  const newMediaList = mediaList.map(u => urlMap[u] || u);
+  localStorage.setItem("baikal_media_library", JSON.stringify(newMediaList));
+
+  for (const art of articles) {
+    let dirty = false;
+    if (urlMap[art.image]) {
+      art.image = urlMap[art.image];
+      dirty = true;
+    }
+    if (art.content) {
+      let newContent = art.content;
+      for (const [oldUrl, newUrl] of Object.entries(urlMap)) {
+        if (newContent.includes(oldUrl)) {
+          newContent = newContent.split(oldUrl).join(newUrl);
+          dirty = true;
+        }
+      }
+      art.content = newContent;
+    }
+    if (dirty) {
+      await window.SupabaseAdapter.saveArticle(art);
+    }
+  }
+
+  if (btn) btn.disabled = false;
+  const replacedCount = Object.keys(urlMap).length;
+  const savedKb = Math.round((bytesBefore - bytesAfter) / 1024);
+  const summary = `압축 완료: ${replacedCount}개 교체 (절감 약 ${savedKb.toLocaleString("ko-KR")}KB), ${skipped}개는 이미 최소 용량, ${failed}개 실패`;
+  if (statusEl) statusEl.textContent = summary;
+  alert(summary);
+  renderMediaLibraryGrid();
 }
 
 // Direct upload from the sidebar's "내 컴퓨터에서 업로드" file input
