@@ -737,17 +737,16 @@ async function renderArticlesList() {
   }
   
   if (articles.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = articles.map(art => `
     <tr>
-      <td><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
+      <td class="article-select-col"><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
       <td>${art.id}</td>
       <td><span class="ai-tag" style="margin: 0; font-size: 0.7rem;">${art.category.toUpperCase()}</span></td>
       <td style="font-weight: 500; color: var(--admin-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</td>
-      <td>${art.author.name}</td>
       <td>${art.approver || '<span style="color: var(--admin-text-muted);">미지정</span>'}</td>
       <td><span class="badge badge-${art.status}">${art.status.toUpperCase()}</span></td>
       <td style="white-space: nowrap;">${art.date}</td>
@@ -761,6 +760,29 @@ async function renderArticlesList() {
   `).join('');
 }
 
+// Toggle between "just show the list" and "select rows to delete" modes.
+// First click reveals checkboxes; a second click either deletes the checked
+// rows, or (if nothing is checked) just exits selection mode again.
+function toggleArticleDeleteMode() {
+  const listView = document.getElementById("articles-list-view");
+  if (!listView) return;
+
+  if (!listView.classList.contains("delete-mode-active")) {
+    listView.classList.add("delete-mode-active");
+    return;
+  }
+
+  const checkedIds = Array.from(document.querySelectorAll('.article-select-checkbox:checked'))
+    .map(cb => parseInt(cb.value, 10));
+
+  if (checkedIds.length === 0) {
+    listView.classList.remove("delete-mode-active");
+    return;
+  }
+
+  deleteSelectedArticles(checkedIds);
+}
+
 function toggleAllArticleCheckboxes(masterCheckbox) {
   document.querySelectorAll('.article-select-checkbox').forEach(cb => {
     cb.checked = masterCheckbox.checked;
@@ -768,9 +790,11 @@ function toggleAllArticleCheckboxes(masterCheckbox) {
 }
 
 // Bulk-archive (soft delete) whichever rows are checked in the articles list
-async function deleteSelectedArticles() {
-  const checkedIds = Array.from(document.querySelectorAll('.article-select-checkbox:checked'))
-    .map(cb => parseInt(cb.value, 10));
+async function deleteSelectedArticles(checkedIds) {
+  if (!checkedIds) {
+    checkedIds = Array.from(document.querySelectorAll('.article-select-checkbox:checked'))
+      .map(cb => parseInt(cb.value, 10));
+  }
 
   if (checkedIds.length === 0) {
     alert("삭제할 기사를 먼저 선택해 주세요.");
@@ -802,6 +826,8 @@ async function deleteSelectedArticles() {
     await logAudit("기사 아카이브 보관", art.id, "목록에서 일괄 삭제 처리됨.");
   }
 
+  const listView = document.getElementById("articles-list-view");
+  if (listView) listView.classList.remove("delete-mode-active");
   const masterCheckbox = document.getElementById("article-select-all");
   if (masterCheckbox) masterCheckbox.checked = false;
 

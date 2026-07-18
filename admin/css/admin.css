@@ -386,6 +386,15 @@ body {
   font-size: 0.88rem;
 }
 
+/* Article list checkboxes: hidden until "삭제" is clicked once */
+.article-select-col {
+  display: none;
+}
+
+#articles-list-view.delete-mode-active .article-select-col {
+  display: table-cell;
+}
+
 .admin-table th {
   background-color: var(--admin-bg-body);
   color: var(--admin-text-primary);

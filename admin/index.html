@@ -211,18 +211,17 @@
             <h3 class="panel-title">기사 전체 목록</h3>
             <div style="display: flex; gap: 12px;">
               <button class="btn-admin btn-admin-primary" onclick="showArticleCreateForm()">+ 새 기사 작성</button>
-              <button class="btn-admin btn-admin-danger" onclick="deleteSelectedArticles()">선택 삭제</button>
+              <button class="btn-admin btn-admin-danger" id="article-delete-btn" onclick="toggleArticleDeleteMode()">삭제</button>
             </div>
           </div>
           <div class="admin-table-wrapper">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th><input type="checkbox" id="article-select-all" onchange="toggleAllArticleCheckboxes(this)"></th>
+                  <th class="article-select-col"><input type="checkbox" id="article-select-all" onchange="toggleAllArticleCheckboxes(this)"></th>
                   <th>ID</th>
                   <th>카테고리</th>
                   <th>제목</th>
-                  <th>작성인</th>
                   <th>최종 승인인</th>
                   <th>상태</th>
                   <th>날짜</th>
