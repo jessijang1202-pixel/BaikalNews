@@ -1309,6 +1309,7 @@ ${s.content.substring(0, 800)}
 // ---- Mode 1: 주제 입력 ----
 async function generateTopicDraft() {
   const topic = document.getElementById("ai-topic-input").value.trim();
+  const providedContent = document.getElementById("ai-topic-content").value.trim();
   const category = document.getElementById("ai-topic-category").value;
   const styleId = document.getElementById("ai-topic-style").value;
 
@@ -1317,12 +1318,16 @@ async function generateTopicDraft() {
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
   const targetLength = getTargetLength();
 
+  const contentBlock = providedContent
+    ? `\n[제공된 취재 내용 - 반드시 이 내용에 기반하여 작성하고, 사실관계를 임의로 지어내지 마십시오]\n${providedContent}\n`
+    : `\n[취재 내용]\n별도로 제공된 취재 내용이 없습니다. 주제를 바탕으로 신뢰할 수 있는 수준에서 기사를 직접 작성하십시오.\n`;
+
   const prompt = `
 제공된 주제와 지침을 바탕으로 신뢰감 있고 완성도 높은 뉴스 기사를 작성하십시오.
 
 [작성할 기사 주제]
 ${topic}
-
+${contentBlock}
 [카테고리]
 ${category}
 
