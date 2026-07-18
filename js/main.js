@@ -12,6 +12,15 @@ const CATEGORY_LABELS = {
   opinion: "오피니언"
 };
 
+// Parses the site's "2026.07.02" date format into a comparable Date, for
+// sorting articles by actual recency rather than array/insertion order.
+function parseKoreanDate(dateStr) {
+  if (!dateStr) return new Date(0);
+  const parts = dateStr.split('.').map(s => parseInt(s, 10));
+  if (parts.length < 3 || parts.some(isNaN)) return new Date(0);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 // A "scheduled" article becomes visible on its own once scheduledAt has passed --
 // there's no server/cron to flip its status, so this check happens at render time.
 function isArticleLive(article) {
@@ -325,7 +334,8 @@ function renderHomepage() {
   const curation = JSON.parse(localStorage.getItem("baikal_curation")) || {
     featuredHeroId: published[0].id,
     editorsPicksIds: [],
-    popularReadsIds: []
+    popularReadsIds: [],
+    latestNewsIds: []
   };
 
   // Feature #1: Hero/Featured Article
@@ -337,11 +347,25 @@ function renderHomepage() {
     heroContainer.innerHTML = createArticleCardHTML(heroArt, 'hero');
   }
 
-  // Feature #2: Latest Articles Grid (secondary headlines, up to 3 items, excluding hero)
+  // Feature #2: Latest Articles Grid (secondary headlines, up to 3 items).
+  // Uses the manually curated 최신 보도 picks if set; otherwise auto-fills
+  // with the most recently dated published articles (excluding the hero).
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
     let heroArt = published.find(a => a.id === curation.featuredHeroId) || published[0];
-    const latestItems = published.filter(a => a.id !== heroArt.id).slice(0, 3);
+    const latestNewsIds = curation.latestNewsIds || [];
+
+    let latestItems = latestNewsIds
+      .map(id => published.find(a => a.id === id))
+      .filter(Boolean);
+
+    if (latestItems.length === 0) {
+      latestItems = published
+        .filter(a => a.id !== heroArt.id)
+        .slice()
+        .sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date))
+        .slice(0, 3);
+    }
 
     if (latestItems.length > 0) {
       latestContainer.innerHTML = latestItems.map(art => createArticleCardHTML(art, 'standard')).join('');

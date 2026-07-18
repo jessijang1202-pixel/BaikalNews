@@ -63,7 +63,7 @@
         <a>AI 글쓰기 학습</a>
       </li>
       <li class="sidebar-item" data-tab="curation">
-        <a>홈페이지 편집</a>
+        <a>홈화면 편집</a>
       </li>
       <li class="sidebar-item" data-tab="pages">
         <a>정적 페이지 관리</a>
@@ -653,6 +653,9 @@
               <button class="btn-admin btn-admin-primary" style="width: 100%; justify-content: center; padding: 12px 0; font-size: 0.9rem;" onclick="generateAiDraft()">
                 AI 뉴스 초안 생성하기
               </button>
+              <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; padding: 10px 0; margin-top: 10px;" onclick="resetAiWriter()">
+                초기화
+              </button>
 
             </div>
 
@@ -785,48 +788,84 @@
       <section id="tab-curation" class="tab-content">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">홈 화면 뉴스 배치 및 큐레이션 통제</h3>
+            <h3 class="panel-title">홈화면 뉴스 배치 및 큐레이션 통제</h3>
             <button class="btn-admin btn-admin-primary" onclick="saveCurationSettings()">큐레이션 배포하기</button>
           </div>
-          
+
           <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 30px;">
-            일반 독자가 읽게 될 홈 화면(`index.html`)의 영역별 주요 기사 배치를 수동 제어합니다. 자극적이지 않으며 균형감 있는 팩트 보도를 우선적으로 배치하십시오.
+            일반 독자가 읽게 될 홈화면(index.html)의 영역별 주요 기사 배치를 수동 제어합니다. 슬롯을 비워두면(-- 자동 --) 해당 영역은 자동으로 채워집니다. 선택한 기사의 미리보기가 바로 아래에 표시됩니다.
           </p>
 
           <form id="curation-form" onsubmit="event.preventDefault();">
             <div class="form-grid-2">
-              
+
               <!-- Left Column Curation selectors -->
               <div>
-                <div class="form-group-admin">
+                <div class="curation-slot-group">
                   <label for="curate-hero">메인 추천 탑 뉴스</label>
-                  <select id="curate-hero" class="form-control-admin" style="background-color: var(--admin-bg-panel);">
-                    <!-- Populated dynamically -->
-                  </select>
-                  <div class="help-text">홈페이지 맨 위 가장 크게 노출되는 대표 기사입니다.</div>
+                  <select id="curate-hero" class="form-control-admin" onchange="updateCurationPreview('curate-hero')"></select>
+                  <div class="curation-preview" id="preview-curate-hero"></div>
+                  <div class="help-text">홈화면 맨 위 가장 크게 노출되는 대표 기사입니다. (필수 지정)</div>
                 </div>
 
-                <div class="form-group-admin" style="margin-top: 32px;">
-                  <label>편집자 추천 기사 - 3개 기사 지정</label>
-                  <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
-                    <select id="curate-pick-1" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
-                    <select id="curate-pick-2" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
-                    <select id="curate-pick-3" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
+                <div class="curation-slot-group">
+                  <label>최신 보도 - 3개 기사 지정</label>
+                  <div class="curation-slot-list">
+                    <div class="curation-slot">
+                      <select id="curate-latest-1" class="form-control-admin" onchange="updateCurationPreview('curate-latest-1')"></select>
+                      <div class="curation-preview" id="preview-curate-latest-1"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-latest-2" class="form-control-admin" onchange="updateCurationPreview('curate-latest-2')"></select>
+                      <div class="curation-preview" id="preview-curate-latest-2"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-latest-3" class="form-control-admin" onchange="updateCurationPreview('curate-latest-3')"></select>
+                      <div class="curation-preview" id="preview-curate-latest-3"></div>
+                    </div>
                   </div>
-                  <div class="help-text">사이드바 상단에 노출되는 추천 보도 블록입니다.</div>
+                  <div class="help-text">헤드라인 옆 "최신 보도" 블록입니다. 비워두면 최신 날짜 순으로 자동 표시됩니다.</div>
                 </div>
               </div>
 
               <!-- Right Column Curation selectors -->
               <div>
-                <div class="form-group-admin">
-                  <label>많이 읽은 인기 기사 - 3개 기사 지정</label>
-                  <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
-                    <select id="curate-pop-1" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
-                    <select id="curate-pop-2" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
-                    <select id="curate-pop-3" class="form-control-admin" style="background-color: var(--admin-bg-panel);"></select>
+                <div class="curation-slot-group">
+                  <label>편집자 추천 기사 - 3개 기사 지정</label>
+                  <div class="curation-slot-list">
+                    <div class="curation-slot">
+                      <select id="curate-pick-1" class="form-control-admin" onchange="updateCurationPreview('curate-pick-1')"></select>
+                      <div class="curation-preview" id="preview-curate-pick-1"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-pick-2" class="form-control-admin" onchange="updateCurationPreview('curate-pick-2')"></select>
+                      <div class="curation-preview" id="preview-curate-pick-2"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-pick-3" class="form-control-admin" onchange="updateCurationPreview('curate-pick-3')"></select>
+                      <div class="curation-preview" id="preview-curate-pick-3"></div>
+                    </div>
                   </div>
-                  <div class="help-text">사이드바 하단에 노출되는 조회수/인기 영역 블록입니다.</div>
+                  <div class="help-text">사이드바 상단에 노출되는 추천 보도 블록입니다. 비워두면 자동으로 채워집니다.</div>
+                </div>
+
+                <div class="curation-slot-group">
+                  <label>많이 읽은 인기 기사 - 3개 기사 지정</label>
+                  <div class="curation-slot-list">
+                    <div class="curation-slot">
+                      <select id="curate-pop-1" class="form-control-admin" onchange="updateCurationPreview('curate-pop-1')"></select>
+                      <div class="curation-preview" id="preview-curate-pop-1"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-pop-2" class="form-control-admin" onchange="updateCurationPreview('curate-pop-2')"></select>
+                      <div class="curation-preview" id="preview-curate-pop-2"></div>
+                    </div>
+                    <div class="curation-slot">
+                      <select id="curate-pop-3" class="form-control-admin" onchange="updateCurationPreview('curate-pop-3')"></select>
+                      <div class="curation-preview" id="preview-curate-pop-3"></div>
+                    </div>
+                  </div>
+                  <div class="help-text">사이드바 하단에 노출되는 조회수/인기 영역 블록입니다. 비워두면 자동으로 채워집니다.</div>
                 </div>
               </div>
 

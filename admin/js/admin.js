@@ -618,7 +618,7 @@ async function switchTab(tabName) {
     articles: "기사 통합 데스크 관리",
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
-    curation: "홈페이지 큐레이션 통제",
+    curation: "홈화면 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
     admins: "관리자 정보 관리"
@@ -2003,6 +2003,47 @@ async function generateAiDraft() {
   }
 }
 
+// Clears every mode's inputs and the generated draft/output panel so the
+// writer can start over without reloading the page.
+function resetAiWriter() {
+  // Mode 1: topic
+  document.getElementById("ai-topic-input").value = "";
+  document.getElementById("ai-topic-content").value = "";
+  document.getElementById("ai-topic-style").selectedIndex = 0;
+  document.getElementById("ai-topic-category").selectedIndex = 0;
+
+  // Mode 2: link
+  document.getElementById("ai-link-style").selectedIndex = 0;
+  document.getElementById("ai-link-url").value = "";
+  document.getElementById("ai-link-raw-text").value = "";
+  document.getElementById("ai-link-category").selectedIndex = 0;
+
+  // Mode 3: trending
+  trendingArticles = [];
+  selectedTrendingArticle = null;
+  const trendingListEl = document.getElementById("trending-list");
+  if (trendingListEl) trendingListEl.innerHTML = '<div class="help-text">위 버튼을 눌러 화제 뉴스 목록을 불러오세요.</div>';
+  document.getElementById("ai-trending-style").selectedIndex = 0;
+  document.getElementById("ai-trending-category").selectedIndex = 0;
+
+  // Mode 4: info
+  infoTopicSuggestions = [];
+  const infoListEl = document.getElementById("info-topic-list");
+  if (infoListEl) infoListEl.innerHTML = '<div class="help-text">위 버튼을 눌러 추천 주제를 불러오세요.</div>';
+  document.getElementById("ai-info-topic-input").value = "";
+  document.getElementById("ai-info-style").selectedIndex = 0;
+  document.getElementById("ai-info-category").selectedIndex = 0;
+
+  // Output panel
+  generatedDraftData = null;
+  document.getElementById("ai-draft-viewer").style.display = "none";
+  document.getElementById("ai-empty-state").style.display = "block";
+  document.getElementById("ai-loader").style.display = "none";
+
+  const selfCheckSection = document.getElementById("ai-selfcheck-section");
+  if (selfCheckSection) selfCheckSection.style.display = "none";
+}
+
 // Transfer AI draft to form editor
 async function transferAiDraftToEditor() {
   if (!generatedDraftData) return;
@@ -2031,32 +2072,38 @@ async function transferAiDraftToEditor() {
 }
 
 // 6. Homepage News Curation Panel
+// Cached so the 10 preview updates don't each re-fetch the article list
+let curationArticlesCache = [];
+
 async function populateCurationDropdowns() {
   const publishedSelects = [
     "curate-hero",
+    "curate-latest-1", "curate-latest-2", "curate-latest-3",
     "curate-pick-1", "curate-pick-2", "curate-pick-3",
     "curate-pop-1", "curate-pop-2", "curate-pop-3"
   ];
-  
+
   let articles = [];
   if (window.SupabaseAdapter) {
     articles = await window.SupabaseAdapter.fetchArticles();
   }
   const published = articles.filter(a => a.status === 'published');
+  curationArticlesCache = published;
 
   publishedSelects.forEach(selectId => {
     const selectEl = document.getElementById(selectId);
     if (!selectEl) return;
-    
+
     if (published.length === 0) {
       selectEl.innerHTML = `<option value="">발행된 기사가 없습니다.</option>`;
       return;
     }
 
-    // Populate option tags
-    let optionsHTML = '<option value="">-- 기사를 선택해 주세요 --</option>';
+    // Readable option text: title first, then human category label + date
+    let optionsHTML = '<option value="">-- 자동 / 비워두기 --</option>';
     published.forEach(art => {
-      optionsHTML += `<option value="${art.id}">[ID: #${art.id}] [${art.category.toUpperCase()}] ${art.title}</option>`;
+      const label = AI_CATEGORY_LABELS[art.category] || art.category;
+      optionsHTML += `<option value="${art.id}">${art.title} · ${label} · ${art.date}</option>`;
     });
     selectEl.innerHTML = optionsHTML;
   });
@@ -2066,32 +2113,63 @@ async function populateCurationDropdowns() {
   if (window.SupabaseAdapter) {
     curation = await window.SupabaseAdapter.fetchCuration();
   }
-  
+
+  const applyValues = (ids, prefix) => {
+    (ids || []).forEach((id, i) => {
+      const el = document.getElementById(`${prefix}-${i + 1}`);
+      if (el && id) el.value = id;
+    });
+  };
+
   if (curation.featuredHeroId) document.getElementById("curate-hero").value = curation.featuredHeroId;
-  
-  if (curation.editorsPicksIds) {
-    if (curation.editorsPicksIds[0]) document.getElementById("curate-pick-1").value = curation.editorsPicksIds[0];
-    if (curation.editorsPicksIds[1]) document.getElementById("curate-pick-2").value = curation.editorsPicksIds[1];
-    if (curation.editorsPicksIds[2]) document.getElementById("curate-pick-3").value = curation.editorsPicksIds[2];
+  applyValues(curation.latestNewsIds, "curate-latest");
+  applyValues(curation.editorsPicksIds, "curate-pick");
+  applyValues(curation.popularReadsIds, "curate-pop");
+
+  // Render the initial preview for every slot
+  publishedSelects.forEach(selectId => updateCurationPreview(selectId));
+}
+
+// Shows a small thumbnail + title under a curation <select> for whatever
+// article is currently chosen in it, so editors don't have to guess from
+// the option text alone.
+function updateCurationPreview(selectId) {
+  const selectEl = document.getElementById(selectId);
+  const previewEl = document.getElementById('preview-' + selectId);
+  if (!selectEl || !previewEl) return;
+
+  const id = parseInt(selectEl.value, 10);
+  if (isNaN(id)) {
+    previewEl.innerHTML = '';
+    return;
   }
 
-  if (curation.popularReadsIds) {
-    if (curation.popularReadsIds[0]) document.getElementById("curate-pop-1").value = curation.popularReadsIds[0];
-    if (curation.popularReadsIds[1]) document.getElementById("curate-pop-2").value = curation.popularReadsIds[1];
-    if (curation.popularReadsIds[2]) document.getElementById("curate-pop-3").value = curation.popularReadsIds[2];
+  const art = curationArticlesCache.find(a => a.id === id);
+  if (!art) {
+    previewEl.innerHTML = '';
+    return;
   }
+
+  const imageUrl = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
+  previewEl.innerHTML = `
+    <div class="curation-preview-card">
+      <img src="${imageUrl}" alt="" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+      <span>${art.title}</span>
+    </div>
+  `;
 }
 
 async function saveCurationSettings() {
   const heroId = parseInt(document.getElementById("curate-hero").value, 10);
-  
-  const pick1 = parseInt(document.getElementById("curate-pick-1").value, 10);
-  const pick2 = parseInt(document.getElementById("curate-pick-2").value, 10);
-  const pick3 = parseInt(document.getElementById("curate-pick-3").value, 10);
-  
-  const pop1 = parseInt(document.getElementById("curate-pop-1").value, 10);
-  const pop2 = parseInt(document.getElementById("curate-pop-2").value, 10);
-  const pop3 = parseInt(document.getElementById("curate-pop-3").value, 10);
+
+  const readSlots = (prefix, count) => {
+    const ids = [];
+    for (let i = 1; i <= count; i++) {
+      const val = parseInt(document.getElementById(`${prefix}-${i}`).value, 10);
+      if (!isNaN(val)) ids.push(val);
+    }
+    return ids;
+  };
 
   if (isNaN(heroId)) {
     alert("최소한 메인 추천 탑 뉴스는 1건 지정해야 홈화면 배포가 가능합니다.");
@@ -2100,16 +2178,17 @@ async function saveCurationSettings() {
 
   const newCuration = {
     featuredHeroId: heroId,
-    editorsPicksIds: [pick1, pick2, pick3].filter(id => !isNaN(id)),
-    popularReadsIds: [pop1, pop2, pop3].filter(id => !isNaN(id)),
+    latestNewsIds: readSlots("curate-latest", 3),
+    editorsPicksIds: readSlots("curate-pick", 3),
+    popularReadsIds: readSlots("curate-pop", 3),
     pinnedIds: []
   };
 
   if (window.SupabaseAdapter) {
     await window.SupabaseAdapter.saveCuration(newCuration);
   }
-  await logAudit("홈페이지 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
-  alert("홈페이지 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
+  await logAudit("홈화면 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
+  alert("홈화면 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
 }
 
 // 7. Static Page Management Module
