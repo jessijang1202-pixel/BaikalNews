@@ -490,9 +490,10 @@ const DEFAULT_PAGE_CONTENTS = {
 
 // 1. Initialize admin sections
 async function initAdminDashboard() {
-  // Switch to dashboard tab initially
-  switchTab('dashboard');
-  
+  // Restore whichever tab/view the URL hash points to (defaults to dashboard
+  // if there's none) instead of always resetting to the dashboard on load.
+  await applyHashRoute();
+
   // Refresh data models
   await refreshStats();
   await renderArticlesList();
@@ -504,6 +505,45 @@ async function initAdminDashboard() {
   await renderAuditLogs();
   renderAdminsList();
 }
+
+// ==========================================================
+// Hash-based routing: keeps the URL in sync with the current tab/view
+// so a page refresh or the browser back/forward buttons restore the
+// exact screen instead of always landing back on the dashboard.
+// ==========================================================
+let suppressHashUpdate = false;
+
+function setRouteHash(hash) {
+  if (suppressHashUpdate) return;
+  if (location.hash === hash) return;
+  location.hash = hash;
+}
+
+async function applyHashRoute() {
+  const raw = location.hash.replace(/^#/, '');
+  const parts = raw.split('/').filter(Boolean);
+  const validTabs = ['dashboard', 'articles', 'ai-writer', 'ai-training', 'curation', 'pages', 'audit', 'admins'];
+  const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
+
+  suppressHashUpdate = true;
+  try {
+    await switchTab(tab);
+
+    if (tab === 'articles') {
+      if (parts[1] === 'new') {
+        showArticleCreateForm();
+      } else if (parts[1] === 'edit' && parts[2]) {
+        await editArticle(parseInt(parts[2], 10));
+      } else {
+        hideArticleForm();
+      }
+    }
+  } finally {
+    suppressHashUpdate = false;
+  }
+}
+
+window.addEventListener('hashchange', applyHashRoute);
 
 // Sidebar Tab switching
 function setupEventListeners() {
@@ -580,7 +620,7 @@ async function switchTab(tabName) {
     await refreshStats();
     await renderPendingList();
     await renderTopViewedList();
-  await renderViewsChart();
+    await renderViewsChart();
   } else if (tabName === 'articles') {
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
@@ -596,6 +636,8 @@ async function switchTab(tabName) {
   } else if (tabName === 'admins') {
     renderAdminsList();
   }
+
+  setRouteHash('#' + tabName);
 }
 
 // 2. Audit Trail Log Helpers
@@ -956,8 +998,8 @@ async function confirmDeleteChoice(mode) {
 
 // Form view controls
 // Sidebar shortcut: jump straight to the blank new-article form
-function openNewArticleFromSidebar() {
-  switchTab('articles');
+async function openNewArticleFromSidebar() {
+  await switchTab('articles');
   showArticleCreateForm();
 }
 
@@ -979,6 +1021,8 @@ function showArticleCreateForm() {
   document.getElementById("btn-soft-delete").style.display = "none";
   onStatusChangeInForm("draft");
   updateContentCharCount();
+
+  setRouteHash('#articles/new');
 }
 
 function hideArticleForm() {
@@ -986,6 +1030,8 @@ function hideArticleForm() {
   document.getElementById("articles-list-view").style.display = "block";
   currentEditingId = null;
   renderArticlesList();
+
+  setRouteHash('#articles');
 }
 
 function onStatusChangeInForm(status) {
@@ -1070,7 +1116,12 @@ async function editArticle(id) {
   if (window.SupabaseAdapter) {
     art = await window.SupabaseAdapter.fetchArticleById(id);
   }
-  if (!art) return;
+  if (!art) {
+    // e.g. navigated back/forward to an edit link for an article that was
+    // since deleted -- fall back to the list instead of doing nothing.
+    hideArticleForm();
+    return;
+  }
 
   currentEditingId = id;
 
@@ -1103,6 +1154,8 @@ async function editArticle(id) {
   // Trigger status visual logic
   onStatusChangeInForm(art.status);
   updateContentCharCount();
+
+  setRouteHash(`#articles/edit/${art.id}`);
 }
 
 function toDatetimeLocalValue(isoString) {
@@ -1933,10 +1986,10 @@ async function generateAiDraft() {
 }
 
 // Transfer AI draft to form editor
-function transferAiDraftToEditor() {
+async function transferAiDraftToEditor() {
   if (!generatedDraftData) return;
 
-  switchTab('articles');
+  await switchTab('articles');
   showArticleCreateForm();
 
   // Populate editor form with AI draft data
