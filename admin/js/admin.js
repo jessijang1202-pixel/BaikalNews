@@ -535,21 +535,20 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'ai-writer', 'ai-training', 'curation', 'pages', 'audit', 'admins'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'curation', 'pages', 'audit', 'admins'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
   try {
-    await switchTab(tab);
-
-    if (tab === 'articles') {
-      if (parts[1] === 'new') {
-        showArticleCreateForm();
-      } else if (parts[1] === 'edit' && parts[2]) {
+    if (tab === 'article-editor') {
+      // showArticleCreateForm/editArticle switch to this tab themselves
+      if (parts[1] === 'edit' && parts[2]) {
         await editArticle(parseInt(parts[2], 10));
       } else {
-        hideArticleForm();
+        await showArticleCreateForm();
       }
+    } else {
+      await switchTab(tab);
     }
   } finally {
     suppressHashUpdate = false;
@@ -616,6 +615,7 @@ async function switchTab(tabName) {
   const titles = {
     dashboard: "뉴스룸 현황 대시보드",
     articles: "기사 통합 데스크 관리",
+    'article-editor': "새 기사 작성 / 편집",
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
     curation: "홈화면 큐레이션 통제",
@@ -994,7 +994,7 @@ async function confirmDeleteChoice(mode) {
   }
 
   if (context === 'form') {
-    hideArticleForm();
+    await hideArticleForm();
   } else {
     const listView = document.getElementById("articles-list-view");
     if (listView) listView.classList.remove("delete-mode-active");
@@ -1009,42 +1009,35 @@ async function confirmDeleteChoice(mode) {
     : `${ids.length}건의 기사가 휴지통으로 이동되었습니다.`);
 }
 
-// Form view controls
-// Sidebar shortcut: jump straight to the blank new-article form
-async function openNewArticleFromSidebar() {
-  await switchTab('articles');
-  showArticleCreateForm();
-}
+// Form view controls -- 기사 관리 (list, tab-articles) and 새 기사 작성/편집
+// (form, tab-article-editor) are separate tabs; these functions own
+// switching to the right one themselves so any caller (sidebar, dashboard
+// shortcut, AI transfer, hash routing) can call them directly.
+async function showArticleCreateForm() {
+  await switchTab('article-editor');
 
-function showArticleCreateForm() {
-  document.getElementById("articles-list-view").style.display = "none";
-  document.getElementById("articles-form-view").style.display = "block";
   document.getElementById("form-view-title").textContent = "새 기사 작성";
-  
+
   // Reset form inputs
   document.getElementById("article-form").reset();
   currentEditingId = null;
-  
+
   // Set default values
   document.getElementById("edit-article-id").value = "";
   document.getElementById("form-date").value = new Date().toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1); // "2026.07.11" format
   document.getElementById("form-image").value = "images/news_editorial.png";
-  
+
   // Hide widgets
   document.getElementById("btn-soft-delete").style.display = "none";
   onStatusChangeInForm("draft");
   updateContentCharCount();
 
-  setRouteHash('#articles/new');
+  setRouteHash('#article-editor/new');
 }
 
-function hideArticleForm() {
-  document.getElementById("articles-form-view").style.display = "none";
-  document.getElementById("articles-list-view").style.display = "block";
+async function hideArticleForm() {
   currentEditingId = null;
-  renderArticlesList();
-
-  setRouteHash('#articles');
+  await switchTab('articles');
 }
 
 function onStatusChangeInForm(status) {
@@ -1132,14 +1125,13 @@ async function editArticle(id) {
   if (!art) {
     // e.g. navigated back/forward to an edit link for an article that was
     // since deleted -- fall back to the list instead of doing nothing.
-    hideArticleForm();
+    await hideArticleForm();
     return;
   }
 
-  currentEditingId = id;
+  await switchTab('article-editor');
 
-  document.getElementById("articles-list-view").style.display = "none";
-  document.getElementById("articles-form-view").style.display = "block";
+  currentEditingId = id;
   document.getElementById("form-view-title").textContent = `기사 편집 (ID: #${art.id})`;
 
   // Populate fields
@@ -1168,7 +1160,7 @@ async function editArticle(id) {
   onStatusChangeInForm(art.status);
   updateContentCharCount();
 
-  setRouteHash(`#articles/edit/${art.id}`);
+  setRouteHash(`#article-editor/edit/${art.id}`);
 }
 
 function toDatetimeLocalValue(isoString) {
@@ -2048,8 +2040,7 @@ function resetAiWriter() {
 async function transferAiDraftToEditor() {
   if (!generatedDraftData) return;
 
-  await switchTab('articles');
-  showArticleCreateForm();
+  await showArticleCreateForm();
 
   // Populate editor form with AI draft data
   document.getElementById("form-title").value = generatedDraftData.title;
