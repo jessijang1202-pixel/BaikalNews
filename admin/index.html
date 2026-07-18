@@ -478,16 +478,34 @@
             <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
           </div>
 
-          <!-- API Key Config Panel -->
+          <!-- API Key Config Panel: Claude (article writing) -->
+          <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin: 0 24px 12px 24px;">
+            <h4 style="margin-top: 0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleClaudeApiConfig()">
+              <span>🔑 Claude API 설정 (기사 작성 · 학습 · 검수용)</span>
+              <span id="claude-api-config-toggle-icon">▼</span>
+            </h4>
+            <div id="claude-api-config-content" style="display: none; margin-top: 12px;">
+              <div class="form-group-admin" style="margin-bottom: 12px;">
+                <label for="ai-claude-key">Claude API Key</label>
+                <input type="password" id="ai-claude-key" class="form-control-admin" placeholder="API Key를 입력하여 제목/본문 작성, 학습, 자가검수 기능을 활성화하세요.">
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button type="button" class="btn-admin btn-admin-primary" onclick="saveClaudeApiKey()">API Key 저장</button>
+                <span id="claude-api-key-status" style="font-size: 0.8rem; color: var(--admin-text-secondary);">설정 확인 중...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Key Config Panel: Gemini (image generation only) -->
           <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin: 0 24px 20px 24px;">
             <h4 style="margin-top: 0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleApiConfig()">
-              <span>🔑 Gemini API 설정 (기사 학습 및 생성용)</span>
+              <span>🔑 Gemini API 설정 (AI 이미지 생성 전용)</span>
               <span id="api-config-toggle-icon">▼</span>
             </h4>
             <div id="api-config-content" style="display: none; margin-top: 12px;">
               <div class="form-group-admin" style="margin-bottom: 12px;">
                 <label for="ai-gemini-key">Gemini API Key</label>
-                <input type="password" id="ai-gemini-key" class="form-control-admin" placeholder="API Key를 입력하여 학습 및 작성 기능을 활성화하세요.">
+                <input type="password" id="ai-gemini-key" class="form-control-admin" placeholder="API Key를 입력하여 대표 이미지 AI 생성 기능을 활성화하세요.">
               </div>
               <div style="display: flex; align-items: center; gap: 12px;">
                 <button type="button" class="btn-admin btn-admin-primary" onclick="saveGeminiApiKey()">API Key 저장</button>

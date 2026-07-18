@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAdminAuth();
   setupEventListeners();
   loadGeminiApiKey();
+  loadClaudeApiKey();
 });
 
 // 0. Login gate (client-side only: validated against the registered admin account list)
@@ -645,9 +646,11 @@ async function switchTab(tabName) {
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
     loadGeminiApiKey();
+    loadClaudeApiKey();
     await loadWritingStyles();
   } else if (tabName === 'ai-training') {
     loadGeminiApiKey();
+    loadClaudeApiKey();
     await populateTrainingStyleSelect();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
@@ -1458,7 +1461,7 @@ function parseAiJsonResponse(resultText) {
   try {
     return JSON.parse(cleanedText);
   } catch (err) {
-    console.error("Gemini output parsing failed. Raw text:", resultText);
+    console.error("AI output parsing failed. Raw text:", resultText);
     throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
   }
 }
@@ -1539,7 +1542,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
-  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
@@ -1598,7 +1601,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
-  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
@@ -1735,7 +1738,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
-  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
@@ -1764,7 +1767,7 @@ async function loadInfoTopicSuggestions() {
   { "title": "추천 기사 주제", "reason": "왜 지금 이 주제가 시의성이 있는지 1~2문장 설명" }
 ]
 `;
-    const resultText = await callGeminiApi(prompt, "당신은 대한민국 생활 정보 전문 기자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    const resultText = await callClaudeApi(prompt, "당신은 대한민국 생활 정보 전문 기자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
     infoTopicSuggestions = parseAiJsonResponse(resultText);
     renderInfoTopicList();
   } catch (err) {
@@ -1827,7 +1830,7 @@ ${SEO_PROMPT_INSTRUCTIONS}
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
-  const resultText = await callGeminiApi(prompt, stylePrompt);
+  const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
@@ -1891,7 +1894,7 @@ URL 슬러그: ${draft.slug}
 `;
 
   try {
-    const resultText = await callGeminiApi(prompt, "당신은 엄격한 저널리즘 데스크 편집자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    const resultText = await callClaudeApi(prompt, "당신은 엄격한 저널리즘 데스크 편집자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
     const results = parseAiJsonResponse(resultText);
     return items.map((it, i) => ({
       section: it.section,
@@ -2679,7 +2682,9 @@ async function handleArticleImageUpload(event) {
   }
 }
 
-// Builds an image-generation prompt from the article's current title/lead/body via Gemini
+// Builds an image-generation prompt from the article's current title/lead/body via Claude
+// (the prompt is text, so it goes through the writing model -- the actual image pixels
+// are still rendered by Gemini in generateGeminiImage() below).
 async function autoGenerateImagePrompt() {
   const title = document.getElementById("form-title").value.trim();
   const lead = document.getElementById("form-lead").value.trim();
@@ -2737,7 +2742,7 @@ ${randomHint}
 - "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적이며 채도가 높은 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도, 그레인을 지향하십시오.
 - 다른 설명이나 마크다운 없이, 영어로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely.");
+    const resultText = await callClaudeApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -2747,7 +2752,7 @@ ${randomHint}
 }
 
 // Resolves an image-generation-capable Gemini model for this API key (same
-// auto-discovery approach as resolveGeminiModel(), filtered to image models).
+// self-healing auto-discovery approach as resolveClaudeModel(), filtered to image models).
 async function resolveGeminiImageModel(apiKey) {
   const cacheKey = "baikal_gemini_image_model";
   const cacheTimeKey = "baikal_gemini_image_model_cached_at";
@@ -2938,7 +2943,8 @@ async function disconnectSupabase() {
 }
 
 // ==========================================================
-// Gemini API Settings & AI Writing Styles Learning / Generation Logic
+// AI Provider API Key Settings (Claude for writing, Gemini for images)
+// & AI Writing Styles Learning / Generation Logic
 // ==========================================================
 
 function toggleApiConfig() {
@@ -2976,7 +2982,47 @@ function loadGeminiApiKey() {
     statusSpan.style.color = "#10b981"; // green
   } else if (keyInput && statusSpan) {
     keyInput.value = "";
-    statusSpan.textContent = "API Key가 설정되지 않았습니다. AI 기능을 사용하려면 등록하십시오.";
+    statusSpan.textContent = "API Key가 설정되지 않았습니다. AI 이미지 생성 기능을 사용하려면 등록하십시오.";
+    statusSpan.style.color = "#fbbf24"; // yellow
+  }
+}
+
+function toggleClaudeApiConfig() {
+  const content = document.getElementById("claude-api-config-content");
+  const icon = document.getElementById("claude-api-config-toggle-icon");
+  if (content.style.display === "none" || !content.style.display) {
+    content.style.display = "block";
+    icon.textContent = "▲";
+  } else {
+    content.style.display = "none";
+    icon.textContent = "▼";
+  }
+}
+
+function saveClaudeApiKey() {
+  const keyInput = document.getElementById("ai-claude-key").value.trim();
+  if (keyInput) {
+    localStorage.setItem("baikal_claude_key", keyInput);
+    document.getElementById("claude-api-key-status").textContent = "API Key가 안전하게 저장되었습니다.";
+    document.getElementById("claude-api-key-status").style.color = "#10b981"; // green
+  } else {
+    localStorage.removeItem("baikal_claude_key");
+    document.getElementById("claude-api-key-status").textContent = "API Key가 제거되었습니다.";
+    document.getElementById("claude-api-key-status").style.color = "#ef4444"; // red
+  }
+}
+
+function loadClaudeApiKey() {
+  const savedKey = localStorage.getItem("baikal_claude_key");
+  const keyInput = document.getElementById("ai-claude-key");
+  const statusSpan = document.getElementById("claude-api-key-status");
+  if (savedKey && keyInput && statusSpan) {
+    keyInput.value = savedKey;
+    statusSpan.textContent = "API Key 연동 중";
+    statusSpan.style.color = "#10b981"; // green
+  } else if (keyInput && statusSpan) {
+    keyInput.value = "";
+    statusSpan.textContent = "API Key가 설정되지 않았습니다. 기사 작성 기능을 사용하려면 등록하십시오.";
     statusSpan.style.color = "#fbbf24"; // yellow
   }
 }
@@ -3128,12 +3174,12 @@ async function scrapeExternalLink(url) {
   }
 }
 
-// Resolves which Gemini model this API key can actually use, instead of hardcoding a
-// version string that Google can deprecate at any time (as happened with gemini-2.5-flash).
-// Cached for a day so normal usage doesn't add an extra request per generation.
-async function resolveGeminiModel(apiKey) {
-  const cacheKey = "baikal_gemini_model";
-  const cacheTimeKey = "baikal_gemini_model_cached_at";
+// Resolves which Claude model this API key can actually use, instead of hardcoding a
+// version string that Anthropic can rename/deprecate later (same self-healing
+// approach as the Gemini image-model resolver below). Cached for a day.
+async function resolveClaudeModel(apiKey) {
+  const cacheKey = "baikal_claude_model";
+  const cacheTimeKey = "baikal_claude_model_cached_at";
   const cached = localStorage.getItem(cacheKey);
   const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
   const oneDayMs = 24 * 60 * 60 * 1000;
@@ -3143,84 +3189,82 @@ async function resolveGeminiModel(apiKey) {
   }
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const res = await fetch("https://api.anthropic.com/v1/models", {
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      }
+    });
     if (!res.ok) throw new Error("ListModels failed with status " + res.status);
     const data = await res.json();
-    const models = (data.models || []).filter(m =>
-      (m.supportedGenerationMethods || []).includes("generateContent")
-    );
-    if (models.length === 0) throw new Error("No generateContent-capable models available");
+    const models = data.data || [];
+    if (models.length === 0) throw new Error("No models available");
 
-    // Prefer a fast/cheap "flash" text model over specialized non-text variants
+    // Prefer a Sonnet-tier model -- the best balance of quality/cost for article writing
     const pick = (predicate) => models.find(predicate);
     const chosen =
-      pick(m => /flash-latest$/i.test(m.name)) ||
-      pick(m => /flash/i.test(m.name) && !/image|audio|tts|embedding|vision/i.test(m.name)) ||
-      pick(m => !/image|audio|tts|embedding|vision/i.test(m.name)) ||
+      pick(m => /sonnet-5/i.test(m.id)) ||
+      pick(m => /sonnet/i.test(m.id)) ||
       models[0];
 
-    const modelName = chosen.name.replace(/^models\//, '');
-    localStorage.setItem(cacheKey, modelName);
+    localStorage.setItem(cacheKey, chosen.id);
     localStorage.setItem(cacheTimeKey, String(Date.now()));
-    return modelName;
+    return chosen.id;
   } catch (err) {
-    console.error("Gemini model auto-discovery failed, falling back:", err);
-    return cached || "gemini-flash-latest";
+    console.error("Claude model auto-discovery failed, falling back:", err);
+    return cached || "claude-sonnet-5";
   }
 }
 
-// Gemini API Caller
-async function callGeminiApi(prompt, systemInstruction = "") {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
+// Claude (Anthropic) API caller -- used for all text/writing generation (article
+// drafts, self-check grading, writing-style analysis, image prompt writing).
+// Actual image pixel generation stays on Gemini (see generateGeminiImage below).
+async function callClaudeApi(prompt, systemInstruction = "") {
+  const apiKey = localStorage.getItem("baikal_claude_key");
   if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
+    throw new Error("Claude API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
   }
 
-  const model = await resolveGeminiModel(apiKey);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const model = await resolveClaudeModel(apiKey);
 
   const requestBody = {
-    contents: [
-      {
-        parts: [
-          { text: prompt }
-        ]
-      }
-    ]
+    model,
+    max_tokens: 8192,
+    messages: [{ role: "user", content: prompt }]
   };
-  
+
   if (systemInstruction) {
-    requestBody.systemInstruction = {
-      parts: [
-        { text: systemInstruction }
-      ]
-    };
+    requestBody.system = systemInstruction;
   }
-  
-  const response = await fetch(url, {
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
     },
     body: JSON.stringify(requestBody)
   });
-  
+
   if (!response.ok) {
     const errText = await response.text();
     if (response.status === 404) {
       // The cached/discovered model name turned out to be invalid or has since been
       // deprecated -- clear the cache so the next call re-discovers a working one.
-      localStorage.removeItem("baikal_gemini_model");
-      localStorage.removeItem("baikal_gemini_model_cached_at");
+      localStorage.removeItem("baikal_claude_model");
+      localStorage.removeItem("baikal_claude_model_cached_at");
     }
-    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`Claude API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
   }
-  
+
   const data = await response.json();
-  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-    return data.candidates[0].content.parts[0].text;
+  if (data.content && data.content[0] && data.content[0].text) {
+    return data.content[0].text;
   } else {
-    throw new Error("Gemini API가 올바른 응답 양식을 반환하지 않았습니다.");
+    throw new Error("Claude API가 올바른 응답 양식을 반환하지 않았습니다.");
   }
 }
 
@@ -3253,7 +3297,7 @@ ${textContent}
 4. "summary": 이 기사의 간략한 팩트/내용 요약
 `;
 
-  const analysisResultText = await callGeminiApi(analysisPrompt, "You are a professional writing style analyzer. Answer strictly in JSON format matching the specifications.");
+  const analysisResultText = await callClaudeApi(analysisPrompt, "You are a professional writing style analyzer. Answer strictly in JSON format matching the specifications.");
   const analysisJson = parseAiJsonResponse(analysisResultText);
 
   // Merge rules (avoid duplicates)
