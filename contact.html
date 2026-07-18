@@ -140,7 +140,7 @@
         <div class="contact-form-wrapper">
           <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; color: var(--text-primary);">온라인 제보·문의 양식</h3>
           
-          <form onsubmit="event.preventDefault(); alert('소중한 문의가 정상적으로 접수되었습니다. 신속하게 답변드리겠습니다.'); this.reset();">
+          <form onsubmit="handleContactSubmit(event)">
             <div class="form-group">
               <label for="contact-name">성명 / 단체명</label>
               <input type="text" id="contact-name" class="form-control" placeholder="성명을 입력하세요 (익명 가능)" required>
@@ -217,5 +217,8 @@
   <script src="js/supabase-adapter.js" defer></script>
   <script src="js/articles.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/emailjs-config.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" defer></script>
+  <script src="js/contact.js" defer></script>
 </body>
 </html>
