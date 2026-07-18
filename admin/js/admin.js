@@ -737,12 +737,13 @@ async function renderArticlesList() {
   }
   
   if (articles.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = articles.map(art => `
     <tr>
+      <td><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
       <td>${art.id}</td>
       <td><span class="ai-tag" style="margin: 0; font-size: 0.7rem;">${art.category.toUpperCase()}</span></td>
       <td style="font-weight: 500; color: var(--admin-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</td>
@@ -758,6 +759,55 @@ async function renderArticlesList() {
       </td>
     </tr>
   `).join('');
+}
+
+function toggleAllArticleCheckboxes(masterCheckbox) {
+  document.querySelectorAll('.article-select-checkbox').forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+  });
+}
+
+// Bulk-archive (soft delete) whichever rows are checked in the articles list
+async function deleteSelectedArticles() {
+  const checkedIds = Array.from(document.querySelectorAll('.article-select-checkbox:checked'))
+    .map(cb => parseInt(cb.value, 10));
+
+  if (checkedIds.length === 0) {
+    alert("삭제할 기사를 먼저 선택해 주세요.");
+    return;
+  }
+  if (!confirm(`선택한 기사 ${checkedIds.length}건을 휴지통(아카이브)으로 보내시겠습니까? 독자 사이트에서 즉시 숨겨집니다.`)) {
+    return;
+  }
+
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+
+  for (const id of checkedIds) {
+    const art = articles.find(a => a.id === id);
+    if (!art) continue;
+
+    art.status = 'archived';
+    if (!art.revisionHistory) art.revisionHistory = [];
+    art.revisionHistory.push({
+      date: new Date().toLocaleString("ko-KR"),
+      action: "기사 아카이브 보관 처리 (목록에서 일괄 삭제)"
+    });
+
+    if (window.SupabaseAdapter) {
+      await window.SupabaseAdapter.saveArticle(art);
+    }
+    await logAudit("기사 아카이브 보관", art.id, "목록에서 일괄 삭제 처리됨.");
+  }
+
+  const masterCheckbox = document.getElementById("article-select-all");
+  if (masterCheckbox) masterCheckbox.checked = false;
+
+  await renderArticlesList();
+  await refreshStats();
+  alert(`${checkedIds.length}건의 기사가 휴지통으로 이동되었습니다.`);
 }
 
 // Form view controls

@@ -106,27 +106,27 @@
       <section id="tab-dashboard" class="tab-content active">
         <!-- Stats Row -->
         <div class="admin-grid-4">
-          <div class="stat-card">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">검토 대기</span>
             <span class="stat-number" id="stat-review-count">0</span>
             <span class="stat-trend" style="color: var(--status-review);">최종 승인 대기 중</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">임시 저장</span>
             <span class="stat-number" id="stat-draft-count">0</span>
             <span class="stat-trend">작성 중인 초안</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">공개 발행</span>
             <span class="stat-number" id="stat-published-count">0</span>
             <span class="stat-trend" style="color: var(--status-published);">일반 독자 노출 중</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">총 기사 건수</span>
             <span class="stat-number" id="stat-total-count">0</span>
             <span class="stat-trend">전체 데이터베이스</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">총 조회수</span>
             <span class="stat-number" id="stat-total-views">0</span>
             <span class="stat-trend">전체 기사 누적 조회</span>
@@ -209,12 +209,16 @@
         <div id="articles-list-view" class="panel">
           <div class="panel-header">
             <h3 class="panel-title">기사 전체 목록</h3>
-            <button class="btn-admin btn-admin-primary" onclick="showArticleCreateForm()">+ 새 기사 작성</button>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn-admin btn-admin-primary" onclick="showArticleCreateForm()">+ 새 기사 작성</button>
+              <button class="btn-admin btn-admin-danger" onclick="deleteSelectedArticles()">선택 삭제</button>
+            </div>
           </div>
           <div class="admin-table-wrapper">
             <table class="admin-table">
               <thead>
                 <tr>
+                  <th><input type="checkbox" id="article-select-all" onchange="toggleAllArticleCheckboxes(this)"></th>
                   <th>ID</th>
                   <th>카테고리</th>
                   <th>제목</th>
