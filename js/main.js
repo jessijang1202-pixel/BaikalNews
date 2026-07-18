@@ -563,6 +563,7 @@ function renderArticlePage() {
   // Count this as a real page view (skip preview mode so editors reviewing drafts don't inflate counts)
   if (!isPreview && window.SupabaseAdapter) {
     window.SupabaseAdapter.incrementArticleView(article.id);
+    window.SupabaseAdapter.logPageView(article.id);
   }
 
   // If viewing preview, show preview banner at the top of the body

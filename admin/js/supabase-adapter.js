@@ -595,6 +595,33 @@
       const samples = JSON.parse(localStorage.getItem("baikal_writing_samples") || "[]").filter(s => s.id !== sampleId);
       localStorage.setItem("baikal_writing_samples", JSON.stringify(samples));
       return true;
+    },
+
+    // Raw page_views event rows for the last N days (used to build the
+    // daily views/unique-visitors chart on the admin dashboard).
+    fetchPageViewEvents: async function(days) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const since = new Date();
+            since.setDate(since.getDate() - ((days || 14) - 1));
+            since.setHours(0, 0, 0, 0);
+
+            const { data, error } = await client
+              .from('page_views')
+              .select('viewed_at, visitor_id')
+              .gte('viewed_at', since.toISOString())
+              .order('viewed_at', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+          } catch (err) {
+            console.error("Supabase fetchPageViewEvents error:", err);
+          }
+        }
+      }
+      return [];
     }
   };
 

@@ -439,6 +439,30 @@
       articles[idx].views = (articles[idx].views || 0) + 1;
       localStorage.setItem("baikal_articles", JSON.stringify(articles));
       return articles[idx].views;
+    },
+
+    // Logs a single page-view event (timestamp + anonymous per-browser visitor id)
+    // so the admin dashboard can chart daily views/unique visitors over time.
+    // Best-effort only -- never blocks or breaks article rendering if it fails.
+    logPageView: async function(articleId) {
+      if (!this.isConfigured()) return;
+      const client = this.getClient();
+      if (!client) return;
+
+      try {
+        let visitorId = localStorage.getItem("baikal_visitor_id");
+        if (!visitorId) {
+          visitorId = crypto.randomUUID ? crypto.randomUUID() : ('visitor-' + Date.now() + Math.random().toString(36).slice(2));
+          localStorage.setItem("baikal_visitor_id", visitorId);
+        }
+
+        await client.from('page_views').insert({
+          article_id: articleId || null,
+          visitor_id: visitorId
+        });
+      } catch (err) {
+        console.warn("logPageView failed (non-critical):", err);
+      }
     }
   };
 

@@ -498,6 +498,7 @@ async function initAdminDashboard() {
   await renderArticlesList();
   await renderPendingList();
   await renderTopViewedList();
+  await renderViewsChart();
   await populateCurationDropdowns();
   await loadStaticPageContent();
   await renderAuditLogs();
@@ -579,6 +580,7 @@ async function switchTab(tabName) {
     await refreshStats();
     await renderPendingList();
     await renderTopViewedList();
+  await renderViewsChart();
   } else if (tabName === 'articles') {
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
@@ -666,7 +668,7 @@ async function refreshStats() {
   document.getElementById("stat-total-views").textContent = totalViews.toLocaleString("ko-KR");
 }
 
-// Render Dashboard Top-Viewed list
+// Render Dashboard Top-Viewed list (full ranking, shown when toggled open)
 async function renderTopViewedList() {
   const listEl = document.getElementById("dashboard-top-viewed-list");
   if (!listEl) return;
@@ -679,8 +681,7 @@ async function renderTopViewedList() {
   const topViewed = articles
     .filter(a => a.status === 'published')
     .slice()
-    .sort((a, b) => (b.views || 0) - (a.views || 0))
-    .slice(0, 5);
+    .sort((a, b) => (b.views || 0) - (a.views || 0));
 
   if (topViewed.length === 0) {
     listEl.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--admin-text-muted); padding: 24px 0;">발행된 기사가 없거나 아직 조회 기록이 없습니다.</td></tr>`;
@@ -695,6 +696,86 @@ async function renderTopViewedList() {
       <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
     </tr>
   `).join('');
+}
+
+function toggleArticleViewsList() {
+  const wrapper = document.getElementById("article-views-list-wrapper");
+  const btn = document.getElementById("toggle-article-views-btn");
+  if (!wrapper) return;
+
+  const isHidden = wrapper.style.display === "none" || !wrapper.style.display;
+  wrapper.style.display = isHidden ? "block" : "none";
+  if (btn) btn.textContent = isHidden ? "기사별 조회수 숨기기" : "기사별 조회수 보기";
+}
+
+// Daily views/unique-visitors bar chart (last 14 days), built from page_views event rows
+async function renderViewsChart() {
+  const container = document.getElementById("views-chart-container");
+  if (!container) return;
+
+  const days = 14;
+  let events = [];
+  if (window.SupabaseAdapter && window.SupabaseAdapter.fetchPageViewEvents) {
+    events = await window.SupabaseAdapter.fetchPageViewEvents(days);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    buckets.push({
+      key: d.toISOString().slice(0, 10),
+      label: `${d.getMonth() + 1}/${d.getDate()}`,
+      views: 0,
+      visitorSet: new Set()
+    });
+  }
+  const bucketByKey = {};
+  buckets.forEach(b => { bucketByKey[b.key] = b; });
+
+  events.forEach(ev => {
+    const key = (ev.viewed_at || '').slice(0, 10);
+    const bucket = bucketByKey[key];
+    if (!bucket) return;
+    bucket.views += 1;
+    bucket.visitorSet.add(ev.visitor_id);
+  });
+
+  const data = buckets.map(b => ({ label: b.label, views: b.views, visitors: b.visitorSet.size }));
+
+  if (data.every(d => d.views === 0)) {
+    container.innerHTML = `<div class="help-text">아직 집계된 조회 이벤트가 없습니다. 독자가 기사를 읽으면 여기에 그래프가 표시됩니다.</div>`;
+    return;
+  }
+
+  const maxVal = Math.max(1, ...data.map(d => Math.max(d.views, d.visitors)));
+  const chartHeight = 180;
+  const barGroupWidth = 44;
+  const barWidth = 14;
+  const svgWidth = data.length * barGroupWidth;
+
+  const bars = data.map((d, i) => {
+    const x = i * barGroupWidth;
+    const viewsH = Math.round((d.views / maxVal) * chartHeight);
+    const visitorsH = Math.round((d.visitors / maxVal) * chartHeight);
+    return `
+      <g>
+        <title>${d.label}: 조회수 ${d.views}회 / 방문자 ${d.visitors}명</title>
+        <rect x="${x + 4}" y="${chartHeight - viewsH}" width="${barWidth}" height="${Math.max(viewsH, 1)}" fill="var(--admin-accent-blue)" rx="2"></rect>
+        <rect x="${x + 4 + barWidth + 2}" y="${chartHeight - visitorsH}" width="${barWidth}" height="${Math.max(visitorsH, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+      </g>
+      <text x="${x + barGroupWidth / 2}" y="${chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${d.label}</text>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg width="${svgWidth}" height="${chartHeight + 30}" viewBox="0 0 ${svgWidth} ${chartHeight + 30}" style="min-width: 100%;">
+      ${bars}
+    </svg>
+  `;
 }
 
 // Render Dashboard Review list
