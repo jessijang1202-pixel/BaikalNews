@@ -2244,8 +2244,13 @@ function renderMediaLibraryGrid() {
     const filename = src.substring(src.lastIndexOf('/') + 1);
     const isSelected = selectedMediaImage === src;
     const displaySrc = /^https?:\/\//i.test(src) ? src : `https://baikalnews.com/${src}`;
+    const safeSrc = src.replace(/'/g, "\\'");
     return `
-      <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${src}')">
+      <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${safeSrc}')">
+        <div class="media-card-actions">
+          <button type="button" class="media-action-btn" title="편집" onclick="event.stopPropagation(); editMediaItem('${safeSrc}')">편집</button>
+          <button type="button" class="media-action-btn media-action-danger" title="삭제" onclick="event.stopPropagation(); deleteMediaItem('${safeSrc}')">삭제</button>
+        </div>
         <img src="${displaySrc}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div class="media-card-info">${filename}</div>
       </div>
@@ -2257,6 +2262,54 @@ function selectMediaCard(cardEl, src) {
   selectedMediaImage = src;
   document.querySelectorAll(".media-card").forEach(c => c.classList.remove("selected"));
   cardEl.classList.add("selected");
+}
+
+// Edit an entry's stored URL/path in place
+function editMediaItem(src) {
+  const newSrc = prompt("이미지 경로/URL을 수정하세요:", src);
+  if (!newSrc || !newSrc.trim() || newSrc.trim() === src) return;
+
+  const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
+  const idx = mediaList.indexOf(src);
+  if (idx === -1) {
+    mediaList.unshift(newSrc.trim());
+  } else {
+    mediaList[idx] = newSrc.trim();
+  }
+  localStorage.setItem("baikal_media_library", JSON.stringify(mediaList));
+
+  if (selectedMediaImage === src) selectedMediaImage = newSrc.trim();
+  renderMediaLibraryGrid();
+}
+
+// Remove an entry from the media library list, and best-effort delete the
+// underlying file from Supabase Storage if it's one of our own uploaded/
+// AI-generated images (local repo assets like images/xxx.png can't be
+// deleted from the browser -- this only removes them from the picker list).
+async function deleteMediaItem(src) {
+  if (!confirm(`이 이미지를 미디어 라이브러리에서 삭제하시겠습니까?\n${src}`)) return;
+
+  const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
+  const filtered = mediaList.filter(s => s !== src);
+  localStorage.setItem("baikal_media_library", JSON.stringify(filtered));
+
+  if (selectedMediaImage === src) selectedMediaImage = '';
+
+  if (window.SupabaseAdapter && /\/storage\/v1\/object\/public\/article-images\//.test(src)) {
+    try {
+      const client = window.SupabaseAdapter.getClient();
+      if (client) {
+        const path = src.split('/storage/v1/object/public/article-images/')[1];
+        if (path) {
+          await client.storage.from('article-images').remove([path]);
+        }
+      }
+    } catch (err) {
+      console.warn("Storage file delete failed (non-critical):", err);
+    }
+  }
+
+  renderMediaLibraryGrid();
 }
 
 function confirmSelectedImage() {

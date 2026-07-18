@@ -765,6 +765,34 @@ textarea.form-control-admin {
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
 }
 
+.media-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.media-action-btn {
+  background-color: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.media-action-btn:hover {
+  background-color: rgba(15, 23, 42, 0.95);
+}
+
+.media-action-btn.media-action-danger:hover {
+  background-color: #ef4444;
+}
+
 .media-img {
   width: 100%;
   aspect-ratio: 16 / 10;
