@@ -2330,7 +2330,7 @@ function renderMediaLibraryGrid() {
     return `
       <div class="media-card ${isSelected ? 'selected' : ''}" onclick="selectMediaCard(this, '${safeSrc}')">
         <div class="media-card-actions">
-          <button type="button" class="media-action-btn" title="편집" onclick="event.stopPropagation(); editMediaItem('${safeSrc}')">편집</button>
+          <button type="button" class="media-action-btn" title="다운로드" onclick="event.stopPropagation(); downloadMediaItem('${safeSrc}')">다운</button>
           <button type="button" class="media-action-btn media-action-danger" title="삭제" onclick="event.stopPropagation(); deleteMediaItem('${safeSrc}')">삭제</button>
         </div>
         <img src="${displaySrc}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
@@ -2346,22 +2346,27 @@ function selectMediaCard(cardEl, src) {
   cardEl.classList.add("selected");
 }
 
-// Edit an entry's stored URL/path in place
-function editMediaItem(src) {
-  const newSrc = prompt("이미지 경로/URL을 수정하세요:", src);
-  if (!newSrc || !newSrc.trim() || newSrc.trim() === src) return;
+// Downloads a media library image to the admin's computer as a file
+async function downloadMediaItem(src) {
+  const displaySrc = /^https?:\/\//i.test(src) ? src : `https://baikalnews.com/${src}`;
+  try {
+    const res = await fetch(displaySrc);
+    if (!res.ok) throw new Error(`다운로드 실패 (HTTP ${res.status})`);
+    const blob = await res.blob();
+    const filename = src.substring(src.lastIndexOf('/') + 1) || 'image.jpg';
 
-  const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
-  const idx = mediaList.indexOf(src);
-  if (idx === -1) {
-    mediaList.unshift(newSrc.trim());
-  } else {
-    mediaList[idx] = newSrc.trim();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    console.error("이미지 다운로드 실패:", err);
+    alert("이미지 다운로드에 실패했습니다: " + err.message);
   }
-  localStorage.setItem("baikal_media_library", JSON.stringify(mediaList));
-
-  if (selectedMediaImage === src) selectedMediaImage = newSrc.trim();
-  renderMediaLibraryGrid();
 }
 
 // Remove an entry from the media library list, and best-effort delete the
