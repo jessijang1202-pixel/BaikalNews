@@ -2474,8 +2474,25 @@ async function autoGenerateImagePrompt() {
   if (btn) { btn.disabled = true; btn.textContent = "프롬프트 생성 중..."; }
 
   try {
+    // Randomized per-generation so repeated prompts for similar articles
+    // don't all converge on the same shot -- the model still adapts it to
+    // the article, but starts from a different visual anchor each time.
+    const shootingStyleHints = [
+      "이른 아침 역광 실루엣 구도",
+      "흐린 날 차분한 자연광, 다큐멘터리 스트리트 포토 느낌",
+      "클로즈업 디테일 샷 (손, 도구, 질감 위주)",
+      "넓은 풍경 와이드샷, 인물은 작게 배치",
+      "저녁 노을빛이 스며드는 실내 또는 실외 장면",
+      "비 온 뒤 젖은 거리나 창문 너머로 바라본 구도",
+      "흑백 필름 사진 같은 다큐멘터리 질감",
+      "계절감이 뚜렷한 자연 풍경 (가을 낙엽, 겨울 눈, 초여름 신록 등)",
+      "안개 낀 새벽 풍경, 낮은 채도",
+      "한낮의 강한 직사광과 짙은 그림자 대비"
+    ];
+    const randomHint = shootingStyleHints[Math.floor(Math.random() * shootingStyleHints.length)];
+
     const analysisPrompt = `
-아래 뉴스 기사 내용을 바탕으로, 이 기사의 대표 이미지를 생성하기 위한 이미지 생성 AI용 프롬프트를 작성하십시오.
+아래 뉴스 기사 내용을 분석하여, 이 기사의 대표 이미지를 생성하기 위한 이미지 생성 AI용 프롬프트를 영어로 작성하십시오.
 
 [기사 제목]
 ${title}
@@ -2486,12 +2503,18 @@ ${lead}
 [본문 요약]
 ${bodyText.substring(0, 1000)}
 
+[이번 이미지에 적용할 촬영 스타일 힌트]
+${randomHint}
+(이 힌트를 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 결과 이미지가 서로 겹치지 않고 다양해집니다.)
+
 [작성 지침]
-- 실제 인물의 얼굴, 자극적이거나 선정적인 이미지는 피하고, 차분하고 신뢰감 있는 에디토리얼 사진/일러스트 스타일로 묘사하십시오.
-- 기사 주제를 은유적으로 표현하는 사물, 풍경, 구도를 구체적으로 서술하십시오.
-- 다른 설명이나 마크다운 없이, 한 문단의 프롬프트 본문만 출력하십시오.
+- 반드시 실제 다큐멘터리 사진(photojournalism) 또는 자연스러운 풍경/기록 사진 스타일로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등)은 절대 사용하지 마십시오.
+- 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·날씨·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·예술 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
+- 인물이 등장한다면 얼굴이 뚜렷하게 보이지 않는 뒷모습, 실루엣, 손이나 작업 동작 위주의 구도로 묘사하십시오.
+- "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적이며 채도가 높은 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도, 그레인을 지향하십시오.
+- 다른 설명이나 마크다운 없이, 영어로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiApi(analysisPrompt, "당신은 신문 편집 디자인 전문가입니다.");
+    const resultText = await callGeminiApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);

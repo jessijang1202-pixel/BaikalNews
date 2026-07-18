@@ -400,24 +400,30 @@ function renderHomepage() {
     }
   }
 
-  // Feature #5: Category Highlights (5 full-width sections, 3 cards each)
+  // Feature #5: Category Highlights (5 full-width sections, 3 cards each).
+  // A category with no articles yet is hidden entirely rather than shown
+  // as an empty section.
   const categoryRows = [
-    { id: "culture-row-container", cat: "culture", empty: "등록된 문화·예술 뉴스가 없습니다." },
-    { id: "economy-row-container", cat: "economy", empty: "등록된 경제·산업 뉴스가 없습니다." },
-    { id: "tech-row-container", cat: "tech", empty: "등록된 기술·미디어 뉴스가 없습니다." },
-    { id: "local-row-container", cat: "local", empty: "등록된 지역·평택 뉴스가 없습니다." },
-    { id: "opinion-row-container", cat: "opinion", empty: "등록된 오피니언 뉴스가 없습니다." }
+    { id: "culture-row-container", cat: "culture" },
+    { id: "economy-row-container", cat: "economy" },
+    { id: "tech-row-container", cat: "tech" },
+    { id: "local-row-container", cat: "local" },
+    { id: "opinion-row-container", cat: "opinion" }
   ];
 
   categoryRows.forEach(row => {
     const container = document.getElementById(row.id);
-    if (container) {
-      const articles = getArticlesByCategory(row.cat).slice(0, 3);
-      if (articles.length > 0) {
-        container.innerHTML = articles.map(a => createArticleCardHTML(a, 'standard')).join('');
-      } else {
-        container.innerHTML = `<p style="color: var(--text-muted);">${row.empty}</p>`;
-      }
+    if (!container) return;
+
+    const articles = getArticlesByCategory(row.cat).slice(0, 3);
+    const sectionEl = container.closest('section') || container.parentElement;
+
+    if (articles.length > 0) {
+      container.innerHTML = articles.map(a => createArticleCardHTML(a, 'standard')).join('');
+      if (sectionEl) sectionEl.style.display = '';
+    } else {
+      container.innerHTML = '';
+      if (sectionEl) sectionEl.style.display = 'none';
     }
   });
 
