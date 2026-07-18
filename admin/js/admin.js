@@ -1437,10 +1437,10 @@ const SEO_PROMPT_INSTRUCTIONS = `
 `;
 
 const SEO_JSON_FIELDS_INSTRUCTIONS = `
-4. "seoTitle": 검색결과 노출용 제목. 핵심 키워드를 앞부분에 포함하고 실제 title과 의미가 동일해야 함 (60자 이내 권장)
-5. "seoMeta": 검색결과 메타 설명. 핵심 키워드를 자연스럽게 포함하는 클릭 유도형 요약 (120~155자 내외)
-6. "slug": 핵심 키워드를 반영한 짧은 영문/로마자 URL 슬러그 (소문자와 하이픈만 사용, 예: pyeongtaek-support-fund)
-7. "keywords": 핵심 키워드 배열 (3~5개 문자열)
+5. "seoTitle": 검색결과 노출용 제목. 핵심 키워드를 앞부분에 포함하고 실제 title과 의미가 동일해야 함 (60자 이내 권장)
+6. "seoMeta": 검색결과 메타 설명. 핵심 키워드를 자연스럽게 포함하는 클릭 유도형 요약 (120~155자 내외)
+7. "slug": 핵심 키워드를 반영한 짧은 영문/로마자 URL 슬러그 (소문자와 하이픈만 사용, 예: pyeongtaek-support-fund)
+8. "keywords": 핵심 키워드 배열 (3~5개 문자열)
 `;
 
 function slugify(text) {
@@ -1534,15 +1534,16 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 완벽하게 따르고 핵심 키워드를 포함한 기사 제목
-2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
-3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
+2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
+3. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
+4. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callGeminiApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -1592,15 +1593,16 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
-2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
+2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
+3. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callGeminiApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -1728,15 +1730,16 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
-2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
+2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
+3. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callGeminiApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -1819,15 +1822,16 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 독자의 실질적 관심을 끌고 핵심 키워드를 포함한 정보성 기사 제목
-2. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
+2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
+3. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
+4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callGeminiApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -1957,13 +1961,13 @@ async function generateAiDraft() {
       result = await generateInfoDraft();
     }
 
-    const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords } = result;
+    const { headline, subtitle, lead, body, category, seoTitle, seoMeta, slug, keywords } = result;
     const finalSlug = slugify(slug) || `article-${Date.now()}`;
     const finalKeywords = Array.isArray(keywords) ? keywords : [];
 
     generatedDraftData = {
       title: headline,
-      subtitle: `${AI_CATEGORY_LABELS[category] || category} 부문 AI 작성 초안`,
+      subtitle: subtitle || `${AI_CATEGORY_LABELS[category] || category} 부문 AI 작성 초안`,
       lead: lead,
       content: body,
       category: category,
@@ -1975,6 +1979,7 @@ async function generateAiDraft() {
     };
 
     document.getElementById("ai-out-headline").textContent = headline;
+    document.getElementById("ai-out-subtitle").textContent = generatedDraftData.subtitle;
     document.getElementById("ai-out-lead").textContent = lead;
     document.getElementById("ai-out-body").innerHTML = body;
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
