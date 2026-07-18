@@ -384,9 +384,10 @@
                     <input type="file" id="form-image-upload" class="form-control-admin" accept="image/*" onchange="handleArticleImageUpload(event)">
                     <div class="help-text" id="image-upload-status">이미지 파일을 선택하면 자동으로 업로드됩니다.</div>
                   </div>
+                  <img id="form-image-preview" src="" alt="대표 이미지 미리보기" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:6px; margin-bottom:12px; border:1px solid var(--admin-border-light);">
                   <div class="form-group-admin">
                     <label for="form-image">이미지 파일 경로 / URL</label>
-                    <input type="text" id="form-image" class="form-control-admin" placeholder="images/culture_shamanism.png">
+                    <input type="text" id="form-image" class="form-control-admin" placeholder="images/culture_shamanism.png" oninput="updateFormImagePreview()">
                     <div class="help-text">업로드, 미디어 라이브러리 선택, AI 생성 중 하나를 사용하면 자동으로 채워집니다.</div>
                   </div>
                   <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="openMediaLibraryModal()">

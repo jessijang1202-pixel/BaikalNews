@@ -1032,7 +1032,7 @@ async function showArticleCreateForm() {
   // Set default values
   document.getElementById("edit-article-id").value = "";
   document.getElementById("form-date").value = new Date().toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1); // "2026.07.11" format
-  document.getElementById("form-image").value = "images/news_editorial.png";
+  setFormImageValue("images/news_editorial.png");
 
   // Hide widgets
   document.getElementById("btn-soft-delete").style.display = "none";
@@ -1150,7 +1150,7 @@ async function editArticle(id) {
   document.getElementById("form-category").value = art.category;
   document.getElementById("form-date").value = art.date;
   document.getElementById("form-ymyl").checked = art.isYMYL || false;
-  document.getElementById("form-image").value = art.image || "images/news_editorial.png";
+  setFormImageValue(art.image || "images/news_editorial.png");
   
   document.getElementById("form-seo-title").value = art.seoTitle || "";
   document.getElementById("form-seo-meta").value = art.seoMeta || "";
@@ -2056,7 +2056,7 @@ async function transferAiDraftToEditor() {
   document.getElementById("form-content").innerHTML = generatedDraftData.content;
   document.getElementById("form-category").value = generatedDraftData.category;
   document.getElementById("form-date").value = generatedDraftData.date;
-  document.getElementById("form-image").value = generatedDraftData.image;
+  setFormImageValue(generatedDraftData.image);
   document.getElementById("form-seo-title").value = generatedDraftData.seoTitle;
   document.getElementById("form-seo-meta").value = generatedDraftData.seoMeta;
   document.getElementById("form-slug").value = generatedDraftData.slug;
@@ -2404,7 +2404,7 @@ function confirmSelectedImage() {
     alert("라이브러리에서 적용할 이미지를 먼저 탭해 주세요.");
     return;
   }
-  document.getElementById("form-image").value = selectedMediaImage;
+  setFormImageValue(selectedMediaImage);
   closeMediaLibraryModal();
   alert(`기사 대표 이미지로 '${selectedMediaImage}' 파일이 적용되었습니다.`);
 }
@@ -2631,6 +2631,34 @@ async function bulkCompressExistingImages() {
   renderMediaLibraryGrid();
 }
 
+// Updates the sidebar's live thumbnail to match #form-image's current value
+// (hidden when empty). The file input clears its own displayed filename
+// right after a successful upload (see handleArticleImageUpload) so admins
+// can immediately re-select another file -- without this preview that reset
+// reads as "did nothing," even though the URL field below was filled in.
+function updateFormImagePreview() {
+  const input = document.getElementById("form-image");
+  const preview = document.getElementById("form-image-preview");
+  if (!input || !preview) return;
+
+  const url = input.value.trim();
+  if (!url) {
+    preview.style.display = "none";
+    return;
+  }
+  preview.onerror = () => { preview.style.display = "none"; };
+  preview.src = /^https?:\/\//i.test(url) ? url : `https://baikalnews.com/${url}`;
+  preview.style.display = "block";
+}
+
+// Sets #form-image's value and refreshes its thumbnail together -- prefer
+// this over touching form-image.value directly so the preview never goes stale.
+function setFormImageValue(url) {
+  const input = document.getElementById("form-image");
+  if (input) input.value = url;
+  updateFormImagePreview();
+}
+
 // Direct upload from the sidebar's "내 컴퓨터에서 업로드" file input
 async function handleArticleImageUpload(event) {
   const file = event.target.files[0];
@@ -2641,7 +2669,7 @@ async function handleArticleImageUpload(event) {
 
   try {
     const url = await uploadImageToStorage(file);
-    document.getElementById("form-image").value = url;
+    setFormImageValue(url);
     if (statusEl) statusEl.textContent = "업로드 완료: 기사 대표 이미지로 적용되었습니다.";
   } catch (err) {
     console.error("Image upload error:", err);
