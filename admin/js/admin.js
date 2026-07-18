@@ -2404,9 +2404,58 @@ function confirmSelectedImage() {
   alert(`기사 대표 이미지로 '${selectedMediaImage}' 파일이 적용되었습니다.`);
 }
 
+// Downscales + re-encodes an image (File/Blob/data URL) as JPEG via canvas so
+// storage stays small. PC layout never displays an article image wider than
+// the 1200px page container, so 1600px (some headroom for retina) is plenty
+// -- anything a phone camera or an AI generator produces is far larger than
+// that and mostly wastes Supabase's free storage tier for no visible gain.
+async function resizeAndCompressImage(fileOrBlob, options) {
+  const opts = options || {};
+  const maxWidth = opts.maxWidth || 1600;
+  const quality = opts.quality || 0.8;
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("이미지를 읽는 데 실패했습니다."));
+    reader.readAsDataURL(fileOrBlob);
+  });
+
+  const img = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("이미지를 디코딩하는 데 실패했습니다."));
+    image.src = dataUrl;
+  });
+
+  let { width, height } = img;
+  if (width > maxWidth) {
+    height = Math.round(height * (maxWidth / width));
+    width = maxWidth;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  // Flatten onto white first -- PNG/AI transparency would otherwise turn
+  // black once forced into JPEG, which has no alpha channel.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((b) => b ? resolve(b) : reject(new Error("이미지 압축에 실패했습니다.")), 'image/jpeg', quality);
+  });
+
+  return blob;
+}
+
 // Uploads a File or Blob to the Supabase Storage "article-images" bucket and
 // returns its public URL. Requires the bucket + public read/insert policies
 // to already exist (see admin setup docs) -- throws a clear error otherwise.
+// Always downscales/recompresses to JPEG first (see resizeAndCompressImage)
+// so both AI-generated and manually-uploaded photos land in Storage small.
 async function uploadImageToStorage(fileOrBlob, extHint) {
   if (!window.SupabaseAdapter) {
     throw new Error("Supabase 연동 모듈을 찾을 수 없습니다.");
@@ -2416,12 +2465,21 @@ async function uploadImageToStorage(fileOrBlob, extHint) {
     throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
 
-  const nameExt = fileOrBlob.name ? fileOrBlob.name.split('.').pop() : null;
-  const ext = (extHint || nameExt || 'png').toLowerCase().replace('jpeg', 'jpg');
-  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const contentType = fileOrBlob.type || `image/${ext}`;
+  let uploadBlob = fileOrBlob;
+  let ext = 'jpg';
+  try {
+    uploadBlob = await resizeAndCompressImage(fileOrBlob);
+  } catch (err) {
+    console.warn("이미지 압축 실패, 원본으로 업로드합니다:", err);
+    uploadBlob = fileOrBlob;
+    const nameExt = fileOrBlob.name ? fileOrBlob.name.split('.').pop() : null;
+    ext = (extHint || nameExt || 'png').toLowerCase().replace('jpeg', 'jpg');
+  }
 
-  const { error } = await client.storage.from('article-images').upload(path, fileOrBlob, {
+  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const contentType = ext === 'jpg' ? 'image/jpeg' : (uploadBlob.type || `image/${ext}`);
+
+  const { error } = await client.storage.from('article-images').upload(path, uploadBlob, {
     cacheControl: '3600',
     upsert: false,
     contentType
