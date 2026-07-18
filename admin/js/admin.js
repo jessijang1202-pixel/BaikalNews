@@ -62,6 +62,13 @@ async function showAdminApp(session) {
   if (labelEl) labelEl.textContent = `로그인 사용자: ${session.name}`;
   const nameEl = document.getElementById("header-profile-name");
   if (nameEl) nameEl.textContent = session.name;
+  const roleEl = document.getElementById("header-profile-role");
+  if (roleEl) {
+    const roleLabel = session.name === "최상락" ? "발행인"
+      : session.name === "장승희" ? "편집인"
+      : "최고 관리자";
+    roleEl.textContent = roleLabel;
+  }
 
   await initAdminDashboard();
 }
