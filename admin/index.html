@@ -165,17 +165,17 @@
           <aside>
             <div class="widget" style="background-color: var(--admin-bg-panel); border-color: var(--admin-border);">
               <h3 class="widget-title" style="color: var(--admin-text-primary); border-bottom-color: var(--admin-border-light);">빠른 작업</h3>
-              <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
-                <button class="btn-admin btn-admin-primary" onclick="showArticleCreateForm()" style="width: 100%; justify-content: center;">
+              <div class="quick-actions-grid">
+                <button class="btn-admin btn-admin-primary quick-action-box" onclick="showArticleCreateForm()">
                   + 새 기사 작성
                 </button>
-                <button class="btn-admin btn-admin-secondary" onclick="switchTab('ai-writer');" style="width: 100%; justify-content: center;">
+                <button class="btn-admin btn-admin-secondary quick-action-box" onclick="switchTab('ai-writer');">
                   AI 어시스턴트 집필실
                 </button>
-                <button class="btn-admin btn-admin-secondary" onclick="switchTab('curation');" style="width: 100%; justify-content: center;">
+                <button class="btn-admin btn-admin-secondary quick-action-box" onclick="switchTab('curation');">
                   홈화면 큐레이션 편집
                 </button>
-                <a href="https://baikalnews.com" target="_blank" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; text-decoration: none; text-align: center;">
+                <a href="https://baikalnews.com" target="_blank" class="btn-admin btn-admin-secondary quick-action-box" style="text-decoration: none;">
                   독자 사이트 가기 (새창)
                 </a>
               </div>
