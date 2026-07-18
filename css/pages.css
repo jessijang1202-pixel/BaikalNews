@@ -19,7 +19,7 @@
 
 .article-headline {
   font-family: var(--font-serif);
-  font-size: 2.35rem;
+  font-size: 2rem;
   font-weight: 700;
   line-height: 1.32;
   color: var(--text-primary);
@@ -696,7 +696,7 @@ textarea.form-control {
 
 @media (max-width: 768px) {
   .article-headline {
-    font-size: 1.8rem;
+    font-size: 1.53rem;
   }
   .article-lead {
     font-size: 1rem;

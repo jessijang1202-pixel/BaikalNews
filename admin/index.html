@@ -53,6 +53,9 @@
       <li class="sidebar-item" data-tab="articles">
         <a>기사 관리</a>
       </li>
+      <li class="sidebar-item" data-tab="articles" onclick="openNewArticleFromSidebar()">
+        <a>+ 새 기사 작성</a>
+      </li>
       <li class="sidebar-item" data-tab="ai-writer">
         <a>AI 기사 집필실</a>
       </li>
@@ -452,7 +455,7 @@
             <!-- Footer Buttons -->
             <div style="border-top: 1px solid var(--admin-border); padding-top: 24px; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <button type="button" class="btn-admin btn-admin-danger" id="btn-soft-delete" style="display: none;" onclick="softDeleteArticleInForm()">기사 휴지통 삭제</button>
+                <button type="button" class="btn-admin btn-admin-danger" id="btn-soft-delete" style="display: none;" onclick="softDeleteArticleInForm()">기사 삭제</button>
               </div>
               <div style="display: flex; gap: 12px;">
                 <button type="button" class="btn-admin btn-admin-secondary" onclick="previewArticleInForm()">실시간 레이아웃 미리보기</button>
@@ -990,6 +993,26 @@
   </div>
 
   </div> <!-- /#admin-app -->
+
+  <!-- ================= MODAL: DELETE CHOICE (완전 삭제 vs 아카이브) ================= -->
+  <div class="modal-admin" id="delete-choice-modal">
+    <div class="modal-admin-content" style="max-width: 420px;">
+      <button class="modal-close-btn" onclick="closeDeleteChoiceModal()">&times;</button>
+      <h3 style="margin-bottom: 12px;">기사 삭제 방법 선택</h3>
+      <p id="delete-choice-message" style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 24px;"></p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center;" onclick="confirmDeleteChoice('archive')">
+          아카이브 처리 (휴지통 보관, 복구 가능)
+        </button>
+        <button type="button" class="btn-admin btn-admin-danger" style="width: 100%; justify-content: center;" onclick="confirmDeleteChoice('hard')">
+          완전 삭제 (복구 불가)
+        </button>
+        <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center;" onclick="closeDeleteChoiceModal()">
+          취소
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ================= MODAL: MEDIA LIBRARY & AI IMAGE GENERATOR ================= -->
   <div class="modal-admin" id="media-library-modal">

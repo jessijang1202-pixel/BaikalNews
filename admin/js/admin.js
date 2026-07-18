@@ -842,8 +842,9 @@ async function renderArticlesList() {
 }
 
 // Toggle between "just show the list" and "select rows to delete" modes.
-// First click reveals checkboxes; a second click either deletes the checked
-// rows, or (if nothing is checked) just exits selection mode again.
+// First click reveals checkboxes; a second click opens the delete-choice
+// modal for whatever's checked, or (if nothing is checked) just exits
+// selection mode again.
 function toggleArticleDeleteMode() {
   const listView = document.getElementById("articles-list-view");
   if (!listView) return;
@@ -861,7 +862,7 @@ function toggleArticleDeleteMode() {
     return;
   }
 
-  deleteSelectedArticles(checkedIds);
+  openDeleteChoiceModal(checkedIds, 'list');
 }
 
 function toggleAllArticleCheckboxes(masterCheckbox) {
@@ -870,54 +871,96 @@ function toggleAllArticleCheckboxes(masterCheckbox) {
   });
 }
 
-// Bulk-archive (soft delete) whichever rows are checked in the articles list
-async function deleteSelectedArticles(checkedIds) {
-  if (!checkedIds) {
-    checkedIds = Array.from(document.querySelectorAll('.article-select-checkbox:checked'))
-      .map(cb => parseInt(cb.value, 10));
+// ==========================================================
+// Delete-choice modal: 완전 삭제 (hard delete) vs 아카이브 (soft delete)
+// Shared by the single-article delete button (edit form) and the
+// bulk "삭제" button in the articles list.
+// ==========================================================
+let pendingDeleteIds = [];
+let pendingDeleteContext = null; // 'form' | 'list'
+
+function openDeleteChoiceModal(ids, context) {
+  pendingDeleteIds = ids;
+  pendingDeleteContext = context;
+
+  const msgEl = document.getElementById("delete-choice-message");
+  if (msgEl) {
+    msgEl.textContent = ids.length === 1
+      ? "선택한 기사를 어떻게 삭제하시겠습니까?"
+      : `선택한 기사 ${ids.length}건을 어떻게 삭제하시겠습니까?`;
   }
 
-  if (checkedIds.length === 0) {
-    alert("삭제할 기사를 먼저 선택해 주세요.");
-    return;
-  }
-  if (!confirm(`선택한 기사 ${checkedIds.length}건을 휴지통(아카이브)으로 보내시겠습니까? 독자 사이트에서 즉시 숨겨집니다.`)) {
-    return;
-  }
+  const modal = document.getElementById("delete-choice-modal");
+  if (modal) modal.classList.add("active");
+}
 
-  let articles = [];
-  if (window.SupabaseAdapter) {
-    articles = await window.SupabaseAdapter.fetchArticles();
-  }
+function closeDeleteChoiceModal() {
+  const modal = document.getElementById("delete-choice-modal");
+  if (modal) modal.classList.remove("active");
+  pendingDeleteIds = [];
+  pendingDeleteContext = null;
+}
 
-  for (const id of checkedIds) {
-    const art = articles.find(a => a.id === id);
-    if (!art) continue;
+async function confirmDeleteChoice(mode) {
+  const ids = pendingDeleteIds.slice();
+  const context = pendingDeleteContext;
+  closeDeleteChoiceModal();
 
-    art.status = 'archived';
-    if (!art.revisionHistory) art.revisionHistory = [];
-    art.revisionHistory.push({
-      date: new Date().toLocaleString("ko-KR"),
-      action: "기사 아카이브 보관 처리 (목록에서 일괄 삭제)"
-    });
+  if (ids.length === 0) return;
 
-    if (window.SupabaseAdapter) {
-      await window.SupabaseAdapter.saveArticle(art);
+  if (mode === 'hard') {
+    for (const id of ids) {
+      if (window.SupabaseAdapter) {
+        await window.SupabaseAdapter.deleteArticle(id);
+      }
+      await logAudit("기사 완전 삭제", id, "기사가 영구적으로 삭제되어 복구할 수 없습니다.");
     }
-    await logAudit("기사 아카이브 보관", art.id, "목록에서 일괄 삭제 처리됨.");
+  } else {
+    let articles = [];
+    if (window.SupabaseAdapter) {
+      articles = await window.SupabaseAdapter.fetchArticles();
+    }
+    for (const id of ids) {
+      const art = articles.find(a => a.id === id);
+      if (!art) continue;
+
+      art.status = 'archived';
+      if (!art.revisionHistory) art.revisionHistory = [];
+      art.revisionHistory.push({
+        date: new Date().toLocaleString("ko-KR"),
+        action: "기사 아카이브 보관 처리"
+      });
+
+      if (window.SupabaseAdapter) {
+        await window.SupabaseAdapter.saveArticle(art);
+      }
+      await logAudit("기사 아카이브 보관", id, "기사를 비활성화하여 독자에게서 보이지 않게 처리함.");
+    }
   }
 
-  const listView = document.getElementById("articles-list-view");
-  if (listView) listView.classList.remove("delete-mode-active");
-  const masterCheckbox = document.getElementById("article-select-all");
-  if (masterCheckbox) masterCheckbox.checked = false;
-
-  await renderArticlesList();
+  if (context === 'form') {
+    hideArticleForm();
+  } else {
+    const listView = document.getElementById("articles-list-view");
+    if (listView) listView.classList.remove("delete-mode-active");
+    const masterCheckbox = document.getElementById("article-select-all");
+    if (masterCheckbox) masterCheckbox.checked = false;
+    await renderArticlesList();
+  }
   await refreshStats();
-  alert(`${checkedIds.length}건의 기사가 휴지통으로 이동되었습니다.`);
+
+  alert(mode === 'hard'
+    ? `${ids.length}건의 기사가 완전히 삭제되었습니다.`
+    : `${ids.length}건의 기사가 휴지통으로 이동되었습니다.`);
 }
 
 // Form view controls
+// Sidebar shortcut: jump straight to the blank new-article form
+function openNewArticleFromSidebar() {
+  switchTab('articles');
+  showArticleCreateForm();
+}
+
 function showArticleCreateForm() {
   document.getElementById("articles-list-view").style.display = "none";
   document.getElementById("articles-form-view").style.display = "block";
@@ -1281,28 +1324,9 @@ async function saveArticle() {
 }
 
 // Soft delete
-async function softDeleteArticleInForm() {
+function softDeleteArticleInForm() {
   if (!currentEditingId) return;
-  
-  if (confirm("본 기사를 아카이브 보관(Soft Delete) 상태로 전환하여 독자 사이트에서 숨기시겠습니까?")) {
-    let art = null;
-    if (window.SupabaseAdapter) {
-      art = await window.SupabaseAdapter.fetchArticleById(currentEditingId);
-    }
-    if (art) {
-      art.status = 'archived';
-      if (!art.revisionHistory) art.revisionHistory = [];
-      art.revisionHistory.push({
-        date: new Date().toLocaleString("ko-KR"),
-        action: "기사 아카이브 보관 처리 (휴지통 보냄)"
-      });
-      if (window.SupabaseAdapter) {
-        await window.SupabaseAdapter.saveArticle(art);
-      }
-      await logAudit("기사 아카이브 보관", art.id, "기사를 비활성화하여 독자에게서 보이지 않게 처리함.");
-    }
-    hideArticleForm();
-  }
+  openDeleteChoiceModal([currentEditingId], 'form');
 }
 
 // 5. AI Assisted Article Generation Engine
