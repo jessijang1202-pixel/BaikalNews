@@ -512,15 +512,28 @@ async function initAdminDashboard() {
 // exact screen instead of always landing back on the dashboard.
 // ==========================================================
 let suppressHashUpdate = false;
+// Tracks the hash our own code most recently claimed as "already applied",
+// so a hashchange event that only fires later (e.g. after a blocking
+// alert()) doesn't re-run the destructive form-reset navigation functions
+// for a screen we're already correctly showing with extra data on top.
+let lastAppliedHash = null;
 
 function setRouteHash(hash) {
+  lastAppliedHash = hash;
   if (suppressHashUpdate) return;
   if (location.hash === hash) return;
   location.hash = hash;
 }
 
 async function applyHashRoute() {
-  const raw = location.hash.replace(/^#/, '');
+  const currentHash = location.hash || '#dashboard';
+  if (currentHash === lastAppliedHash) {
+    // Stale event for a state we've already rendered ourselves -- skip.
+    return;
+  }
+  lastAppliedHash = currentHash;
+
+  const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
   const validTabs = ['dashboard', 'articles', 'ai-writer', 'ai-training', 'curation', 'pages', 'audit', 'admins'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
