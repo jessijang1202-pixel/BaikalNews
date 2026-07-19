@@ -1069,7 +1069,15 @@ async function confirmDeleteChoice(mode) {
 // switching to the right one themselves so any caller (sidebar, dashboard
 // shortcut, AI transfer, hash routing) can call them directly.
 async function showArticleCreateForm() {
+  // switchTab() pushes its own '#article-editor' hash entry as a side effect --
+  // suppress that intermediate push so only the specific hash set at the end of
+  // this function lands in history. Otherwise a single "새 기사 작성" click
+  // pushes two entries, and the browser back button lands on the bare
+  // '#article-editor' hash (a blank form) instead of wherever the admin came from.
+  const wasHashSuppressed = suppressHashUpdate;
+  suppressHashUpdate = true;
   await switchTab('article-editor');
+  suppressHashUpdate = wasHashSuppressed;
 
   document.getElementById("form-view-title").textContent = "새 기사 작성";
 
@@ -1184,7 +1192,14 @@ async function editArticle(id) {
     return;
   }
 
+  // See showArticleCreateForm() for why this suppresses switchTab's own
+  // intermediate hash push -- otherwise editing an article pushes both
+  // '#article-editor' and '#article-editor/edit/<id>', and one browser-back
+  // press lands on the bare (blank-form) hash instead of the article list.
+  const wasHashSuppressed = suppressHashUpdate;
+  suppressHashUpdate = true;
   await switchTab('article-editor');
+  suppressHashUpdate = wasHashSuppressed;
 
   currentEditingId = id;
   document.getElementById("form-view-title").textContent = `기사 편집 (ID: #${art.id})`;
