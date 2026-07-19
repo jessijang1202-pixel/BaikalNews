@@ -2145,8 +2145,7 @@ async function populateCurationDropdowns() {
   const publishedSelects = [
     "curate-hero",
     "curate-latest-1", "curate-latest-2", "curate-latest-3",
-    "curate-pick-1", "curate-pick-2", "curate-pick-3",
-    "curate-pop-1", "curate-pop-2", "curate-pop-3"
+    "curate-pop-1", "curate-pop-2", "curate-pop-3", "curate-pop-4"
   ];
 
   let articles = [];
@@ -2189,7 +2188,6 @@ async function populateCurationDropdowns() {
 
   if (curation.featuredHeroId) document.getElementById("curate-hero").value = curation.featuredHeroId;
   applyValues(curation.latestNewsIds, "curate-latest");
-  applyValues(curation.editorsPicksIds, "curate-pick");
   applyValues(curation.popularReadsIds, "curate-pop");
 
   // Render the initial preview for every slot
@@ -2245,13 +2243,28 @@ async function saveCurationSettings() {
   const newCuration = {
     featuredHeroId: heroId,
     latestNewsIds: readSlots("curate-latest", 3),
-    editorsPicksIds: readSlots("curate-pick", 3),
-    popularReadsIds: readSlots("curate-pop", 3),
+    editorsPicksIds: [],
+    popularReadsIds: readSlots("curate-pop", 4),
     pinnedIds: []
   };
 
   if (window.SupabaseAdapter) {
     await window.SupabaseAdapter.saveCuration(newCuration);
+
+    // saveCuration() silently falls back to LocalStorage-only if the Supabase
+    // write itself fails (e.g. a missing column or RLS issue), without
+    // surfacing that failure -- verify directly against the database instead
+    // of trusting the success alert we're about to show.
+    if (window.SupabaseAdapter.isConfigured && window.SupabaseAdapter.isConfigured()) {
+      const verify = await window.SupabaseAdapter.fetchCuration();
+      const matches = verify && verify.featuredHeroId === newCuration.featuredHeroId &&
+        JSON.stringify(verify.popularReadsIds || []) === JSON.stringify(newCuration.popularReadsIds) &&
+        JSON.stringify(verify.latestNewsIds || []) === JSON.stringify(newCuration.latestNewsIds);
+      if (!matches) {
+        alert("큐레이션 저장이 데이터베이스에 반영되지 않았습니다. Supabase의 curation 테이블에 latest_news_ids 컬럼이 있는지, UPDATE 권한(RLS 정책)이 있는지 확인해 주세요.");
+        return;
+      }
+    }
   }
   await logAudit("홈화면 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
   alert("홈화면 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
