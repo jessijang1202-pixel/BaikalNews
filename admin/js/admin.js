@@ -926,12 +926,28 @@ async function changeArticleApprover(id, newApprover) {
     articles = await window.SupabaseAdapter.fetchArticles();
   }
   const art = articles.find(a => a.id === id);
-  if (!art) return;
+  if (!art) {
+    alert("승인인 변경 실패: 목록에서 해당 기사를 찾지 못했습니다 (ID: " + id + ").");
+    await renderArticlesList();
+    return;
+  }
 
   art.approver = newApprover || null;
   art.byline = newApprover ? `${newApprover} 기자` : "";
 
   await window.SupabaseAdapter.saveArticle(art);
+
+  // saveArticle() silently falls back to LocalStorage-only if the Supabase
+  // write itself fails (e.g. no RLS UPDATE policy on articles), without
+  // surfacing that failure to the caller -- so verify directly against the
+  // database here instead of trusting the return value.
+  if (window.SupabaseAdapter.isConfigured()) {
+    const verify = await window.SupabaseAdapter.fetchArticleById(id);
+    if (!verify || (verify.approver || null) !== (newApprover || null)) {
+      alert("승인인 변경이 데이터베이스에 저장되지 않았습니다. Supabase의 articles 테이블에 UPDATE 권한(RLS 정책)이 있는지 확인해 주세요.");
+    }
+  }
+
   await logAudit("승인인 변경", art.id, `기사 관리 목록에서 승인인을 '${newApprover || '미지정'}'(으)로 직접 변경했습니다.`);
   await renderArticlesList();
 }
