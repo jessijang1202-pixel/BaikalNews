@@ -2800,10 +2800,10 @@ ${randomHint}
 - 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·날씨·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·예술 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
 - 인물이 등장한다면 얼굴이 뚜렷하게 보이지 않는 뒷모습, 실루엣, 손이나 작업 동작 위주의 구도로 묘사하십시오.
 - "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적이며 채도가 높은 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도, 그레인을 지향하십시오.
-- 표지판, 현수막, 문서, 화면 등 텍스트가 보이는 사물을 장면에 포함시킨다면, 그 텍스트는 반드시 한글이어야 합니다. 영어나 다른 외국어 텍스트가 이미지에 등장하지 않도록 하십시오. 텍스트 노출 여부가 불확실하다면 차라리 그런 사물을 장면에서 배제하십시오.
+- 텍스트가 등장하는 요소는 최대한 배제하십시오. AI가 생성하는 한글 텍스트는 대부분 알아볼 수 없는 깨진 글자로 나오기 때문입니다. 특히 문서, 종이, 서류, 손글씨, 화면, 클로즈업된 글자는 절대로 장면에 등장시키지 마십시오. 거리의 간판이나 상점 간판 정도는 장면에 자연스럽게 어울린다면 포함해도 괜찮지만, 작게·흐릿하게·초점 밖에 배치하여 읽기 어렵게 묘사하십시오. 혹시라도 텍스트가 뚜렷하게 등장해야 하는 상황이라면 반드시 한글로만 묘사하고 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 영어로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiTextApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely. If any text/signage appears in the scene, it must be Korean (Hangul) only, never English or other languages.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely. Minimize or avoid visible text in scenes -- AI-rendered Korean text usually comes out garbled. Never include documents, papers, or close-up lettering; a small, out-of-focus street sign is the only acceptable exception, and if any text does appear it must be Korean (Hangul) only.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -2846,7 +2846,7 @@ async function resolveGeminiImageModel(apiKey) {
 // Calls Gemini's image-capable model and returns a data: URI
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
-const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: If this image contains any visible text, writing, signage, labels, captions, or lettering of any kind, it MUST be written in Korean (Hangul) only. Never render English or any other language/script as visible text in the image. If unsure whether text would appear, avoid including any text-bearing objects (signs, screens, documents, banners) rather than risk non-Korean text.";
+const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
 
 async function generateGeminiImage(promptText) {
   const apiKey = localStorage.getItem("baikal_gemini_key");
