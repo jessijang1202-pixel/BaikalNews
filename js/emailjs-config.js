@@ -3,4 +3,4 @@
 // sending with domain restrictions you set in the EmailJS dashboard, not by hiding this key.
 window.EMAILJS_PUBLIC_KEY = "wpz1wkqRSPXOGnMv-";
 window.EMAILJS_SERVICE_ID = "service_ew3n7dm";
-window.EMAILJS_TEMPLATE_ID = "vq9r3ug";
+window.EMAILJS_TEMPLATE_ID = "template_mdex3qi";
