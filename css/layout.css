@@ -102,12 +102,6 @@ header::before {
   gap: 14px;
 }
 
-.logo-mark {
-  height: 2.4rem;
-  width: auto;
-  align-self: center;
-}
-
 .logo-kr {
   font-family: var(--font-logo);
   font-size: 2.6rem;
@@ -436,9 +430,6 @@ footer {
   }
   .logo-kr {
     font-size: 1.9rem;
-  }
-  .logo-mark {
-    height: 1.7rem;
   }
   .logo-en {
     font-size: 0.7rem;
