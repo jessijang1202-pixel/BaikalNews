@@ -21,6 +21,22 @@ function parseKoreanDate(dateStr) {
   return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
+// Returns the top `count` articles by view count -- membership is always
+// automatic (highest views), but wherever curation.popularReadsIds still
+// covers a current top article, that saved relative order is respected
+// (set by admins reordering 많이 읽은 인기 기사 in the curation admin tab).
+// Any newly-popular article not covered by the saved order is appended in
+// view-rank order.
+function getOrderedPopularArticles(published, curation, excludeId, count) {
+  const pool = excludeId ? published.filter(a => a.id !== excludeId) : published;
+  const topByViews = pool.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count);
+  const topIds = new Set(topByViews.map(a => a.id));
+  const orderIds = ((curation && curation.popularReadsIds) || []).filter(id => topIds.has(id));
+  const ordered = orderIds.map(id => topByViews.find(a => a.id === id));
+  const remaining = topByViews.filter(a => !orderIds.includes(a.id));
+  return [...ordered, ...remaining];
+}
+
 // A "scheduled" article becomes visible on its own once scheduledAt has passed --
 // there's no server/cron to flip its status, so this check happens at render time.
 function isArticleLive(article) {
@@ -413,17 +429,13 @@ function renderHomepage() {
     }
   }
 
-  // Feature #4: Popular Reads
+  // Feature #4: Popular Reads (auto-selected by view count, admin-orderable)
   const popularContainer = document.getElementById("popular-reads-container");
   if (popularContainer) {
-    const popularItems = published.filter(a => curation.popularReadsIds.includes(a.id)).slice(0, 5);
-    if (popularItems.length > 0) {
-      popularContainer.innerHTML = popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('');
-    } else {
-      // Fallback
-      const fallbackPopular = published.slice(Math.max(0, published.length - 5));
-      popularContainer.innerHTML = fallbackPopular.map(art => createArticleCardHTML(art, 'minimal')).join('');
-    }
+    const popularItems = getOrderedPopularArticles(published, curation, null, 5);
+    popularContainer.innerHTML = popularItems.length > 0
+      ? popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('')
+      : `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
   }
 
   // Feature #5: Category Highlights (5 full-width sections, 3 cards each).
@@ -803,14 +815,7 @@ function renderArticlePage() {
   if (rankingContainer) {
     const curationData = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
     const publishedForRanking = window.ARTICLES.filter(a => isArticleLive(a));
-    let rankingItems = publishedForRanking
-      .filter(a => curationData.popularReadsIds.includes(a.id) && a.id !== article.id)
-      .slice(0, 5);
-
-    if (rankingItems.length === 0) {
-      const others = publishedForRanking.filter(a => a.id !== article.id);
-      rankingItems = others.slice(Math.max(0, others.length - 5));
-    }
+    const rankingItems = getOrderedPopularArticles(publishedForRanking, curationData, article.id, 5);
     rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
   }
 

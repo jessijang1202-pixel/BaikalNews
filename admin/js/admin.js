@@ -2190,12 +2190,19 @@ async function transferAiDraftToEditor() {
 // 6. Homepage News Curation Panel
 // Cached so the 10 preview updates don't each re-fetch the article list
 let curationArticlesCache = [];
+// Ordered article IDs for 많이 읽은 인기 기사 -- membership is always the
+// current top-5-by-views, admins can only reorder these via the ▲/▼ list.
+let curationPopularOrder = [];
+const CURATION_POPULAR_COUNT = 5;
+
+function computeAutoPopularIds(published, count) {
+  return published.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count).map(a => a.id);
+}
 
 async function populateCurationDropdowns() {
   const publishedSelects = [
     "curate-hero",
-    "curate-latest-1", "curate-latest-2", "curate-latest-3",
-    "curate-pop-1", "curate-pop-2", "curate-pop-3", "curate-pop-4", "curate-pop-5"
+    "curate-latest-1", "curate-latest-2", "curate-latest-3"
   ];
 
   let articles = [];
@@ -2238,10 +2245,56 @@ async function populateCurationDropdowns() {
 
   if (curation.featuredHeroId) document.getElementById("curate-hero").value = curation.featuredHeroId;
   applyValues(curation.latestNewsIds, "curate-latest");
-  applyValues(curation.popularReadsIds, "curate-pop");
+
+  // 많이 읽은 인기 기사: trust the saved order only if it's still the exact
+  // same set of articles the current view counts would auto-select -- if
+  // membership drifted (a new article rose into the top 5), reset to the
+  // fresh view-count order rather than let a stale pick linger.
+  const autoIds = computeAutoPopularIds(published, CURATION_POPULAR_COUNT);
+  const savedIds = curation.popularReadsIds || [];
+  const sameSet = savedIds.length === autoIds.length && autoIds.every(id => savedIds.includes(id));
+  curationPopularOrder = sameSet ? savedIds.slice() : autoIds;
+  renderCurationPopularList();
 
   // Render the initial preview for every slot
   publishedSelects.forEach(selectId => updateCurationPreview(selectId));
+}
+
+function renderCurationPopularList() {
+  const container = document.getElementById("curate-pop-auto-list");
+  if (!container) return;
+
+  if (curationPopularOrder.length === 0) {
+    container.innerHTML = `<div class="help-text">조회수가 집계된 발행 기사가 없습니다.</div>`;
+    return;
+  }
+
+  container.innerHTML = curationPopularOrder.map((id, i) => {
+    const art = curationArticlesCache.find(a => a.id === id);
+    if (!art) return '';
+    const imageUrl = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
+    return `
+      <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--admin-border); border-radius:6px; padding:8px;">
+        <span style="font-weight:700; color: var(--admin-text-muted); width: 18px; text-align:center;">${i + 1}</span>
+        <img src="${imageUrl}" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:4px; flex-shrink:0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${art.title}</div>
+          <div style="font-size:0.72rem; color:var(--admin-text-secondary);">조회수 ${(art.views || 0).toLocaleString("ko-KR")}회</div>
+        </div>
+        <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px;" onclick="moveCurationPopularItem(${i}, -1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px;" onclick="moveCurationPopularItem(${i}, 1)" ${i === curationPopularOrder.length - 1 ? 'disabled' : ''}>▼</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function moveCurationPopularItem(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= curationPopularOrder.length) return;
+  const tmp = curationPopularOrder[index];
+  curationPopularOrder[index] = curationPopularOrder[newIndex];
+  curationPopularOrder[newIndex] = tmp;
+  renderCurationPopularList();
 }
 
 // Shows a small thumbnail + title under a curation <select> for whatever
@@ -2294,7 +2347,7 @@ async function saveCurationSettings() {
     featuredHeroId: heroId,
     latestNewsIds: readSlots("curate-latest", 3),
     editorsPicksIds: [],
-    popularReadsIds: readSlots("curate-pop", 5),
+    popularReadsIds: curationPopularOrder.slice(),
     pinnedIds: []
   };
 
