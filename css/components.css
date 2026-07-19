@@ -665,7 +665,13 @@
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  .home-row .card,
+  .home-row .card {
+    flex-direction: row;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
   .card-row {
     flex-direction: row;
     display: flex;

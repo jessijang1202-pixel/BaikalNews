@@ -3944,7 +3944,15 @@ function openNewsletterSlotEditor(fieldName, idx, btnEl) {
       ${published.map(a => `<option value="${a.id}" ${a.id === currentId ? 'selected' : ''}>${a.title} · ${a.categoryLabel || a.category} · ${a.date}</option>`).join('')}
     </select>
     <button type="button" class="btn-admin btn-admin-primary" onclick="applyNewsletterSlotEdit('${fieldName}', ${idx}, '${selectId}')">적용</button>
+    <button type="button" class="btn-admin btn-admin-secondary" onclick="cancelNewsletterSlotEdit('${fieldName}')">취소</button>
   `;
+}
+
+// Bails out of edit mode without touching newsletterDraft -- re-rendering the
+// slot group from the still-unmodified draft state is enough to revert it.
+function cancelNewsletterSlotEdit(fieldName) {
+  const containerId = fieldName === 'latestIds' ? 'newsletter-latest-slots' : 'newsletter-popular-slots';
+  renderNewsletterSlotGroup(containerId, fieldName);
 }
 
 function applyNewsletterSlotEdit(fieldName, idx, selectId) {
@@ -4012,7 +4020,7 @@ function buildNewsletterEmailHtml() {
           </tr>
           <tr>
             <td style="padding: 16px 32px 0;">
-              <div style="font-size: 15px; font-weight: 800; color:#0b1a30; border-bottom: 2px solid #0b1a30; padding-bottom: 8px; margin-bottom: 4px;">🆕 신규 뉴스</div>
+              <div style="font-size: 15px; font-weight: 800; color:#0b1a30; border-bottom: 2px solid #0b1a30; padding-bottom: 8px; margin-bottom: 4px;">🆕 새로운 뉴스</div>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 ${latestArticles.map(buildNewsletterArticleRowHtml).join('')}
               </table>
