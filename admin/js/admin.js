@@ -834,7 +834,7 @@ async function renderViewsChart() {
     return `
       <g>
         <title>${d.label}: 조회수 ${d.views}회 / 방문자 ${d.visitors}명</title>
-        <rect x="${x + 4}" y="${chartHeight - viewsH}" width="${barWidth}" height="${Math.max(viewsH, 1)}" fill="var(--admin-accent-blue)" rx="2"></rect>
+        <rect x="${x + 4}" y="${chartHeight - viewsH}" width="${barWidth}" height="${Math.max(viewsH, 1)}" fill="#f97316" rx="2"></rect>
         <rect x="${x + 4 + barWidth + 2}" y="${chartHeight - visitorsH}" width="${barWidth}" height="${Math.max(visitorsH, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
       </g>
       <text x="${x + barGroupWidth / 2}" y="${chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${d.label}</text>
