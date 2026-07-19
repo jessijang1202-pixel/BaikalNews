@@ -35,6 +35,27 @@
     };
   }
 
+  // Maps a raw snake_case Supabase `shorts` row to the camelCase shape admin.js expects.
+  function mapShortsRow(row) {
+    if (!row) return row;
+    return {
+      id: row.id,
+      articleId: row.article_id,
+      status: row.status,
+      hookText: row.hook_text,
+      scriptMd: row.script_md,
+      scriptJson: row.script_json,
+      styleGuide: row.style_guide,
+      veoPrompt: row.veo_prompt,
+      veoVideoUrl: row.veo_video_url,
+      imageCuts: row.image_cuts || [],
+      finalVideoUrl: row.final_video_url,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
   const Adapter = {
     // 1. Connection states (falls back to the site's baked-in project config
     // in admin/js/supabase-config.js if no per-browser override is set)
@@ -624,6 +645,113 @@
         }
       }
       return [];
+    },
+
+    // ==========================================
+    // 숏폼(Shorts) Projects
+    // ==========================================
+    fetchShorts: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('shorts')
+              .select('*')
+              .order('id', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(mapShortsRow);
+          } catch (err) {
+            console.error("Supabase fetchShorts error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      return JSON.parse(localStorage.getItem("baikal_shorts") || "[]");
+    },
+
+    fetchShortsById: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('shorts')
+              .select('*')
+              .eq('id', id)
+              .maybeSingle();
+            if (error) throw error;
+            return mapShortsRow(data);
+          } catch (err) {
+            console.error(`Supabase fetchShortsById (${id}) error, falling back to LocalStorage:`, err);
+          }
+        }
+      }
+      const list = JSON.parse(localStorage.getItem("baikal_shorts") || "[]");
+      return list.find(s => s.id === id) || null;
+    },
+
+    saveShorts: async function(shorts) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const dbRow = {
+              id: shorts.id,
+              article_id: shorts.articleId || null,
+              status: shorts.status || 'script_draft',
+              hook_text: shorts.hookText || '',
+              script_md: shorts.scriptMd || '',
+              script_json: shorts.scriptJson || null,
+              style_guide: shorts.styleGuide || '',
+              veo_prompt: shorts.veoPrompt || '',
+              veo_video_url: shorts.veoVideoUrl || '',
+              image_cuts: shorts.imageCuts || [],
+              final_video_url: shorts.finalVideoUrl || '',
+              created_by: shorts.createdBy || '',
+              updated_at: new Date().toISOString()
+            };
+            const { data, error } = await client
+              .from('shorts')
+              .upsert(dbRow, { onConflict: 'id' })
+              .select()
+              .maybeSingle();
+            if (error) throw error;
+            return mapShortsRow(data);
+          } catch (err) {
+            console.error("Supabase saveShorts error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+
+      const list = JSON.parse(localStorage.getItem("baikal_shorts") || "[]");
+      if (!shorts.id) shorts.id = Date.now();
+      shorts.updatedAt = new Date().toISOString();
+      const idx = list.findIndex(s => s.id === shorts.id);
+      if (idx !== -1) {
+        list[idx] = shorts;
+      } else {
+        list.unshift(shorts);
+      }
+      localStorage.setItem("baikal_shorts", JSON.stringify(list));
+      return shorts;
+    },
+
+    deleteShorts: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { error } = await client.from('shorts').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteShorts error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const list = JSON.parse(localStorage.getItem("baikal_shorts") || "[]").filter(s => s.id !== id);
+      localStorage.setItem("baikal_shorts", JSON.stringify(list));
+      return true;
     }
   };
 

@@ -543,7 +543,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'curation', 'pages', 'audit', 'admins'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'curation', 'pages', 'audit', 'admins'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -626,6 +626,7 @@ async function switchTab(tabName) {
     'article-editor': "새 기사 작성 / 편집",
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
+    shorts: "숏폼 자동 생성",
     curation: "홈화면 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
@@ -652,6 +653,10 @@ async function switchTab(tabName) {
     loadGeminiApiKey();
     loadClaudeApiKey();
     await populateTrainingStyleSelect();
+  } else if (tabName === 'shorts') {
+    loadGeminiApiKey();
+    loadClaudeApiKey();
+    await renderShortsList();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
   } else if (tabName === 'audit') {
@@ -2848,6 +2853,723 @@ async function triggerAiImageGeneration() {
     alert("AI 이미지 생성 실패: " + err.message);
   } finally {
     loader.style.display = "none";
+  }
+}
+
+// ==========================================================
+// 숏폼(Shorts) Auto-Generation
+// Workflow: 기사 선택 -> (선택) 참고 영상 업로드로 스타일 학습 -> Claude로
+// 대본 생성 -> 관리자 검토/승인 -> Veo 8초 영상 + 이미지 22초(3~4컷) 생성 ->
+// 브라우저에서 canvas로 재생하며 그대로 녹화(MediaRecorder)해 최종 영상 완성.
+// ==========================================================
+let currentShortsProject = null;
+let shortsAssets = null; // { videoEl, images: [{img, duration, caption}] } -- built lazily before preview/record
+
+async function renderShortsList() {
+  const tbody = document.getElementById("shorts-list-body");
+  if (!tbody) return;
+
+  const [list, articles] = await Promise.all([
+    window.SupabaseAdapter.fetchShorts(),
+    window.SupabaseAdapter.fetchArticles()
+  ]);
+
+  const statusLabels = {
+    script_draft: "대본 작성 중",
+    script_approved: "대본 승인됨",
+    media_ready: "미디어 생성 완료",
+    video_ready: "영상 완성"
+  };
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--admin-text-muted); padding:24px 0;">생성된 숏폼이 없습니다. "+ 새 숏폼 만들기"로 시작하세요.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(s => {
+    const art = articles.find(a => a.id === s.articleId);
+    return `
+      <tr>
+        <td>${s.id}</td>
+        <td>${art ? art.title : '(삭제된 기사)'}</td>
+        <td>${statusLabels[s.status] || s.status}</td>
+        <td>${s.updatedAt ? new Date(s.updatedAt).toLocaleString('ko-KR') : ''}</td>
+        <td>
+          <button type="button" class="btn-admin btn-admin-secondary" onclick="openShortsProject(${s.id})">열기</button>
+          <button type="button" class="btn-admin btn-admin-danger" onclick="deleteShortsProject(${s.id})">삭제</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function deleteShortsProject(id) {
+  if (!confirm("이 숏폼 프로젝트를 삭제하시겠습니까? (생성된 영상/이미지 파일은 Storage에 남아있을 수 있습니다)")) return;
+  await window.SupabaseAdapter.deleteShorts(id);
+  await renderShortsList();
+}
+
+async function populateShortsArticleSelect() {
+  const select = document.getElementById("shorts-article-select");
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  const usable = articles.filter(a => ['published', 'approved', 'scheduled'].includes(a.status));
+  select.innerHTML = `<option value="">-- 기사를 선택하세요 --</option>` +
+    usable.map(a => `<option value="${a.id}">${a.title} · ${a.date}</option>`).join('');
+}
+
+function resetShortsWizardSections() {
+  document.getElementById("shorts-script-review").style.display = "none";
+  document.getElementById("shorts-media-section").style.display = "none";
+  document.getElementById("shorts-assembly-section").style.display = "none";
+  document.getElementById("shorts-final-preview").style.display = "none";
+  document.getElementById("shorts-media-preview").innerHTML = "";
+  document.getElementById("shorts-media-status").textContent = "";
+  document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
+}
+
+async function startNewShortsProject() {
+  currentShortsProject = { id: null, status: 'script_draft', imageCuts: [] };
+  shortsAssets = null;
+
+  document.getElementById("shorts-wizard-title").textContent = "새 숏폼 제작";
+  await populateShortsArticleSelect();
+  document.getElementById("shorts-article-select").value = "";
+  document.getElementById("shorts-style-guide").value = "";
+  document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. (외부 링크 분석은 아직 지원되지 않습니다 - 영상 파일을 올려주세요)";
+  resetShortsWizardSections();
+
+  document.getElementById("shorts-wizard-panel").style.display = "block";
+  loadGeminiApiKey();
+  loadClaudeApiKey();
+}
+
+async function openShortsProject(id) {
+  const project = await window.SupabaseAdapter.fetchShortsById(id);
+  if (!project) {
+    alert("프로젝트를 찾을 수 없습니다.");
+    return;
+  }
+  currentShortsProject = project;
+  currentShortsProject.imageCuts = currentShortsProject.imageCuts || [];
+  shortsAssets = null;
+
+  document.getElementById("shorts-wizard-title").textContent = `숏폼 #${id} 편집`;
+  await populateShortsArticleSelect();
+  document.getElementById("shorts-article-select").value = project.articleId || "";
+  document.getElementById("shorts-style-guide").value = project.styleGuide || "";
+  document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
+  resetShortsWizardSections();
+
+  if (project.scriptMd || project.veoPrompt) {
+    renderShortsScriptReview();
+  }
+  if (['script_approved', 'media_ready', 'video_ready'].includes(project.status)) {
+    document.getElementById("shorts-media-section").style.display = "block";
+    renderShortsMediaPreview();
+  }
+  if (['media_ready', 'video_ready'].includes(project.status)) {
+    document.getElementById("shorts-assembly-section").style.display = "block";
+  }
+  if (project.status === 'video_ready' && project.finalVideoUrl) {
+    const previewEl = document.getElementById("shorts-final-preview");
+    previewEl.src = project.finalVideoUrl;
+    previewEl.style.display = "block";
+  }
+
+  document.getElementById("shorts-wizard-panel").style.display = "block";
+  loadGeminiApiKey();
+  loadClaudeApiKey();
+}
+
+function closeShortsWizard() {
+  document.getElementById("shorts-wizard-panel").style.display = "none";
+  currentShortsProject = null;
+  shortsAssets = null;
+  renderShortsList();
+}
+
+async function persistCurrentShortsProject() {
+  const session = getAdminSession();
+  currentShortsProject.createdBy = currentShortsProject.createdBy || (session ? session.name : '');
+  const saved = await window.SupabaseAdapter.saveShorts(currentShortsProject);
+  if (saved && saved.id) currentShortsProject.id = saved.id;
+  await renderShortsList();
+}
+
+// Analyzes an uploaded reference shorts video with Gemini's multimodal
+// understanding and returns a written mood/tone/pacing summary -- actual
+// pixel-level style transfer isn't something current AI APIs support, so
+// this summary is fed as a text style guide into the script/image prompts
+// instead (see generateShortsScript / generateShortsMedia).
+async function analyzeShortsStyleReference(file) {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. (참고 영상 분석에도 이미지 생성용 Gemini 키를 사용합니다)");
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error("참고 영상 파일이 너무 큽니다 (12MB 이하로 올려주세요). 더 짧은 클립을 사용해 보세요.");
+  }
+
+  const base64Data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error("영상을 읽는 데 실패했습니다."));
+    reader.readAsDataURL(file);
+  });
+
+  const model = await resolveGeminiVisionModel(apiKey);
+  const prompt = `아래 업로드된 숏폼 영상을 분석하여, 이 영상의 분위기·톤·편집 리듬·색감·자막 스타일을 한국어로 간결하게 요약해 주십시오. 이 요약은 이후 비슷한 분위기의 새로운 숏폼 영상을 기획할 때 스타일 가이드로 사용됩니다.
+
+다음 항목을 포함해 5~8문장으로 작성하십시오:
+- 전반적인 분위기/톤
+- 색감/조명 특징
+- 컷 전환 속도와 리듬
+- 자막/텍스트 오버레이 스타일
+- 후킹(도입부) 연출 방식
+
+다른 설명 없이 요약 본문만 출력하십시오.`;
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { inlineData: { mimeType: file.type || 'video/mp4', data: base64Data } },
+          { text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`영상 분석 실패 (HTTP ${response.status}): ${errText}`);
+  }
+  const data = await response.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  if (!parts || !parts[0] || !parts[0].text) {
+    throw new Error("영상 분석 결과를 받지 못했습니다.");
+  }
+  return parts[0].text.trim();
+}
+
+async function handleShortsStyleUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById("shorts-style-status");
+  statusEl.textContent = "영상 분석 중...";
+  try {
+    const summary = await analyzeShortsStyleReference(file);
+    document.getElementById("shorts-style-guide").value = summary;
+    statusEl.textContent = "분석 완료: 스타일 가이드가 채워졌습니다. 필요하면 직접 수정하세요.";
+  } catch (err) {
+    console.error("숏폼 스타일 분석 실패:", err);
+    statusEl.textContent = "분석 실패: " + err.message;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+async function generateShortsScript() {
+  const articleId = parseInt(document.getElementById("shorts-article-select").value, 10);
+  if (!articleId) {
+    alert("원본 기사를 선택해 주세요.");
+    return;
+  }
+
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  const article = articles.find(a => a.id === articleId);
+  if (!article) {
+    alert("선택한 기사를 찾을 수 없습니다.");
+    return;
+  }
+
+  const styleGuide = document.getElementById("shorts-style-guide").value.trim();
+  const btn = document.getElementById("shorts-generate-script-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "대본 생성 중..."; }
+
+  try {
+    const bodyText = (article.content || "").replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const prompt = `
+아래 뉴스 기사를 바탕으로, 총 30초 분량의 세로형(9:16) 숏폼 영상 대본을 기획하십시오.
+
+[기사 제목]
+${article.title}
+
+[리드 문단]
+${article.lead || ''}
+
+[본문 요약]
+${bodyText.substring(0, 2500)}
+${styleGuide ? `\n[참고 스타일 가이드 - 반드시 이 분위기/톤/편집 리듬을 반영하십시오]\n${styleGuide}\n` : ''}
+
+[영상 구성 규칙]
+- 전체 30초 = 0:00~0:08 (Veo AI 영상 1컷) + 0:08~0:30 (정지 이미지 3~4컷, 각 컷에 자막)
+- 가장 중요: 0:00~0:03 구간에서 시청자의 스크롤을 멈추게 할 강력한 후킹(hook) 문구/장면을 만드십시오. 이 후킹은 0:00~0:08 Veo 영상 구간의 도입부에 해당합니다.
+- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 영어 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.
+- 0:08~0:30 (이미지, 22초): 3~4개의 정지 이미지 컷으로 나누어 기사 핵심 내용을 순서대로 전달하십시오. 각 컷은 영어 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게), 지속 시간(초)을 포함해야 합니다. 모든 이미지 컷의 지속시간 합은 정확히 22초여야 합니다.
+
+반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오.
+{
+  "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
+  "veoPrompt": "0:00~0:08 Veo 영상용 영어 프롬프트 (후킹 장면 포함)",
+  "imageCuts": [
+    { "prompt": "영어 이미지 프롬프트", "caption": "한국어 자막", "duration": 6 }
+  ],
+  "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)"
+}
+`;
+
+    const resultText = await callClaudeApi(prompt, "당신은 숏폼 영상 기획 전문 PD입니다. 반드시 유효한 JSON 오브젝트로만 답하십시오.");
+    const script = parseAiJsonResponse(resultText);
+
+    currentShortsProject.articleId = articleId;
+    currentShortsProject.styleGuide = styleGuide;
+    currentShortsProject.hookText = script.hookText || '';
+    currentShortsProject.veoPrompt = script.veoPrompt || '';
+    currentShortsProject.imageCuts = (script.imageCuts || []).map(c => ({
+      prompt: c.prompt || '', caption: c.caption || '', duration: Number(c.duration) || 5, imageUrl: ''
+    }));
+    currentShortsProject.scriptMd = script.scriptMd || '';
+    currentShortsProject.status = 'script_draft';
+
+    renderShortsScriptReview();
+    await persistCurrentShortsProject();
+    document.getElementById("shorts-script-review").scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    console.error("숏폼 대본 생성 실패:", err);
+    alert("대본 생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "2. 대본(스크립트) 자동 생성"; }
+  }
+}
+
+function renderShortsScriptReview() {
+  document.getElementById("shorts-hook-text").value = currentShortsProject.hookText || '';
+  document.getElementById("shorts-veo-prompt").value = currentShortsProject.veoPrompt || '';
+  document.getElementById("shorts-script-md").value = currentShortsProject.scriptMd || '';
+  renderImageCutsEditor(currentShortsProject.imageCuts || []);
+  document.getElementById("shorts-script-review").style.display = "block";
+}
+
+function renderImageCutsEditor(cuts) {
+  const container = document.getElementById("shorts-image-cuts-editor");
+  const rows = cuts.map((cut, i) => `
+    <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:10px; margin-bottom:8px;">
+      <div style="font-size:0.75rem; color:var(--admin-text-secondary); margin-bottom:4px;">컷 ${i + 1}</div>
+      <textarea class="form-control-admin shorts-cut-prompt" style="min-height:50px; margin-bottom:6px;" placeholder="이미지 프롬프트 (영어)">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
+      <input type="text" class="form-control-admin shorts-cut-caption" style="margin-bottom:6px;" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
+      <label style="font-size:0.75rem; color:var(--admin-text-secondary);">길이(초)
+        <input type="number" class="form-control-admin shorts-cut-duration" style="width:90px; display:inline-block; margin-left:6px;" min="1" max="15" value="${cut.duration || 5}">
+      </label>
+      <button type="button" class="btn-admin btn-admin-danger" style="margin-left:8px;" onclick="removeShortsCut(${i})">컷 삭제</button>
+    </div>
+  `).join('');
+  container.innerHTML = rows + `<button type="button" class="btn-admin btn-admin-secondary" onclick="addShortsCut()">+ 컷 추가</button>`;
+}
+
+function readImageCutsFromDom() {
+  const rows = document.querySelectorAll("#shorts-image-cuts-editor .shorts-cut-row");
+  return Array.from(rows).map((row, i) => ({
+    prompt: row.querySelector(".shorts-cut-prompt").value.trim(),
+    caption: row.querySelector(".shorts-cut-caption").value.trim(),
+    duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
+    imageUrl: (currentShortsProject.imageCuts[i] && currentShortsProject.imageCuts[i].imageUrl) || ''
+  }));
+}
+
+function addShortsCut() {
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  currentShortsProject.imageCuts.push({ prompt: '', caption: '', duration: 5, imageUrl: '' });
+  renderImageCutsEditor(currentShortsProject.imageCuts);
+}
+
+function removeShortsCut(i) {
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  currentShortsProject.imageCuts.splice(i, 1);
+  renderImageCutsEditor(currentShortsProject.imageCuts);
+}
+
+async function approveShortsScript() {
+  currentShortsProject.hookText = document.getElementById("shorts-hook-text").value.trim();
+  currentShortsProject.veoPrompt = document.getElementById("shorts-veo-prompt").value.trim();
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  currentShortsProject.scriptMd = document.getElementById("shorts-script-md").value;
+
+  if (!currentShortsProject.veoPrompt || currentShortsProject.imageCuts.length === 0) {
+    alert("Veo 영상 프롬프트와 이미지 컷이 최소 1개 이상 필요합니다.");
+    return;
+  }
+
+  currentShortsProject.status = 'script_approved';
+  await persistCurrentShortsProject();
+
+  const mediaSection = document.getElementById("shorts-media-section");
+  mediaSection.style.display = "block";
+  mediaSection.scrollIntoView({ behavior: "smooth" });
+}
+
+// Resolves a Gemini model with general multimodal (text+video/image understanding)
+// capability -- used for analyzing an uploaded reference shorts video's style.
+async function resolveGeminiVisionModel(apiKey) {
+  const cacheKey = "baikal_gemini_vision_model";
+  const cacheTimeKey = "baikal_gemini_vision_model_cached_at";
+  const cached = localStorage.getItem(cacheKey);
+  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cachedAt) < oneDayMs) {
+    return cached;
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) throw new Error("ListModels failed with status " + res.status);
+    const data = await res.json();
+    const models = (data.models || []).filter(m =>
+      (m.supportedGenerationMethods || []).includes("generateContent") &&
+      !/embedding|tts|imagen|image-generation/i.test(m.name)
+    );
+    if (models.length === 0) throw new Error("No usable multimodal models available");
+
+    const pick = (predicate) => models.find(predicate);
+    const chosen = pick(m => /flash-latest$/i.test(m.name)) || pick(m => /flash/i.test(m.name)) || models[0];
+    const modelName = chosen.name.replace(/^models\//, '');
+    localStorage.setItem(cacheKey, modelName);
+    localStorage.setItem(cacheTimeKey, String(Date.now()));
+    return modelName;
+  } catch (err) {
+    console.error("Gemini vision model auto-discovery failed, falling back:", err);
+    return cached || "gemini-flash-latest";
+  }
+}
+
+// Resolves a Veo (video generation) capable model for this API key.
+// NOTE: Veo access requires separate enablement/billing beyond a plain Gemini
+// text/image key -- resolveVeoModel throws a clear message if none is found.
+async function resolveVeoModel(apiKey) {
+  const cacheKey = "baikal_veo_model";
+  const cacheTimeKey = "baikal_veo_model_cached_at";
+  const cached = localStorage.getItem(cacheKey);
+  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cachedAt) < oneDayMs) {
+    return cached;
+  }
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
+  const data = await res.json();
+  const models = (data.models || []).filter(m => /veo/i.test(m.name));
+  if (models.length === 0) {
+    throw new Error("이 API 키로 사용 가능한 Veo 영상 생성 모델을 찾지 못했습니다. Google AI Studio/Cloud 콘솔에서 Veo 접근 권한(별도 결제 활성화)이 있는지 확인해 주세요.");
+  }
+
+  const chosen = models.find(m => /veo-3/i.test(m.name)) || models[0];
+  const modelName = chosen.name.replace(/^models\//, '');
+  localStorage.setItem(cacheKey, modelName);
+  localStorage.setItem(cacheTimeKey, String(Date.now()));
+  return modelName;
+}
+
+// Kicks off a Veo video generation job (long-running operation) and polls
+// until it completes, returning the finished clip as a Blob. Veo's exact
+// response shape is newer/less stable than Gemini's text & image endpoints,
+// so this defensively tries a few known field-name variants.
+async function generateVeoVideo(promptText, onStatus) {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. (Veo 영상 생성도 이미지 생성용 Gemini 키를 사용합니다)");
+  }
+
+  const model = await resolveVeoModel(apiKey);
+  if (onStatus) onStatus("Veo 영상 생성 요청 중...");
+
+  const startRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      instances: [{ prompt: promptText }],
+      parameters: { aspectRatio: "9:16", durationSeconds: 8 }
+    })
+  });
+  if (!startRes.ok) {
+    const errText = await startRes.text();
+    if (startRes.status === 404) {
+      localStorage.removeItem("baikal_veo_model");
+      localStorage.removeItem("baikal_veo_model_cached_at");
+    }
+    throw new Error(`Veo 영상 생성 요청 실패 (HTTP ${startRes.status}, 모델: ${model}): ${errText}`);
+  }
+
+  let operation = await startRes.json();
+  const operationName = operation.name;
+  if (!operationName) throw new Error("Veo 작업 ID를 받지 못했습니다: " + JSON.stringify(operation));
+
+  if (onStatus) onStatus("Veo 영상 렌더링 중... (최대 몇 분 소요될 수 있습니다)");
+
+  let attempts = 0;
+  while (!operation.done && attempts < 60) {
+    await new Promise(r => setTimeout(r, 10000));
+    const pollRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`);
+    if (!pollRes.ok) {
+      const errText = await pollRes.text();
+      throw new Error(`Veo 진행상황 확인 실패 (HTTP ${pollRes.status}): ${errText}`);
+    }
+    operation = await pollRes.json();
+    attempts++;
+    if (onStatus) onStatus(`Veo 영상 렌더링 중... (${attempts * 10}초 경과)`);
+  }
+
+  if (!operation.done) {
+    throw new Error("Veo 영상 생성이 시간 내에 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+  }
+  if (operation.error) {
+    throw new Error(`Veo 영상 생성 실패: ${operation.error.message || JSON.stringify(operation.error)}`);
+  }
+
+  const genResponse = operation.response || {};
+  const samples = (genResponse.generateVideoResponse && genResponse.generateVideoResponse.generatedSamples)
+    || genResponse.generatedSamples
+    || genResponse.videos;
+  const firstSample = samples && samples[0];
+  const videoUri = firstSample && (
+    (firstSample.video && firstSample.video.uri) || firstSample.uri || firstSample.video
+  );
+  if (!videoUri) {
+    throw new Error("Veo 응답에서 영상 URI를 찾지 못했습니다. API 응답 형식이 예상과 다를 수 있습니다: " + JSON.stringify(genResponse).substring(0, 500));
+  }
+
+  if (onStatus) onStatus("완성된 Veo 영상 다운로드 중...");
+  const videoUrl = videoUri.includes('key=') ? videoUri : `${videoUri}${videoUri.includes('?') ? '&' : '?'}key=${apiKey}`;
+  const videoRes = await fetch(videoUrl);
+  if (!videoRes.ok) throw new Error(`Veo 영상 파일 다운로드 실패 (HTTP ${videoRes.status})`);
+  return await videoRes.blob();
+}
+
+async function generateShortsMedia() {
+  const statusEl = document.getElementById("shorts-media-status");
+  const btn = document.getElementById("shorts-generate-media-btn");
+  if (btn) btn.disabled = true;
+
+  try {
+    statusEl.textContent = "Veo 영상 생성 중... (몇 분 소요될 수 있습니다)";
+    const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { statusEl.textContent = msg; });
+    const { publicUrl: veoUrl } = await uploadRawBlobToStorage(veoBlob, 'mp4');
+    currentShortsProject.veoVideoUrl = veoUrl;
+    await persistCurrentShortsProject();
+
+    for (let i = 0; i < currentShortsProject.imageCuts.length; i++) {
+      statusEl.textContent = `이미지 컷 생성 중... (${i + 1}/${currentShortsProject.imageCuts.length})`;
+      const cut = currentShortsProject.imageCuts[i];
+      const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
+      const dataUrl = await generateGeminiImage(verticalPrompt);
+      const blob = await (await fetch(dataUrl)).blob();
+      cut.imageUrl = await uploadImageToStorage(blob, 'jpg');
+      renderShortsMediaPreview();
+    }
+
+    currentShortsProject.status = 'media_ready';
+    await persistCurrentShortsProject();
+    statusEl.textContent = "미디어 생성 완료. 아래에서 조립을 진행하세요.";
+
+    const assemblySection = document.getElementById("shorts-assembly-section");
+    assemblySection.style.display = "block";
+    assemblySection.scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    console.error("숏폼 미디어 생성 실패:", err);
+    statusEl.textContent = "미디어 생성 실패: " + err.message;
+    alert("미디어 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderShortsMediaPreview() {
+  const container = document.getElementById("shorts-media-preview");
+  const items = [];
+  if (currentShortsProject.veoVideoUrl) {
+    items.push(`<video src="${currentShortsProject.veoVideoUrl}" controls muted style="width:120px; border-radius:6px;"></video>`);
+  }
+  (currentShortsProject.imageCuts || []).forEach(cut => {
+    if (cut.imageUrl) items.push(`<img src="${cut.imageUrl}" style="width:80px; height:142px; object-fit:cover; border-radius:6px;">`);
+  });
+  container.innerHTML = items.join('') || `<span class="help-text">아직 생성된 미디어가 없습니다.</span>`;
+}
+
+async function buildShortsAssets(project) {
+  const videoEl = document.createElement('video');
+  videoEl.src = project.veoVideoUrl;
+  videoEl.crossOrigin = "anonymous";
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  await new Promise((resolve, reject) => {
+    videoEl.onloadedmetadata = resolve;
+    videoEl.onerror = () => reject(new Error("Veo 영상을 불러오지 못했습니다."));
+  });
+
+  const images = await Promise.all((project.imageCuts || []).map(cut => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption });
+    img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
+    img.src = cut.imageUrl;
+  })));
+
+  return { videoEl, images };
+}
+
+function drawShortsCaption(ctx, text, canvasW, canvasH) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = "bold 56px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const y = canvasH - 260;
+  const metrics = ctx.measureText(text);
+  const paddingX = 32, paddingY = 20;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(canvasW / 2 - metrics.width / 2 - paddingX, y - 38 - paddingY / 2, metrics.width + paddingX * 2, 76);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, canvasW / 2, y);
+  ctx.restore();
+}
+
+// Slow zoom-in (Ken Burns) over the cut's duration so static images don't
+// look completely frozen against the Veo clip's motion.
+function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH) {
+  const scale = 1 + 0.08 * progress;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const canvasRatio = canvasW / canvasH;
+  const imgRatio = iw / ih;
+  let drawW, drawH;
+  if (imgRatio > canvasRatio) {
+    drawH = canvasH * scale;
+    drawW = drawH * imgRatio;
+  } else {
+    drawW = canvasW * scale;
+    drawH = drawW / imgRatio;
+  }
+  const x = (canvasW - drawW) / 2;
+  const y = (canvasH - drawH) / 2;
+  ctx.drawImage(img, x, y, drawW, drawH);
+}
+
+// Plays the full 30s timeline onto the canvas (Veo clip, then each image cut
+// with Ken Burns motion + caption). When record=true, simultaneously captures
+// the canvas via MediaRecorder and resolves with the recorded video Blob.
+async function runShortsTimeline(canvas, assets, project, { record } = {}) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const veoDuration = Math.min(assets.videoEl.duration || 8, 8);
+  const totalDuration = veoDuration + (project.imageCuts || []).reduce((s, c) => s + (c.duration || 0), 0);
+
+  let recorder = null;
+  let chunks = [];
+  if (record) {
+    const stream = canvas.captureStream(30);
+    const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mimeType = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || 'video/webm';
+    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4000000 });
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.start();
+  }
+
+  await new Promise((resolve) => {
+    assets.videoEl.currentTime = 0;
+    const playPromise = assets.videoEl.play();
+    if (playPromise && playPromise.catch) playPromise.catch(() => {});
+
+    const startTime = performance.now();
+
+    function step() {
+      const elapsed = (performance.now() - startTime) / 1000;
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, W, H);
+
+      if (elapsed < veoDuration) {
+        ctx.drawImage(assets.videoEl, 0, 0, W, H);
+        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H);
+      } else {
+        let t = elapsed - veoDuration;
+        let idx = 0;
+        while (idx < assets.images.length - 1 && t > assets.images[idx].duration) {
+          t -= assets.images[idx].duration;
+          idx++;
+        }
+        const cut = assets.images[idx];
+        if (cut) {
+          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cut.duration, 1), W, H);
+          drawShortsCaption(ctx, cut.caption, W, H);
+        }
+      }
+
+      if (elapsed >= totalDuration) {
+        assets.videoEl.pause();
+        resolve();
+        return;
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+
+  if (record && recorder) {
+    return new Promise((resolve) => {
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+      recorder.stop();
+    });
+  }
+}
+
+async function previewShortsAssembly() {
+  const statusEl = document.getElementById("shorts-assembly-status");
+  try {
+    statusEl.textContent = "미리보기 준비 중...";
+    shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
+    const canvas = document.getElementById("shorts-canvas");
+    statusEl.textContent = "미리보기 재생 중...";
+    await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: false });
+    statusEl.textContent = "미리보기 재생 완료.";
+  } catch (err) {
+    console.error("숏폼 미리보기 실패:", err);
+    statusEl.textContent = "미리보기 실패: " + err.message;
+  }
+}
+
+async function recordShortsVideo() {
+  const statusEl = document.getElementById("shorts-assembly-status");
+  const btn = document.getElementById("shorts-record-btn");
+  if (btn) btn.disabled = true;
+
+  try {
+    statusEl.textContent = "녹화 준비 중... (완료될 때까지 이 탭을 벗어나지 마세요)";
+    shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
+    const canvas = document.getElementById("shorts-canvas");
+    statusEl.textContent = "녹화 중... (약 30초 소요)";
+    const videoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
+
+    statusEl.textContent = "완성된 영상 업로드 중...";
+    const { publicUrl } = await uploadRawBlobToStorage(videoBlob, 'webm');
+    currentShortsProject.finalVideoUrl = publicUrl;
+    currentShortsProject.status = 'video_ready';
+    await persistCurrentShortsProject();
+
+    const previewEl = document.getElementById("shorts-final-preview");
+    previewEl.src = publicUrl;
+    previewEl.style.display = "block";
+
+    statusEl.textContent = "완료! 아래에서 재생하거나 다운로드할 수 있습니다.";
+  } catch (err) {
+    console.error("숏폼 녹화 실패:", err);
+    statusEl.textContent = "녹화 실패: " + err.message;
+    alert("녹화 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
