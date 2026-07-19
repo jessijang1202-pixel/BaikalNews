@@ -898,7 +898,13 @@ async function renderArticlesList() {
       <td>${art.id}</td>
       <td><span class="ai-tag" style="margin: 0; font-size: 0.7rem;">${art.category.toUpperCase()}</span></td>
       <td style="font-weight: 500; color: var(--admin-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</td>
-      <td>${art.approver || '<span style="color: var(--admin-text-muted);">미지정</span>'}</td>
+      <td>
+        <select class="form-control-admin" style="font-size: 0.78rem; padding: 4px 8px; width: auto;" onchange="changeArticleApprover(${art.id}, this.value)">
+          <option value="" ${!art.approver ? 'selected' : ''}>미지정</option>
+          <option value="최상락" ${art.approver === '최상락' ? 'selected' : ''}>최상락 (발행인)</option>
+          <option value="장승희" ${art.approver === '장승희' ? 'selected' : ''}>장승희 (편집인/수석데스크)</option>
+        </select>
+      </td>
       <td><span class="badge badge-${art.status}">${art.status.toUpperCase()}</span></td>
       <td style="white-space: nowrap;">${art.date}</td>
       <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
@@ -909,6 +915,25 @@ async function renderArticlesList() {
       </td>
     </tr>
   `).join('');
+}
+
+// Quick-edit the approver directly from the 기사 관리 list, without opening
+// the full editor. Keeps byline in sync with the approver, matching the
+// existing convention (approver name doubles as the article's byline).
+async function changeArticleApprover(id, newApprover) {
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+  const art = articles.find(a => a.id === id);
+  if (!art) return;
+
+  art.approver = newApprover || null;
+  art.byline = newApprover ? `${newApprover} 기자` : "";
+
+  await window.SupabaseAdapter.saveArticle(art);
+  await logAudit("승인인 변경", art.id, `기사 관리 목록에서 승인인을 '${newApprover || '미지정'}'(으)로 직접 변경했습니다.`);
+  await renderArticlesList();
 }
 
 // Toggle between "just show the list" and "select rows to delete" modes.
