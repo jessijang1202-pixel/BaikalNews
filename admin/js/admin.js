@@ -2727,9 +2727,9 @@ async function handleArticleImageUpload(event) {
   }
 }
 
-// Builds an image-generation prompt from the article's current title/lead/body via Claude
-// (the prompt is text, so it goes through the writing model -- the actual image pixels
-// are still rendered by Gemini in generateGeminiImage() below).
+// Builds an image-generation prompt from the article's current title/lead/body via
+// Gemini (callGeminiTextApi) -- kept on the same key as image generation itself,
+// separate from Claude's article-writing calls.
 async function autoGenerateImagePrompt() {
   const title = document.getElementById("form-title").value.trim();
   const lead = document.getElementById("form-lead").value.trim();
@@ -2788,7 +2788,7 @@ ${randomHint}
 - 표지판, 현수막, 문서, 화면 등 텍스트가 보이는 사물을 장면에 포함시킨다면, 그 텍스트는 반드시 한글이어야 합니다. 영어나 다른 외국어 텍스트가 이미지에 등장하지 않도록 하십시오. 텍스트 노출 여부가 불확실하다면 차라리 그런 사물을 장면에서 배제하십시오.
 - 다른 설명이나 마크다운 없이, 영어로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callClaudeApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely. If any text/signage appears in the scene, it must be Korean (Hangul) only, never English or other languages.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "You are a documentary photo editor who writes concise, realistic photography prompts. Avoid illustration or digital-art styles entirely. If any text/signage appears in the scene, it must be Korean (Hangul) only, never English or other languages.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -3289,6 +3289,46 @@ async function resolveGeminiVisionModel(apiKey) {
   } catch (err) {
     console.error("Gemini vision model auto-discovery failed, falling back:", err);
     return cached || "gemini-flash-latest";
+  }
+}
+
+// Plain-text Gemini call (uses the image-generation Gemini key/model resolver,
+// not Claude) -- used specifically for writing the AI image-generation prompt,
+// since that step is conceptually part of the image pipeline.
+async function callGeminiTextApi(prompt, systemInstruction = "") {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
+  }
+
+  const model = await resolveGeminiVisionModel(apiKey);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const requestBody = { contents: [{ parts: [{ text: prompt }] }] };
+  if (systemInstruction) {
+    requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    if (response.status === 404) {
+      localStorage.removeItem("baikal_gemini_vision_model");
+      localStorage.removeItem("baikal_gemini_vision_model_cached_at");
+    }
+    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+  }
+
+  const data = await response.json();
+  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+    return data.candidates[0].content.parts[0].text;
+  } else {
+    throw new Error("Gemini API가 올바른 응답 양식을 반환하지 않았습니다.");
   }
 }
 
