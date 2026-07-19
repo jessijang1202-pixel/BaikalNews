@@ -2145,7 +2145,7 @@ async function populateCurationDropdowns() {
   const publishedSelects = [
     "curate-hero",
     "curate-latest-1", "curate-latest-2", "curate-latest-3",
-    "curate-pop-1", "curate-pop-2", "curate-pop-3", "curate-pop-4"
+    "curate-pop-1", "curate-pop-2", "curate-pop-3", "curate-pop-4", "curate-pop-5"
   ];
 
   let articles = [];
@@ -2244,7 +2244,7 @@ async function saveCurationSettings() {
     featuredHeroId: heroId,
     latestNewsIds: readSlots("curate-latest", 3),
     editorsPicksIds: [],
-    popularReadsIds: readSlots("curate-pop", 4),
+    popularReadsIds: readSlots("curate-pop", 5),
     pinnedIds: []
   };
 
