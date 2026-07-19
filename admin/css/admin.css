@@ -452,6 +452,28 @@ body {
   text-decoration: underline;
 }
 
+.shorts-status-box {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: #ffffff !important;
+}
+
+.shorts-status-box:hover {
+  text-decoration: none !important;
+  opacity: 0.88;
+}
+
+.shorts-status-create {
+  background-color: var(--color-green-deep);
+}
+
+.shorts-status-done {
+  background-color: #f97316;
+}
+
 /* Tabs Panel routing switcher */
 .tab-content {
   display: none;

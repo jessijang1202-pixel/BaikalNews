@@ -881,21 +881,52 @@ async function renderPendingList() {
 }
 
 // 4. Article Management list & CRUD
+// Collapses the full article-lifecycle status into the 3 categories the
+// article list shows: 발행 (actually live to readers right now, including a
+// scheduled article whose time has passed), 미발행 (archived/taken down),
+// 대기 (still in the draft/review/approval/not-yet-live pipeline).
+function getArticleStatusDisplay(art) {
+  if (art.status === 'archived') {
+    return { label: '미발행', cls: 'badge-archived' };
+  }
+  const isLive = art.status === 'published' ||
+    (art.status === 'scheduled' && art.scheduledAt && new Date(art.scheduledAt) <= new Date());
+  if (isLive) {
+    return { label: '발행', cls: 'badge-published' };
+  }
+  return { label: '대기', cls: 'badge-review' };
+}
+
 async function renderArticlesList() {
   const tbody = document.getElementById("articles-table-body");
   if (!tbody) return;
 
   let articles = [];
+  let shorts = [];
   if (window.SupabaseAdapter) {
     articles = await window.SupabaseAdapter.fetchArticles();
+    shorts = await window.SupabaseAdapter.fetchShorts();
   }
-  
+
   if (articles.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = articles.map(art => `
+  const shortsEligibleStatuses = ['published', 'approved', 'scheduled'];
+
+  tbody.innerHTML = articles.map(art => {
+    const statusInfo = getArticleStatusDisplay(art);
+
+    let shortsButton = '';
+    if (shortsEligibleStatuses.includes(art.status)) {
+      const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
+      shortsButton = completedShorts
+        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`
+        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">숏폼생성</a>`;
+    }
+
+    return `
     <tr>
       <td class="article-select-col"><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
       <td>${art.id}</td>
@@ -903,20 +934,39 @@ async function renderArticlesList() {
       <td>
         <select class="form-control-admin" style="font-size: 0.78rem; padding: 4px 8px; width: auto;" onchange="changeArticleApprover(${art.id}, this.value)">
           <option value="" ${!art.approver ? 'selected' : ''}>미지정</option>
-          <option value="최상락" ${art.approver === '최상락' ? 'selected' : ''}>최상락 (발행인)</option>
-          <option value="장승희" ${art.approver === '장승희' ? 'selected' : ''}>장승희 (편집인/수석데스크)</option>
+          <option value="최상락" ${art.approver === '최상락' ? 'selected' : ''}>최상락</option>
+          <option value="장승희" ${art.approver === '장승희' ? 'selected' : ''}>장승희</option>
         </select>
       </td>
-      <td><span class="badge badge-${art.status}">${art.status.toUpperCase()}</span></td>
+      <td><span class="badge ${statusInfo.cls}">${statusInfo.label}</span></td>
       <td style="white-space: nowrap;">${art.date}</td>
       <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
       <td class="action-links">
         <a onclick="editArticle(${art.id})">편집</a>
         <a onclick="previewArticle(${art.id})">미리보기</a>
+        ${shortsButton}
         <a onclick="duplicateArticle(${art.id})" style="color: var(--admin-text-secondary);">복사</a>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
+}
+
+// 작업 열의 "숏폼생성" 초록 박스 -- 숏폼 탭으로 이동해 새 프로젝트를 시작하고
+// 원본 기사를 미리 선택해 둔다 (대본 자동생성 자체는 API 비용이 드니 관리자가
+// 직접 눌러 진행하도록 남겨둔다).
+async function createShortsFromArticle(articleId) {
+  await switchTab('shorts');
+  await startNewShortsProject();
+  const select = document.getElementById("shorts-article-select");
+  if (select) select.value = articleId;
+}
+
+// "숏폼완료" 주황 박스 -- 이미 완성된 숏폼 프로젝트를 바로 열어 확인/다운로드할
+// 수 있도록 한다.
+async function openShortsFromArticleList(shortsId) {
+  await switchTab('shorts');
+  await openShortsProject(shortsId);
 }
 
 // Quick-edit the approver directly from the 기사 관리 list, without opening
