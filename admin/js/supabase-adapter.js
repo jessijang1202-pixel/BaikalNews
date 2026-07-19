@@ -648,6 +648,48 @@
     },
 
     // ==========================================
+    // Newsletter subscribers (collected via the public site's #newsletter form)
+    // ==========================================
+    fetchNewsletterSubscribers: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('newsletter_subscribers')
+              .select('*')
+              .order('subscribed_at', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              email: row.email,
+              subscribedAt: row.subscribed_at
+            }));
+          } catch (err) {
+            console.error("Supabase fetchNewsletterSubscribers error:", err);
+          }
+        }
+      }
+      return [];
+    },
+
+    deleteNewsletterSubscriber: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { error } = await client.from('newsletter_subscribers').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteNewsletterSubscriber error:", err);
+          }
+        }
+      }
+      return false;
+    },
+
+    // ==========================================
     // 숏폼(Shorts) Projects
     // ==========================================
     fetchShorts: async function() {

@@ -543,7 +543,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'curation', 'pages', 'audit', 'admins'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'curation', 'pages', 'audit', 'admins'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -627,6 +627,7 @@ async function switchTab(tabName) {
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 자동 생성",
+    newsletter: "뉴스레터",
     curation: "홈화면 큐레이션 통제",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
@@ -657,6 +658,8 @@ async function switchTab(tabName) {
     loadGeminiApiKey();
     loadClaudeApiKey();
     await renderShortsList();
+  } else if (tabName === 'newsletter') {
+    await renderNewsletterTab();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
   } else if (tabName === 'audit') {
@@ -3698,6 +3701,371 @@ async function recordShortsVideo() {
     alert("녹화 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+// ==========================================================
+// 뉴스레터: subscriber briefing + an auto-generated, admin-editable daily draft
+// (신규 뉴스 3 + 인기 뉴스 3), copied out as email-client-safe HTML for manual sending.
+// ==========================================================
+let newsletterDraft = null; // { date: 'YYYY-MM-DD', latestIds: [...], popularIds: [...] }
+let newsletterArticlesCache = [];
+
+// Parses the site's "2026.07.02" date format into a comparable Date, for
+// sorting articles by actual recency (mirrors js/main.js's parseKoreanDate).
+function parseKoreanDate(dateStr) {
+  if (!dateStr) return new Date(0);
+  const parts = dateStr.split('.').map(s => parseInt(s, 10));
+  if (parts.length < 3 || parts.some(isNaN)) return new Date(0);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function todayDateKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function renderNewsletterTab() {
+  await renderNewsletterSubscriberBriefing();
+  await loadOrGenerateNewsletterDraft();
+}
+
+async function renderNewsletterSubscriberBriefing() {
+  const subscribers = await window.SupabaseAdapter.fetchNewsletterSubscribers();
+
+  document.getElementById("newsletter-stat-total").textContent = subscribers.length.toLocaleString("ko-KR");
+
+  const now = new Date();
+  const thisMonthCount = subscribers.filter(s => {
+    const d = new Date(s.subscribedAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+  document.getElementById("newsletter-stat-month").textContent = thisMonthCount.toLocaleString("ko-KR");
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const lastWeekCount = subscribers.filter(s => new Date(s.subscribedAt) >= sevenDaysAgo).length;
+  document.getElementById("newsletter-stat-week").textContent = lastWeekCount.toLocaleString("ko-KR");
+
+  renderNewsletterTrendChart(subscribers);
+  renderNewsletterSubscribersList(subscribers);
+}
+
+function renderNewsletterTrendChart(subscribers) {
+  const container = document.getElementById("newsletter-trend-chart-container");
+  if (!container) return;
+
+  const days = 14;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    buckets.push({ key: d.toISOString().slice(0, 10), label: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 });
+  }
+  const bucketByKey = {};
+  buckets.forEach(b => { bucketByKey[b.key] = b; });
+
+  subscribers.forEach(s => {
+    const key = (s.subscribedAt || '').slice(0, 10);
+    const bucket = bucketByKey[key];
+    if (bucket) bucket.count += 1;
+  });
+
+  if (buckets.every(b => b.count === 0)) {
+    container.innerHTML = `<div class="help-text">최근 14일간 신규 구독자가 없습니다.</div>`;
+    return;
+  }
+
+  const maxVal = Math.max(1, ...buckets.map(b => b.count));
+  const chartHeight = 140;
+  const barGroupWidth = 36;
+  const barWidth = 20;
+  const svgWidth = buckets.length * barGroupWidth;
+
+  const bars = buckets.map((b, i) => {
+    const x = i * barGroupWidth;
+    const h = Math.round((b.count / maxVal) * chartHeight);
+    return `
+      <g>
+        <title>${b.label}: 신규 구독 ${b.count}명</title>
+        <rect x="${x + 8}" y="${chartHeight - h}" width="${barWidth}" height="${Math.max(h, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+      </g>
+      <text x="${x + barGroupWidth / 2}" y="${chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${b.label}</text>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg width="${svgWidth}" height="${chartHeight + 30}" viewBox="0 0 ${svgWidth} ${chartHeight + 30}" style="min-width: 100%;">
+      ${bars}
+    </svg>
+  `;
+}
+
+function renderNewsletterSubscribersList(subscribers) {
+  const tbody = document.getElementById("newsletter-subscribers-list");
+  if (!tbody) return;
+
+  if (subscribers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--admin-text-muted); padding: 20px 0;">아직 구독자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = subscribers.map(s => `
+    <tr>
+      <td>${s.email}</td>
+      <td style="white-space: nowrap;">${s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString("ko-KR") : ''}</td>
+      <td><a onclick="deleteNewsletterSubscriberRow(${s.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
+    </tr>
+  `).join('');
+}
+
+async function deleteNewsletterSubscriberRow(id) {
+  if (!confirm("이 구독자를 목록에서 삭제하시겠습니까?")) return;
+  await window.SupabaseAdapter.deleteNewsletterSubscriber(id);
+  await renderNewsletterSubscriberBriefing();
+}
+
+async function copyNewsletterEmailList() {
+  const subscribers = await window.SupabaseAdapter.fetchNewsletterSubscribers();
+  if (subscribers.length === 0) {
+    alert("복사할 구독자 이메일이 없습니다.");
+    return;
+  }
+  const text = subscribers.map(s => s.email).join(', ');
+  try {
+    await navigator.clipboard.writeText(text);
+    alert(`구독자 이메일 ${subscribers.length}건을 클립보드에 복사했습니다.`);
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
+  }
+}
+
+// Loads today's saved draft (admin's slot edits persist across refresh for the
+// same day via localStorage) or builds a fresh one the first time today.
+async function loadOrGenerateNewsletterDraft() {
+  const key = `baikal_newsletter_draft_${todayDateKey()}`;
+  const saved = localStorage.getItem(key);
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  newsletterArticlesCache = articles;
+
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Drop any slot referencing an article that's since been deleted.
+      parsed.latestIds = (parsed.latestIds || []).filter(id => articles.some(a => a.id === id));
+      parsed.popularIds = (parsed.popularIds || []).filter(id => articles.some(a => a.id === id));
+      newsletterDraft = parsed;
+      renderNewsletterDraftUI();
+      return;
+    } catch (err) {
+      console.warn("저장된 뉴스레터 초안 파싱 실패, 새로 생성합니다:", err);
+    }
+  }
+
+  buildFreshNewsletterDraft(articles);
+}
+
+function buildFreshNewsletterDraft(articles) {
+  const published = articles.filter(a => a.status === 'published');
+
+  const byDateDesc = published.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
+  const latestIds = byDateDesc.slice(0, 3).map(a => a.id);
+
+  const byViewsDesc = published
+    .filter(a => !latestIds.includes(a.id))
+    .slice()
+    .sort((a, b) => (b.views || 0) - (a.views || 0));
+  const popularIds = byViewsDesc.slice(0, 3).map(a => a.id);
+
+  newsletterDraft = { date: todayDateKey(), latestIds, popularIds };
+  persistNewsletterDraft();
+  renderNewsletterDraftUI();
+}
+
+function persistNewsletterDraft() {
+  localStorage.setItem(`baikal_newsletter_draft_${todayDateKey()}`, JSON.stringify(newsletterDraft));
+}
+
+async function regenerateNewsletterDraft() {
+  if (!confirm("현재 구성을 지우고 새로 생성하시겠습니까? 지금까지 편집한 내용은 사라집니다.")) return;
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  newsletterArticlesCache = articles;
+  buildFreshNewsletterDraft(articles);
+}
+
+function findNewsletterArticleById(id) {
+  return newsletterArticlesCache.find(a => a.id === id);
+}
+
+function renderNewsletterDraftUI() {
+  renderNewsletterSlotGroup('newsletter-latest-slots', 'latestIds');
+  renderNewsletterSlotGroup('newsletter-popular-slots', 'popularIds');
+  refreshNewsletterPreview();
+}
+
+function renderNewsletterSlotGroup(containerId, fieldName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const ids = newsletterDraft[fieldName] || [];
+  if (ids.length === 0) {
+    container.innerHTML = `<div class="help-text">표시할 발행 기사가 없습니다.</div>`;
+    return;
+  }
+
+  container.innerHTML = ids.map((id, idx) => {
+    const art = findNewsletterArticleById(id);
+    if (!art) return '';
+    const imgSrc = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
+    return `
+      <div class="newsletter-slot" style="display: flex; align-items: center; gap: 12px; border: 1px solid var(--admin-border); border-radius: 8px; padding: 10px;">
+        <img src="${imgSrc}" style="width: 56px; height: 56px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 0.7rem; color: var(--admin-text-secondary);">${art.categoryLabel || art.category} · ${art.date}</div>
+          <div style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</div>
+        </div>
+        <button type="button" class="btn-admin btn-admin-secondary" onclick="openNewsletterSlotEditor('${fieldName}', ${idx}, this)">편집</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function openNewsletterSlotEditor(fieldName, idx, btnEl) {
+  const slotEl = btnEl.closest('.newsletter-slot');
+  const currentId = newsletterDraft[fieldName][idx];
+  const published = newsletterArticlesCache.filter(a => a.status === 'published');
+  const selectId = `newsletter-slot-select-${fieldName}-${idx}`;
+
+  slotEl.innerHTML = `
+    <select class="form-control-admin" style="flex: 1;" id="${selectId}">
+      ${published.map(a => `<option value="${a.id}" ${a.id === currentId ? 'selected' : ''}>${a.title} · ${a.categoryLabel || a.category} · ${a.date}</option>`).join('')}
+    </select>
+    <button type="button" class="btn-admin btn-admin-primary" onclick="applyNewsletterSlotEdit('${fieldName}', ${idx}, '${selectId}')">적용</button>
+  `;
+}
+
+function applyNewsletterSlotEdit(fieldName, idx, selectId) {
+  const select = document.getElementById(selectId);
+  const newId = parseInt(select.value, 10);
+  newsletterDraft[fieldName][idx] = newId;
+  persistNewsletterDraft();
+  renderNewsletterDraftUI();
+}
+
+// Table-based, inline-styled HTML row for one article -- deliberately not reusing
+// the site's own card markup/CSS classes, since email clients strip external
+// stylesheets and mangle most modern CSS (flexbox/grid, custom properties, etc).
+function buildNewsletterArticleRowHtml(art) {
+  const imgSrc = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
+  const url = `https://baikalnews.com/article.html?id=${art.id}`;
+  const excerptRaw = art.lead || '';
+  const excerpt = excerptRaw.substring(0, 80) + (excerptRaw.length > 80 ? '…' : '');
+  return `
+    <tr>
+      <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="100" valign="top" style="padding-right: 14px;">
+              <a href="${url}" target="_blank"><img src="${imgSrc}" width="100" height="100" style="display:block; border-radius: 6px; object-fit: cover;"></a>
+            </td>
+            <td valign="top">
+              <div style="font-size: 11px; color: #0e7490; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">${art.categoryLabel || art.category}</div>
+              <a href="${url}" target="_blank" style="font-size: 16px; font-weight: 700; color: #111827; text-decoration: none; line-height: 1.35;">${art.title}</a>
+              <div style="font-size: 13px; color: #4b5563; margin-top: 6px; line-height: 1.5;">${excerpt}</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `;
+}
+
+function buildNewsletterEmailHtml() {
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString("ko-KR", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  const latestArticles = (newsletterDraft.latestIds || []).map(findNewsletterArticleById).filter(Boolean);
+  const popularArticles = (newsletterDraft.popularIds || []).map(findNewsletterArticleById).filter(Boolean);
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0; padding:0; background-color:#f3f4f6; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6; padding: 24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius: 10px; overflow: hidden;">
+          <tr>
+            <td style="background-color:#0b1a30; padding: 28px 32px; text-align:center;">
+              <div style="font-size: 24px; font-weight: 800; color:#ffffff; letter-spacing: -0.02em;">바이칼뉴스</div>
+              <div style="font-size: 11px; color:#7dd3fc; letter-spacing: 0.2em; margin-top: 4px;">BAIKAL NEWS</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 8px;">
+              <div style="font-size: 13px; color:#6b7280;">${dateLabel}</div>
+              <div style="font-size: 15px; color:#111827; margin-top: 8px; line-height: 1.6;">깊고 투명한 시선으로 세상을 비추는 바이칼뉴스가 오늘의 소식을 전해드립니다.</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 32px 0;">
+              <div style="font-size: 15px; font-weight: 800; color:#0b1a30; border-bottom: 2px solid #0b1a30; padding-bottom: 8px; margin-bottom: 4px;">🆕 신규 뉴스</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${latestArticles.map(buildNewsletterArticleRowHtml).join('')}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 32px 0;">
+              <div style="font-size: 15px; font-weight: 800; color:#0b1a30; border-bottom: 2px solid #0b1a30; padding-bottom: 8px; margin-bottom: 4px;">🔥 인기 뉴스</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${popularArticles.map(buildNewsletterArticleRowHtml).join('')}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px 32px 32px;">
+              <a href="https://baikalnews.com" target="_blank" style="display:inline-block; background-color:#0b1a30; color:#ffffff; text-decoration:none; font-size: 13px; font-weight: 700; padding: 12px 24px; border-radius: 6px;">바이칼뉴스 홈페이지 바로가기</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#0b1a30; padding: 20px 32px; text-align:center;">
+              <div style="font-size: 11px; color:#9ca3af; line-height: 1.7;">
+                발행인 최상락 · 편집인 장승희 · 경기도 평택시 지제로 65-4, 105호(지제동)<br>
+                문의: <a href="mailto:baikalnews815@gmail.com" style="color:#7dd3fc;">baikalnews815@gmail.com</a><br>
+                이 메일을 더 이상 받고 싶지 않으시면 회신으로 알려주시면 구독을 해지해 드립니다.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function refreshNewsletterPreview() {
+  const iframe = document.getElementById("newsletter-preview-iframe");
+  if (!iframe) return;
+  iframe.srcdoc = buildNewsletterEmailHtml();
+}
+
+async function copyNewsletterHtml() {
+  if (!newsletterDraft) {
+    alert("먼저 뉴스레터를 생성해 주세요.");
+    return;
+  }
+  const html = buildNewsletterEmailHtml();
+  try {
+    await navigator.clipboard.writeText(html);
+    alert("뉴스레터 HTML을 클립보드에 복사했습니다. 이메일 발송 도구의 HTML 편집기에 붙여넣어 사용하세요.");
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
   }
 }
 

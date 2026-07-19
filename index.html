@@ -186,8 +186,8 @@
           <h3>바이칼 뉴스레터 구독</h3>
           <p>한 주간의 깊이 있고 신뢰할 수 있는 문화, 지역 정책, 경제 및 기술 소식을 이메일로 받아보세요. 스팸 없이 오직 투명한 보도만을 전합니다.</p>
         </div>
-        <form class="newsletter-form" onsubmit="event.preventDefault(); alert('구독해 주셔서 감사합니다! 입력하신 이메일로 메일이 발송됩니다.'); this.reset();">
-          <input type="email" placeholder="이메일 주소를 입력하세요" class="newsletter-input" required aria-label="이메일 주소">
+        <form class="newsletter-form" onsubmit="handleNewsletterSubscribe(event)">
+          <input type="email" id="newsletter-email" placeholder="이메일 주소를 입력하세요" class="newsletter-input" required aria-label="이메일 주소">
           <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독 신청</button>
         </form>
         <p class="newsletter-disclaimer">구독 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>

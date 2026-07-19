@@ -465,6 +465,25 @@
       } catch (err) {
         console.warn("logPageView failed (non-critical):", err);
       }
+    },
+
+    // Newsletter signup from the homepage form. Throws a Korean-language
+    // error the caller can show directly (duplicate email vs. any other failure).
+    subscribeNewsletter: async function(email) {
+      const client = this.getClient();
+      if (!client) {
+        throw new Error("구독 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+      }
+
+      const { error } = await client.from('newsletter_subscribers').insert({ email });
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error("이미 구독 중인 이메일 주소입니다.");
+        }
+        console.error("Supabase subscribeNewsletter error:", error);
+        throw new Error("구독 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+      return true;
     }
   };
 

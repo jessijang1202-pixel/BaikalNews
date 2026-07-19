@@ -69,6 +69,9 @@
       <li class="sidebar-item" data-tab="shorts">
         <a>숏폼 자동 생성</a>
       </li>
+      <li class="sidebar-item" data-tab="newsletter">
+        <a>뉴스레터</a>
+      </li>
       <li class="sidebar-item" data-tab="curation">
         <a>홈화면 큐레이션</a>
       </li>
@@ -915,6 +918,78 @@
             </div>
             <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).</div>
             <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: NEWSLETTER ================= -->
+      <section id="tab-newsletter" class="tab-content">
+        <!-- Subscriber Briefing -->
+        <div class="panel" style="padding: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title">구독자 브리핑</h3>
+            <button class="btn-admin btn-admin-secondary" onclick="copyNewsletterEmailList()">이메일 목록 복사</button>
+          </div>
+          <div class="admin-grid-4" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-blue-deep), #155e95);">
+              <span class="stat-title">총 구독자 수</span>
+              <span class="stat-number" id="newsletter-stat-total">0</span>
+              <span class="stat-trend">누적 구독자</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-green-deep), #129980);">
+              <span class="stat-title">이번 달 신규 구독</span>
+              <span class="stat-number" id="newsletter-stat-month">0</span>
+              <span class="stat-trend">이번 달 신규 가입</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #b8860b, #e0c25e);">
+              <span class="stat-title">최근 7일 신규</span>
+              <span class="stat-number" id="newsletter-stat-week">0</span>
+              <span class="stat-trend">최근 7일 가입자</span>
+            </div>
+          </div>
+
+          <h4 style="margin: 24px 0 12px; font-size: 0.95rem;">구독자수 추이 (최근 14일)</h4>
+          <div id="newsletter-trend-chart-container" style="overflow-x: auto;">
+            <div class="help-text">차트를 불러오는 중...</div>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+          <h4 style="margin-bottom: 12px; font-size: 0.95rem;">구독자 이메일 목록</h4>
+          <div class="admin-table-wrapper" style="max-height: 320px; overflow-y: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr><th>이메일</th><th>구독일</th><th>작업</th></tr>
+              </thead>
+              <tbody id="newsletter-subscribers-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Today's Newsletter -->
+        <div class="panel" style="padding: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title">오늘의 뉴스레터</h3>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn-admin btn-admin-secondary" onclick="regenerateNewsletterDraft()">새로 생성</button>
+              <button class="btn-admin btn-admin-primary" onclick="copyNewsletterHtml()">HTML 복사 (발송용)</button>
+            </div>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
+            신규 기사와 인기 기사를 섞어 오늘의 뉴스레터 초안을 자동으로 만듭니다. 각 기사 옆 "편집" 버튼으로 다른 기사로 바꿀 수 있습니다. 완성되면 "HTML 복사"로 내용을 복사해 사용 중인 이메일 발송 도구(Gmail, Mailchimp 등)에 붙여넣어 수동으로 발송하세요.
+          </p>
+
+          <h4 style="margin-bottom: 10px; font-size: 0.9rem; color: var(--admin-accent-cyan);">🆕 신규 뉴스</h4>
+          <div id="newsletter-latest-slots" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+
+          <h4 style="margin-bottom: 10px; font-size: 0.9rem; color: var(--admin-accent-cyan);">🔥 인기 뉴스</h4>
+          <div id="newsletter-popular-slots" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;"></div>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+          <h4 style="margin-bottom: 12px; font-size: 0.9rem;">미리보기</h4>
+          <div style="border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; max-width: 640px;">
+            <iframe id="newsletter-preview-iframe" style="width: 100%; height: 700px; border: none; background: #fff;"></iframe>
           </div>
         </div>
       </section>

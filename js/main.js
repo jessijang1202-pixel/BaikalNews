@@ -214,6 +214,32 @@ function initCommonFeatures() {
   }
 }
 
+// Newsletter signup form (homepage #newsletter section)
+async function handleNewsletterSubscribe(event) {
+  event.preventDefault();
+  const form = event.target;
+  const emailInput = document.getElementById("newsletter-email");
+  const submitBtn = document.getElementById("newsletter-submit-btn");
+  const email = emailInput.value.trim();
+  if (!email) return;
+
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "처리 중...";
+
+  try {
+    await window.SupabaseAdapter.subscribeNewsletter(email);
+    alert("구독해 주셔서 감사합니다! 앞으로 바이칼 뉴스레터를 이 이메일로 보내드립니다.");
+    form.reset();
+  } catch (err) {
+    console.error("Newsletter subscribe failed:", err);
+    alert(err.message || "구독 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+}
+
 // 2. Dynamic Override for Static Policy Pages
 function initStaticPageOverrides() {
   const pathname = window.location.pathname;
