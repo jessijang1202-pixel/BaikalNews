@@ -1219,6 +1219,29 @@
 
       <!-- Option 2: AI Prompt generation -->
       <div id="modal-media-generate" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group-admin" style="margin-bottom: 0;">
+            <label for="ai-image-mood">이미지 톤/분위기</label>
+            <select id="ai-image-mood" class="form-control-admin">
+              <option value="">자동 (무작위)</option>
+              <option value="밝고 역동적인">밝고 역동적인</option>
+              <option value="평범한 기록사진">평범한 기록사진</option>
+              <option value="흑백 이미지">흑백 이미지</option>
+              <option value="레트로 느낌">레트로 느낌</option>
+              <option value="사실적인">사실적인</option>
+              <option value="다큐멘터리 느낌">다큐멘터리 느낌</option>
+            </select>
+          </div>
+          <div class="form-group-admin" style="margin-bottom: 0;">
+            <label for="ai-image-focus">구도/중심 대상</label>
+            <select id="ai-image-focus" class="form-control-admin">
+              <option value="">자동 (무작위)</option>
+              <option value="인물 중심">인물 중심</option>
+              <option value="풍경 중심">풍경 중심</option>
+              <option value="컨셉 이미지">컨셉 이미지</option>
+            </select>
+          </div>
+        </div>
         <button type="button" id="auto-prompt-btn" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-bottom: 12px;" onclick="autoGenerateImagePrompt()">
           기사 내용으로 프롬프트 자동생성
         </button>

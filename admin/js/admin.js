@@ -2747,9 +2747,18 @@ async function autoGenerateImagePrompt() {
   if (btn) { btn.disabled = true; btn.textContent = "프롬프트 생성 중..."; }
 
   try {
-    // Randomized per-generation so repeated prompts for similar articles
-    // don't all converge on the same shot -- the model still adapts it to
-    // the article, but starts from a different visual anchor each time.
+    // Two admin-selectable dimensions (mood/tone + subject focus), each falling
+    // back to a random pick from the same option pool when left on "자동" so
+    // repeated generations still don't converge on one look.
+    const moodOptions = ["밝고 역동적인", "평범한 기록사진", "흑백 이미지", "레트로 느낌", "사실적인", "다큐멘터리 느낌"];
+    const focusOptions = ["인물 중심", "풍경 중심", "컨셉 이미지"];
+    const selectedMood = document.getElementById("ai-image-mood").value || moodOptions[Math.floor(Math.random() * moodOptions.length)];
+    const selectedFocus = document.getElementById("ai-image-focus").value || focusOptions[Math.floor(Math.random() * focusOptions.length)];
+
+    // Randomized per-generation on top of the two dimensions above, so repeated
+    // prompts for similar articles (or the same mood/focus combo) don't all
+    // converge on the same shot -- the model still adapts it to the article,
+    // but starts from a different visual anchor each time.
     const shootingStyleHints = [
       "이른 아침 역광 실루엣 구도",
       "흐린 날 차분한 자연광, 다큐멘터리 스트리트 포토 느낌",
@@ -2776,9 +2785,15 @@ ${lead}
 [본문 요약]
 ${bodyText.substring(0, 1000)}
 
-[이번 이미지에 적용할 촬영 스타일 힌트]
+[이번 이미지에 적용할 톤/분위기]
+${selectedMood}
+
+[이번 이미지에 적용할 구도/중심 대상]
+${selectedFocus}
+
+[추가 촬영 디테일 힌트]
 ${randomHint}
-(이 힌트를 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 결과 이미지가 서로 겹치지 않고 다양해집니다.)
+(위 톤/분위기와 구도 지정을 최우선으로 따르고, 이 촬영 디테일 힌트는 그 안에서 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 같은 톤/구도를 골라도 결과 이미지가 서로 겹치지 않고 다양해집니다.)
 
 [작성 지침]
 - 반드시 실제 다큐멘터리 사진(photojournalism) 또는 자연스러운 풍경/기록 사진 스타일로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등)은 절대 사용하지 마십시오.
