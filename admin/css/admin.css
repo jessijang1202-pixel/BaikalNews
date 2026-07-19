@@ -200,15 +200,15 @@ body {
 /* Dashboard Widgets & Cards */
 .admin-grid-4 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 14px;
-  margin-bottom: 28px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
 .stat-card {
   border: none;
   border-radius: var(--border-radius);
-  padding: 14px 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   transition: var(--transition-fast);
@@ -253,24 +253,24 @@ body {
 }
 
 .stat-title {
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .stat-number {
-  font-size: 1.5rem;
+  font-size: 2.2rem;
   font-weight: 700;
   color: var(--admin-text-primary);
   line-height: 1;
 }
 
 .stat-trend {
-  font-size: 0.66rem;
-  margin-top: 6px;
+  font-size: 0.75rem;
+  margin-top: 10px;
   color: var(--admin-text-secondary);
 }
 
@@ -340,19 +340,20 @@ body {
 .quick-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 8px;
   margin-top: 16px;
 }
 
 .quick-action-box {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 2.2 / 1;
   flex-direction: column;
   justify-content: center;
   text-align: center;
   white-space: normal;
-  line-height: 1.4;
-  padding: 12px;
+  line-height: 1.25;
+  padding: 6px;
+  font-size: 0.7rem;
 }
 
 .btn-admin-success {
