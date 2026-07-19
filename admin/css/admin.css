@@ -339,21 +339,22 @@ body {
 /* Dashboard "빠른 작업" widget - square box buttons on desktop */
 .quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
   margin-top: 16px;
 }
 
 .quick-action-box {
   width: 100%;
-  aspect-ratio: 2.2 / 1;
+  aspect-ratio: auto;
+  min-height: 54px;
   flex-direction: column;
   justify-content: center;
   text-align: center;
   white-space: normal;
-  line-height: 1.25;
-  padding: 6px;
-  font-size: 0.7rem;
+  line-height: 1.15;
+  padding: 4px;
+  font-size: 0.6rem;
 }
 
 .btn-admin-success {
