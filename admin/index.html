@@ -822,7 +822,7 @@
             <button class="btn-admin btn-admin-primary" onclick="startNewShortsProject()">+ 새 숏폼 만들기</button>
           </div>
           <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
-            기사 1개를 선택하면 30초 세로형(9:16) 숏폼 대본을 자동 생성합니다. 구성: 0:00~0:08 Veo AI 영상(첫 3초 강력한 후킹 포함) + 0:08~0:30 이미지 컷 22초. 대본을 검토·수정한 뒤 승인해야 다음 단계(미디어 생성)로 진행됩니다.
+            기사 1개를 선택하면 30초 세로형(9:16) 숏폼 대본을 자동 생성합니다. 구성: 0:00~0:08 영상(첫 3초 강력한 후킹 포함) + 0:08~0:30 이미지 컷 22초(기본 5개). 보유하고 있는 영상/사진이 있으면 업로드해서 AI 생성 대신 사용할 수 있습니다. 대본을 검토·수정한 뒤 승인해야 다음 단계(미디어 생성)로 진행됩니다.
           </p>
           <div class="admin-table-wrapper">
             <table class="admin-table">
@@ -870,6 +870,14 @@
           </div>
 
           <div class="form-group-admin">
+            <label for="shorts-media-upload-input">보유 동영상/사진 업로드 (선택 · 있으면 AI 생성 대신 사용)</label>
+            <input type="file" id="shorts-media-upload-input" class="form-control-admin" accept="video/*,image/*" multiple onchange="handleShortsMediaUpload(event)">
+            <div class="help-text">업로드한 자료가 있으면 그만큼 AI 생성을 건너뜁니다. 파일마다 전반(0:00~0:08)에 쓸지, 후반(정지 이미지 구간)에 쓸지 골라주세요.</div>
+            <div id="shorts-pending-uploads" style="margin-top: 10px;"></div>
+            <div id="shorts-assigned-uploads" style="margin-top: 10px;"></div>
+          </div>
+
+          <div class="form-group-admin">
             <button type="button" id="shorts-generate-script-btn" class="btn-admin btn-admin-primary" style="width:100%; justify-content:center;" onclick="generateShortsScript()">2. 대본(스크립트) 자동 생성</button>
           </div>
 
@@ -888,7 +896,7 @@
             </div>
 
             <div class="form-group-admin">
-              <label>0:08~0:30 이미지 컷 (프롬프트 / 자막 / 길이초, 합계 22초 권장)</label>
+              <label>0:08~0:30 이미지 컷 (기본 5개 · 프롬프트 / 자막 / 길이초, 합계 22초 권장)</label>
               <div id="shorts-image-cuts-editor"></div>
             </div>
 
