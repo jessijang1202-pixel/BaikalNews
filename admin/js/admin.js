@@ -1094,6 +1094,7 @@ async function showArticleCreateForm() {
   document.getElementById("btn-soft-delete").style.display = "none";
   onStatusChangeInForm("draft");
   updateContentCharCount();
+  resetAiImagePromptFields();
 
   setRouteHash('#article-editor/new');
 }
@@ -1200,6 +1201,7 @@ async function editArticle(id) {
   suppressHashUpdate = true;
   await switchTab('article-editor');
   suppressHashUpdate = wasHashSuppressed;
+  resetAiImagePromptFields();
 
   currentEditingId = id;
   document.getElementById("form-view-title").textContent = `기사 편집 (ID: #${art.id})`;
@@ -2336,6 +2338,17 @@ function rteHandleImageFile(event, targetId = 'page-html-editor') {
 
 // 8. Media Library Selector & simulated image prompts generator
 let modalMode = 'select'; // select | generate
+
+// Clears the AI image prompt panel so a stale prompt from a previously-edited
+// article doesn't linger into a new article-editor session.
+function resetAiImagePromptFields() {
+  const promptEl = document.getElementById("ai-image-prompt");
+  const moodEl = document.getElementById("ai-image-mood");
+  const focusEl = document.getElementById("ai-image-focus");
+  if (promptEl) promptEl.value = "";
+  if (moodEl) moodEl.value = "";
+  if (focusEl) focusEl.value = "";
+}
 
 function openMediaLibraryModal() {
   document.getElementById("media-library-modal").classList.add("active");
