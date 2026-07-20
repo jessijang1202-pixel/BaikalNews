@@ -895,10 +895,21 @@
           </div>
 
           <div class="form-group-admin">
-            <label for="shorts-style-video-input">참고 숏폼 영상 업로드 (선택 · 분위기 학습용)</label>
+            <label for="shorts-style-template-select">스타일 템플릿 선택</label>
+            <select id="shorts-style-template-select" class="form-control-admin" onchange="applyShortsStyleTemplate(this.value)">
+              <option value="">-- 직접 입력 / 새로 업로드 --</option>
+            </select>
+          </div>
+
+          <div class="form-group-admin">
+            <label for="shorts-style-video-input">참고 숏폼 영상 업로드 (선택 · 분석 결과를 템플릿으로 저장해 재사용)</label>
             <input type="file" id="shorts-style-video-input" class="form-control-admin" accept="video/*" onchange="handleShortsStyleUpload(event)">
-            <div class="help-text" id="shorts-style-status">업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. (외부 링크 분석은 아직 지원되지 않습니다 - 영상 파일을 올려주세요)</div>
+            <div class="help-text" id="shorts-style-status">업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. 템플릿으로 저장해 두면 다음부터 매번 업로드하지 않고 골라서 쓸 수 있습니다.</div>
             <textarea id="shorts-style-guide" class="form-control-admin" style="margin-top:8px; min-height:70px;" placeholder="스타일 가이드가 여기에 채워집니다 (직접 입력/수정 가능, 비워두면 기본 다큐멘터리 톤으로 생성)"></textarea>
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsStyleTemplate()">템플릿으로 저장</button>
+              <button type="button" class="btn-admin btn-admin-danger" id="shorts-delete-template-btn" onclick="deleteShortsStyleTemplate()" style="display:none;">이 템플릿 삭제</button>
+            </div>
           </div>
 
           <div class="form-group-admin">

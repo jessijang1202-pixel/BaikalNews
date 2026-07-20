@@ -3255,6 +3255,99 @@ let shortsAssets = null; // { front: {type, el, duration}, images: [{img, durati
 let shortsPendingUploads = []; // File objects awaiting a 전반/후반 placement choice
 const SHORTS_TARGET_CUT_COUNT = 5; // total 후반 image cuts (AI + uploaded combined)
 const SHORTS_MAX_BACK_UPLOADS = 5;
+const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
+const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
+
+function getShortsStyleTemplates() {
+  return JSON.parse(localStorage.getItem(SHORTS_STYLE_TEMPLATES_KEY) || "[]");
+}
+
+function setShortsStyleTemplates(list) {
+  localStorage.setItem(SHORTS_STYLE_TEMPLATES_KEY, JSON.stringify(list));
+}
+
+function populateShortsStyleTemplateSelect(selectedId) {
+  const select = document.getElementById("shorts-style-template-select");
+  if (!select) return;
+  const templates = getShortsStyleTemplates();
+  select.innerHTML = `<option value="">-- 직접 입력 / 새로 업로드 --</option>` +
+    templates.map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.name}</option>`).join('');
+  const deleteBtn = document.getElementById("shorts-delete-template-btn");
+  if (deleteBtn) deleteBtn.style.display = selectedId ? 'inline-flex' : 'none';
+}
+
+// Loads a saved template's text into the editable textarea (or clears it for
+// "직접 입력") and remembers the choice so the next new project defaults to it.
+function applyShortsStyleTemplate(templateId) {
+  const templates = getShortsStyleTemplates();
+  const tpl = templates.find(t => t.id === templateId);
+  document.getElementById("shorts-style-guide").value = tpl ? tpl.styleGuide : "";
+  localStorage.setItem(SHORTS_LAST_TEMPLATE_ID_KEY, templateId || "");
+
+  const deleteBtn = document.getElementById("shorts-delete-template-btn");
+  if (deleteBtn) deleteBtn.style.display = templateId ? 'inline-flex' : 'none';
+
+  const statusEl = document.getElementById("shorts-style-status");
+  if (statusEl) {
+    statusEl.textContent = tpl
+      ? `"${tpl.name}" 템플릿을 불러왔습니다.`
+      : "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
+  }
+}
+
+// Saves the textarea's current content as a named template -- either a brand
+// new one (템플릿 1, 템플릿 2, ... suggested by default) or, if the admin keeps
+// the currently-selected template's own name, updates that template in place.
+function saveShortsStyleTemplate() {
+  const text = document.getElementById("shorts-style-guide").value.trim();
+  if (!text) {
+    alert("저장할 스타일 가이드 내용이 없습니다.");
+    return;
+  }
+
+  const templates = getShortsStyleTemplates();
+  const select = document.getElementById("shorts-style-template-select");
+  const currentId = select ? select.value : "";
+  const existing = templates.find(t => t.id === currentId);
+
+  const suggestedName = existing ? existing.name : `템플릿 ${templates.length + 1}`;
+  const name = prompt("템플릿 이름을 입력하세요:", suggestedName);
+  if (!name) return;
+
+  let savedId;
+  if (existing && existing.name === name) {
+    existing.styleGuide = text;
+    savedId = existing.id;
+  } else {
+    const newTpl = { id: `tpl-${Date.now()}`, name, styleGuide: text };
+    templates.push(newTpl);
+    savedId = newTpl.id;
+  }
+
+  setShortsStyleTemplates(templates);
+  localStorage.setItem(SHORTS_LAST_TEMPLATE_ID_KEY, savedId);
+  populateShortsStyleTemplateSelect(savedId);
+  document.getElementById("shorts-style-status").textContent = `"${name}" 템플릿으로 저장되었습니다.`;
+}
+
+function deleteShortsStyleTemplate() {
+  const select = document.getElementById("shorts-style-template-select");
+  const templateId = select ? select.value : "";
+  if (!templateId) return;
+
+  const templates = getShortsStyleTemplates();
+  const tpl = templates.find(t => t.id === templateId);
+  if (!tpl) return;
+  if (!confirm(`"${tpl.name}" 템플릿을 삭제하시겠습니까?`)) return;
+
+  setShortsStyleTemplates(templates.filter(t => t.id !== templateId));
+  if (localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) === templateId) {
+    localStorage.removeItem(SHORTS_LAST_TEMPLATE_ID_KEY);
+  }
+  populateShortsStyleTemplateSelect("");
+  document.getElementById("shorts-style-guide").value = "";
+  document.getElementById("shorts-style-status").textContent = "템플릿이 삭제되었습니다.";
+}
 
 async function renderShortsList() {
   const tbody = document.getElementById("shorts-list-body");
@@ -3433,8 +3526,14 @@ async function startNewShortsProject() {
   document.getElementById("shorts-wizard-title").textContent = "새 숏폼 제작";
   await populateShortsArticleSelect();
   document.getElementById("shorts-article-select").value = "";
-  document.getElementById("shorts-style-guide").value = "";
-  document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. (외부 링크 분석은 아직 지원되지 않습니다 - 영상 파일을 올려주세요)";
+
+  // Pre-select whichever style template was used last, so admins don't have
+  // to re-upload/re-pick a reference video for every new project -- but they
+  // can still switch templates or start blank from the dropdown.
+  const lastTemplateId = localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) || "";
+  populateShortsStyleTemplateSelect(lastTemplateId);
+  applyShortsStyleTemplate(lastTemplateId);
+
   resetShortsWizardSections();
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
@@ -3460,6 +3559,7 @@ async function openShortsProject(id) {
   document.getElementById("shorts-wizard-title").textContent = `숏폼 #${id} 편집`;
   await populateShortsArticleSelect();
   document.getElementById("shorts-article-select").value = project.articleId || "";
+  populateShortsStyleTemplateSelect(""); // this project's own saved text, not tied to a template
   document.getElementById("shorts-style-guide").value = project.styleGuide || "";
   document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
   resetShortsWizardSections();
@@ -3618,7 +3718,7 @@ async function handleShortsStyleUpload(event) {
   try {
     const summary = await analyzeShortsStyleReference(file);
     document.getElementById("shorts-style-guide").value = summary;
-    statusEl.textContent = "분석 완료: 스타일 가이드가 채워졌습니다. 필요하면 직접 수정하세요.";
+    statusEl.textContent = "분석 완료: 스타일 가이드가 채워졌습니다. 마음에 들면 아래 \"템플릿으로 저장\"으로 이름을 붙여 두면 다음부터 골라서 다시 쓸 수 있습니다.";
   } catch (err) {
     console.error("숏폼 스타일 분석 실패:", err);
     statusEl.textContent = "분석 실패: " + err.message;
