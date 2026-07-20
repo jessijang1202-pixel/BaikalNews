@@ -508,6 +508,7 @@ async function initAdminDashboard() {
   await renderPendingList();
   await renderTopViewedList();
   await renderViewsChart();
+  await renderScheduledList();
   await populateCurationDropdowns();
   await loadStaticPageContent();
   await renderAuditLogs();
@@ -644,6 +645,7 @@ async function switchTab(tabName) {
     await renderPendingList();
     await renderTopViewedList();
     await renderViewsChart();
+    await renderScheduledList();
   } else if (tabName === 'articles') {
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
@@ -729,16 +731,50 @@ async function refreshStats() {
     articles = await window.SupabaseAdapter.fetchArticles();
   }
   
-  const draft = articles.filter(a => a.status === 'draft').length;
+  const scheduled = articles.filter(a => a.status === 'scheduled').length;
   const review = articles.filter(a => a.status === 'review').length;
   const published = articles.filter(a => a.status === 'published').length;
   const totalViews = articles.reduce((sum, a) => sum + (a.views || 0), 0);
 
-  document.getElementById("stat-draft-count").textContent = draft;
+  document.getElementById("stat-scheduled-count").textContent = scheduled;
   document.getElementById("stat-review-count").textContent = review;
   document.getElementById("stat-published-count").textContent = published;
   document.getElementById("stat-total-count").textContent = articles.length;
   document.getElementById("stat-total-views").textContent = totalViews.toLocaleString("ko-KR");
+}
+
+// Dashboard 예약 발행 내역 table -- every article still flagged 'scheduled',
+// soonest scheduledAt first (there's no server cron to flip status once the
+// time passes, so this can include entries whose time has already arrived).
+async function renderScheduledList() {
+  const listEl = document.getElementById("dashboard-scheduled-list");
+  if (!listEl) return;
+
+  let articles = [];
+  if (window.SupabaseAdapter) {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  }
+  const scheduled = articles
+    .filter(a => a.status === 'scheduled')
+    .slice()
+    .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+
+  if (scheduled.length === 0) {
+    listEl.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--admin-text-muted); padding: 24px 0;">예약 발행 대기 중인 기사가 없습니다.</td></tr>`;
+    return;
+  }
+
+  listEl.innerHTML = scheduled.map(art => `
+    <tr>
+      <td><span class="ai-tag" style="margin:0;">${art.categoryLabel || art.category}</span></td>
+      <td style="font-weight: 500; color: var(--admin-text-primary);">${art.title}</td>
+      <td>${art.approver || '<span style="color: var(--admin-text-muted);">미지정</span>'}</td>
+      <td style="white-space: nowrap;">${art.scheduledAt ? new Date(art.scheduledAt).toLocaleString("ko-KR") : '-'}</td>
+      <td class="action-links">
+        <a onclick="editArticle(${art.id})">편집</a>
+      </td>
+    </tr>
+  `).join('');
 }
 
 // Render Dashboard Top-Viewed list (full ranking, shown when toggled open)

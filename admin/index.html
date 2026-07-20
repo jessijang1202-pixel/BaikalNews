@@ -125,9 +125,9 @@
             <span class="stat-trend" style="color: var(--status-review);">최종 승인 대기 중</span>
           </div>
           <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
-            <span class="stat-title">임시 저장</span>
-            <span class="stat-number" id="stat-draft-count">0</span>
-            <span class="stat-trend">작성 중인 초안</span>
+            <span class="stat-title">예약 발행</span>
+            <span class="stat-number" id="stat-scheduled-count">0</span>
+            <span class="stat-trend">발행 예약된 기사</span>
           </div>
           <div class="stat-card" style="cursor: pointer;" onclick="switchTab('articles')">
             <span class="stat-title">공개 발행</span>
@@ -227,6 +227,29 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- Scheduled publish list -->
+        <div class="panel" style="margin-top: 24px; padding: 24px;">
+          <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
+            <h3 class="panel-title">예약 발행 내역</h3>
+          </div>
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>카테고리</th>
+                  <th>기사 제목</th>
+                  <th>승인인</th>
+                  <th>예약 발행 일시</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-scheduled-list">
+                <!-- Dynamically loaded list of scheduled articles -->
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
