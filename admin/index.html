@@ -516,7 +516,10 @@
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">AI 어시스턴트 신문 집필실</h3>
-            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
+              <span onclick="switchTab('ai-training')" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg, var(--admin-accent-cyan), #6d28d9); color:#fff; font-size:0.75rem; font-weight:600; padding:5px 10px; border-radius: 4px; white-space:nowrap;">✍️ AI 글쓰기 학습</span>
+            </div>
           </div>
 
           <!-- API Key Config Panel: Claude (article writing) -->
@@ -723,15 +726,6 @@
 
             <!-- Right Output Display Area -->
             <div class="ai-output-box">
-
-              <!-- AI 글쓰기 학습 바로가기 (병합된 메뉴 진입점) -->
-              <div onclick="switchTab('ai-training')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:16px; background:linear-gradient(135deg, var(--admin-accent-cyan), #6d28d9); color:#fff; border-radius: var(--border-radius); padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
-                <div>
-                  <div style="font-weight: 700; font-size: 1.05rem;">✍️ AI 글쓰기 학습</div>
-                  <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 4px;">기자별 논조 스타일을 학습시키려면 여기를 클릭하세요.</div>
-                </div>
-                <span style="font-size: 1.4rem;">→</span>
-              </div>
 
               <!-- Loader -->
               <div class="ai-generating-loader" id="ai-loader">
