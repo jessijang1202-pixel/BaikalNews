@@ -1402,7 +1402,7 @@ async function saveArticle() {
   const lead = document.getElementById("form-lead").value;
   const content = document.getElementById("form-content").innerHTML;
   const category = document.getElementById("form-category").value;
-  const date = document.getElementById("form-date").value;
+  let date = document.getElementById("form-date").value;
   const isYMYL = document.getElementById("form-ymyl").checked;
   const image = document.getElementById("form-image").value;
   
@@ -1442,7 +1442,13 @@ async function saveArticle() {
       alert("예약 발행 일시는 현재보다 미래여야 합니다.");
       return;
     }
+    // The displayed 발행일자 should always match when the article actually
+    // goes live, not whatever date happened to be in the form -- so it never
+    // needs manual correction to match the scheduled time.
+    date = scheduledAt.toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1);
     scheduledAt = scheduledAt.toISOString();
+    const dateInput = document.getElementById("form-date");
+    if (dateInput) dateInput.value = date;
   }
 
   let art = null;
