@@ -544,7 +544,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'curation', 'pages', 'audit', 'admins'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'curation', 'api-costs', 'pages', 'audit', 'admins'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -601,10 +601,14 @@ function setupEventListeners() {
 }
 
 async function switchTab(tabName) {
+  // AI 글쓰기 학습 has no sidebar entry of its own -- it's reached via the
+  // banner inside AI 기사 집필실, so that merged menu item stays highlighted.
+  const sidebarHighlightTab = tabName === 'ai-training' ? 'ai-writer' : tabName;
+
   // Remove active from all sidebar links
   document.querySelectorAll(".sidebar-item").forEach(item => {
     item.classList.remove("active");
-    if (item.getAttribute("data-tab") === tabName) {
+    if (item.getAttribute("data-tab") === sidebarHighlightTab) {
       item.classList.add("active");
     }
   });
@@ -630,6 +634,7 @@ async function switchTab(tabName) {
     shorts: "숏폼 자동 생성",
     newsletter: "뉴스레터",
     curation: "홈화면 큐레이션 통제",
+    'api-costs': "API 사용 비용 관리",
     pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
     audit: "보도 편집 감사 로그",
     admins: "관리자 정보 관리"

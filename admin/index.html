@@ -63,9 +63,6 @@
       <li class="sidebar-item" data-tab="ai-writer">
         <a>AI 기사 집필실</a>
       </li>
-      <li class="sidebar-item" data-tab="ai-training">
-        <a>AI 글쓰기 학습</a>
-      </li>
       <li class="sidebar-item" data-tab="shorts">
         <a>숏폼 자동 생성</a>
       </li>
@@ -74,6 +71,9 @@
       </li>
       <li class="sidebar-item" data-tab="curation">
         <a>홈화면 큐레이션</a>
+      </li>
+      <li class="sidebar-item" data-tab="api-costs">
+        <a>API 비용 관리</a>
       </li>
       <li class="sidebar-item" data-tab="pages">
         <a>정적 페이지 관리</a>
@@ -626,7 +626,7 @@
                   <select id="ai-link-style" class="form-control-admin">
                     <option value="">-- 기본 스타일 (중립) --</option>
                   </select>
-                  <div class="help-text">새 스타일을 가르치려면 좌측 메뉴의 "AI 글쓰기 학습"을 이용해 주세요.</div>
+                  <div class="help-text">새 스타일을 가르치려면 오른쪽의 "AI 글쓰기 학습" 바로가기를 이용해 주세요.</div>
                 </div>
                 <div class="form-group-admin">
                   <label for="ai-link-url">마음에 든 기사 링크 (URL)</label>
@@ -723,7 +723,16 @@
 
             <!-- Right Output Display Area -->
             <div class="ai-output-box">
-              
+
+              <!-- AI 글쓰기 학습 바로가기 (병합된 메뉴 진입점) -->
+              <div onclick="switchTab('ai-training')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:16px; background:linear-gradient(135deg, var(--admin-accent-cyan), #6d28d9); color:#fff; border-radius: var(--border-radius); padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+                <div>
+                  <div style="font-weight: 700; font-size: 1.05rem;">✍️ AI 글쓰기 학습</div>
+                  <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 4px;">기자별 논조 스타일을 학습시키려면 여기를 클릭하세요.</div>
+                </div>
+                <span style="font-size: 1.4rem;">→</span>
+              </div>
+
               <!-- Loader -->
               <div class="ai-generating-loader" id="ai-loader">
                 <div class="spinner"></div>
@@ -801,6 +810,8 @@
             <h3 class="panel-title">AI 글쓰기 학습</h3>
             <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">기자별 개인 문체 + 공용 논조 스타일</span>
           </div>
+
+          <a onclick="switchTab('ai-writer')" style="cursor:pointer; display:inline-block; font-size:0.85rem; color: var(--admin-accent-cyan); margin-bottom: 16px;">← AI 기사 집필실로 돌아가기</a>
 
           <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin-bottom: 24px;">
             마음에 드는 기사를 링크나 본문으로 붙여넣고 "이 글처럼 써줘"라고 반복 학습시키면, AI가 문체 규칙을 누적 학습합니다. 로그인한 기자별로 "내 개인 문체"가 따로 기억되며, "시민언론 민들레"·"오마이뉴스" 등 공용 논조 스타일은 두 기자가 함께 다듬어 나갈 수 있습니다.
@@ -1116,6 +1127,48 @@
 
             </div>
           </form>
+        </div>
+      </section>
+
+      <!-- ================= TAB: API COST MANAGEMENT ================= -->
+      <section id="tab-api-costs" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">API 비용 관리</h3>
+            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">각 서비스 콘솔에서 실시간 사용량/비용 확인</span>
+          </div>
+
+          <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin: 0 24px 20px;">
+            아래 링크는 새 탭에서 열리며, 각 API 제공사의 공식 콘솔로 이동합니다. 청구 데이터는 보통 몇 시간 정도 지연되어 반영됩니다.
+          </p>
+
+          <div style="display:flex; flex-direction:column; gap:16px; margin: 0 24px 24px;">
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+              <div>
+                <div style="font-weight:600;">🟦 Gemini (Google) API 비용</div>
+                <div class="help-text" style="margin-top:4px;">Google Cloud Billing에서 "Generative Language API" 서비스로 필터링하면 일별 비용을 확인할 수 있습니다.</div>
+              </div>
+              <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Cloud Billing 열기 ↗</a>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+              <div>
+                <div style="font-weight:600;">🟦 Gemini (Google) API 사용량</div>
+                <div class="help-text" style="margin-top:4px;">Google AI Studio에서 키별 토큰 사용량 추이를 확인할 수 있습니다.</div>
+              </div>
+              <a href="https://aistudio.google.com/" target="_blank" rel="noopener" class="btn-admin btn-admin-secondary" style="white-space:nowrap;">AI Studio 열기 ↗</a>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+              <div>
+                <div style="font-weight:600;">🟪 Claude (Anthropic) API 비용</div>
+                <div class="help-text" style="margin-top:4px;">Anthropic Console의 Billing 메뉴에서 사용량과 청구 금액을 확인할 수 있습니다.</div>
+              </div>
+              <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Anthropic Console 열기 ↗</a>
+            </div>
+
+          </div>
         </div>
       </section>
 
