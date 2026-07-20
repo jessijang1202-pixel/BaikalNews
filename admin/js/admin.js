@@ -3500,6 +3500,66 @@ async function persistCurrentShortsProject() {
   await renderShortsList();
 }
 
+// Uploads a file to Gemini's Files API (supports up to 2GB per file, unlike
+// generateContent's inline-data parts which are capped around ~20MB total
+// request size) and waits for server-side processing to finish before it can
+// be referenced. Files auto-expire after 48 hours on Google's side -- no
+// explicit cleanup needed for a one-off analysis like this.
+async function uploadFileToGeminiFilesApi(file, apiKey) {
+  const startRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
+    method: "POST",
+    headers: {
+      "X-Goog-Upload-Protocol": "resumable",
+      "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(file.size),
+      "X-Goog-Upload-Header-Content-Type": file.type || 'video/mp4',
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ file: { display_name: file.name || 'reference-video' } })
+  });
+  if (!startRes.ok) {
+    const errText = await startRes.text();
+    throw new Error(`영상 업로드 시작 실패 (HTTP ${startRes.status}): ${errText}`);
+  }
+  const uploadUrl = startRes.headers.get("X-Goog-Upload-URL");
+  if (!uploadUrl) {
+    throw new Error("영상 업로드 URL을 받지 못했습니다.");
+  }
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(file.size),
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize"
+    },
+    body: file
+  });
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text();
+    throw new Error(`영상 업로드 실패 (HTTP ${uploadRes.status}): ${errText}`);
+  }
+  let fileInfo = (await uploadRes.json()).file;
+  if (!fileInfo || !fileInfo.uri) {
+    throw new Error("업로드된 영상 정보를 받지 못했습니다.");
+  }
+
+  // Video files need server-side processing before they're usable.
+  let attempts = 0;
+  while (fileInfo.state === 'PROCESSING' && attempts < 30) {
+    await new Promise(r => setTimeout(r, 2000));
+    const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileInfo.name}?key=${apiKey}`);
+    if (!checkRes.ok) break;
+    fileInfo = await checkRes.json();
+    attempts++;
+  }
+  if (fileInfo.state === 'FAILED') {
+    throw new Error("영상 처리에 실패했습니다.");
+  }
+
+  return { uri: fileInfo.uri, mimeType: fileInfo.mimeType || file.type || 'video/mp4' };
+}
+
 // Analyzes an uploaded reference shorts video with Gemini's multimodal
 // understanding and returns a written mood/tone/pacing summary -- actual
 // pixel-level style transfer isn't something current AI APIs support, so
@@ -3510,17 +3570,8 @@ async function analyzeShortsStyleReference(file) {
   if (!apiKey) {
     throw new Error("Gemini API Key가 등록되지 않았습니다. (참고 영상 분석에도 이미지 생성용 Gemini 키를 사용합니다)");
   }
-  if (file.size > 12 * 1024 * 1024) {
-    throw new Error("참고 영상 파일이 너무 큽니다 (12MB 이하로 올려주세요). 더 짧은 클립을 사용해 보세요.");
-  }
 
-  const base64Data = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = () => reject(new Error("영상을 읽는 데 실패했습니다."));
-    reader.readAsDataURL(file);
-  });
-
+  const uploaded = await uploadFileToGeminiFilesApi(file, apiKey);
   const model = await resolveGeminiVisionModel(apiKey);
   const prompt = `아래 업로드된 숏폼 영상을 분석하여, 이 영상의 분위기·톤·편집 리듬·색감·자막 스타일을 한국어로 간결하게 요약해 주십시오. 이 요약은 이후 비슷한 분위기의 새로운 숏폼 영상을 기획할 때 스타일 가이드로 사용됩니다.
 
@@ -3539,7 +3590,7 @@ async function analyzeShortsStyleReference(file) {
     body: JSON.stringify({
       contents: [{
         parts: [
-          { inlineData: { mimeType: file.type || 'video/mp4', data: base64Data } },
+          { fileData: { fileUri: uploaded.uri, mimeType: uploaded.mimeType } },
           { text: prompt }
         ]
       }]
