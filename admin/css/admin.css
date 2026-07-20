@@ -240,6 +240,14 @@ body {
   background: linear-gradient(135deg, #b8860b, #e0c25e);
 }
 
+.stat-card:nth-child(6) {
+  background: linear-gradient(135deg, #6d28d9, #a78bfa);
+}
+
+.stat-card:nth-child(7) {
+  background: linear-gradient(135deg, #be185d, #f472b6);
+}
+
 .stat-card:nth-child(n) .stat-title {
   color: rgba(255, 255, 255, 0.8) !important;
 }
