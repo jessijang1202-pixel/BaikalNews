@@ -69,20 +69,17 @@
       <li class="sidebar-item" data-tab="newsletter">
         <a>뉴스레터</a>
       </li>
+      <li class="sidebar-item" data-tab="subscribers">
+        <a>구독자 관리</a>
+      </li>
       <li class="sidebar-item" data-tab="curation">
         <a>홈화면 큐레이션</a>
       </li>
       <li class="sidebar-item" data-tab="api-costs">
         <a>API 비용 관리</a>
       </li>
-      <li class="sidebar-item" data-tab="pages">
-        <a>정적 페이지 관리</a>
-      </li>
-      <li class="sidebar-item" data-tab="audit">
-        <a>감사 로그</a>
-      </li>
-      <li class="sidebar-item" data-tab="admins">
-        <a>관리자 정보 관리</a>
+      <li class="sidebar-item" data-tab="settings">
+        <a>설정</a>
       </li>
     </ul>
     
@@ -144,7 +141,7 @@
             <span class="stat-number" id="stat-total-views">0</span>
             <span class="stat-trend">전체 기사 누적 조회</span>
           </div>
-          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('newsletter')">
+          <div class="stat-card" style="cursor: pointer;" onclick="switchTab('subscribers')">
             <span class="stat-title">구독자수</span>
             <span class="stat-number" id="stat-subscriber-count">0</span>
             <span class="stat-trend">뉴스레터 누적 구독자</span>
@@ -995,7 +992,7 @@
       </section>
 
       <!-- ================= TAB: NEWSLETTER ================= -->
-      <section id="tab-newsletter" class="tab-content">
+      <section id="tab-subscribers" class="tab-content">
         <!-- Subscriber Briefing -->
         <div class="panel" style="padding: 24px;">
           <div class="panel-header">
@@ -1037,7 +1034,10 @@
             </table>
           </div>
         </div>
+      </section>
 
+      <!-- ================= TAB: NEWSLETTER ================= -->
+      <section id="tab-newsletter" class="tab-content">
         <!-- Today's Newsletter -->
         <div class="panel" style="padding: 24px;">
           <div class="panel-header">
@@ -1167,7 +1167,15 @@
       </section>
 
       <!-- ================= TAB: PAGES ================= -->
-      <section id="tab-pages" class="tab-content">
+      <!-- ================= TAB: SETTINGS ================= -->
+      <section id="tab-settings" class="tab-content">
+        <div style="display:flex; gap:10px; margin-bottom:24px;">
+          <button type="button" class="btn-admin btn-admin-primary settings-subtab-btn" data-subtab="pages" onclick="switchSettingsSubTab('pages', this)">정적 페이지 관리</button>
+          <button type="button" class="btn-admin btn-admin-secondary settings-subtab-btn" data-subtab="audit" onclick="switchSettingsSubTab('audit', this)">감사 로그</button>
+          <button type="button" class="btn-admin btn-admin-secondary settings-subtab-btn" data-subtab="admins" onclick="switchSettingsSubTab('admins', this)">관리자 정보 관리</button>
+        </div>
+
+        <div id="settings-subtab-pages" class="settings-subtab-content">
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">신뢰성 정적 페이지 및 법률 문서 편집</h3>
@@ -1243,10 +1251,9 @@
             </div>
           </div>
         </div>
-      </section>
+        </div>
 
-      <!-- ================= TAB: AUDIT ================= -->
-      <section id="tab-audit" class="tab-content">
+        <div id="settings-subtab-audit" class="settings-subtab-content" style="display:none;">
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">뉴스룸 감사 로그</h3>
@@ -1275,10 +1282,9 @@
             </table>
           </div>
         </div>
-      </section>
+        </div>
 
-      <!-- ================= TAB: ADMINS ================= -->
-      <section id="tab-admins" class="tab-content">
+        <div id="settings-subtab-admins" class="settings-subtab-content" style="display:none;">
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">관리자 계정 관리</h3>
@@ -1321,6 +1327,7 @@
             </div>
             <button type="submit" class="btn-admin btn-admin-primary" style="margin-top: 20px;">관리자 추가</button>
           </form>
+        </div>
         </div>
       </section>
 

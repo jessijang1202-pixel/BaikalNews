@@ -544,7 +544,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'curation', 'api-costs', 'pages', 'audit', 'admins'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'subscribers', 'curation', 'api-costs', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -633,11 +633,10 @@ async function switchTab(tabName) {
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 자동 생성",
     newsletter: "뉴스레터",
+    subscribers: "구독자 관리",
     curation: "홈화면 큐레이션 통제",
     'api-costs': "API 사용 비용 관리",
-    pages: "정적 페이지 및 AdSense 신뢰성 문서 관리",
-    audit: "보도 편집 감사 로그",
-    admins: "관리자 정보 관리"
+    settings: "설정"
   };
   const titleEl = document.getElementById("current-tab-title");
   if (titleEl) {
@@ -666,13 +665,11 @@ async function switchTab(tabName) {
     loadClaudeApiKey();
     await renderShortsList();
   } else if (tabName === 'newsletter') {
-    await renderNewsletterTab();
+    await loadOrGenerateNewsletterDraft();
+  } else if (tabName === 'subscribers') {
+    await renderNewsletterSubscriberBriefing();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
-  } else if (tabName === 'audit') {
-    await renderAuditLogs();
-  } else if (tabName === 'admins') {
-    renderAdminsList();
   }
 
   setRouteHash('#' + tabName);
@@ -2518,6 +2515,32 @@ async function saveCurationSettings() {
   }
   await logAudit("홈화면 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
   alert("홈화면 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
+}
+
+// Settings tab: switches between its three merged sub-pages (정적 페이지
+// 관리 / 감사 로그 / 관리자 정보 관리), loading each sub-page's data on
+// first visit rather than eagerly for all three.
+function switchSettingsSubTab(key, btnEl) {
+  document.querySelectorAll(".settings-subtab-btn").forEach(btn => {
+    btn.classList.remove("btn-admin-primary");
+    btn.classList.add("btn-admin-secondary");
+  });
+  if (btnEl) {
+    btnEl.classList.remove("btn-admin-secondary");
+    btnEl.classList.add("btn-admin-primary");
+  }
+
+  document.querySelectorAll(".settings-subtab-content").forEach(el => {
+    el.style.display = "none";
+  });
+  const target = document.getElementById("settings-subtab-" + key);
+  if (target) target.style.display = "block";
+
+  if (key === "audit") {
+    renderAuditLogs();
+  } else if (key === "admins") {
+    renderAdminsList();
+  }
 }
 
 // 7. Static Page Management Module
@@ -4400,11 +4423,6 @@ function parseKoreanDate(dateStr) {
 
 function todayDateKey() {
   return new Date().toISOString().slice(0, 10);
-}
-
-async function renderNewsletterTab() {
-  await renderNewsletterSubscriberBriefing();
-  await loadOrGenerateNewsletterDraft();
 }
 
 async function renderNewsletterSubscriberBriefing() {
