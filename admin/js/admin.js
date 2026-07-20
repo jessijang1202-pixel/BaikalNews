@@ -921,10 +921,11 @@ async function renderPendingList() {
 }
 
 // 4. Article Management list & CRUD
-// Collapses the full article-lifecycle status into the 3 categories the
+// Collapses the full article-lifecycle status into the 4 categories the
 // article list shows: 발행 (actually live to readers right now, including a
 // scheduled article whose time has passed), 미발행 (archived/taken down),
-// 대기 (still in the draft/review/approval/not-yet-live pipeline).
+// 예약 (scheduled for later, time not yet reached), 대기 (still in the
+// draft/review/approval pipeline with no publish time set at all).
 function getArticleStatusDisplay(art) {
   if (art.status === 'archived') {
     return { label: '미발행', cls: 'badge-archived' };
@@ -933,6 +934,9 @@ function getArticleStatusDisplay(art) {
     (art.status === 'scheduled' && art.scheduledAt && new Date(art.scheduledAt) <= new Date());
   if (isLive) {
     return { label: '발행', cls: 'badge-published' };
+  }
+  if (art.status === 'scheduled') {
+    return { label: '예약', cls: 'badge-scheduled' };
   }
   return { label: '대기', cls: 'badge-review' };
 }
