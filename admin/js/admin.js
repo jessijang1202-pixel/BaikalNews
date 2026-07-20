@@ -4145,21 +4145,37 @@ async function generateShortsMedia() {
 // shortsAssets when these change, just re-preview/re-record.
 function populateShortsStyleSettingsUI() {
   const colorInput = document.getElementById("shorts-topbar-color");
+  const heightInput = document.getElementById("shorts-topbar-height");
+  const titleColorInput = document.getElementById("shorts-topbar-title-color");
   const titleInput = document.getElementById("shorts-topbar-title");
+  const title2Input = document.getElementById("shorts-topbar-title-2");
   const sizeInput = document.getElementById("shorts-caption-size");
+  const captionColorInput = document.getElementById("shorts-caption-color");
   if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
+  if (heightInput) heightInput.value = currentShortsProject.topBarHeight || 84;
+  if (titleColorInput) titleColorInput.value = currentShortsProject.topBarTitleColor || '#ffffff';
   if (titleInput) titleInput.value = currentShortsProject.topBarTitle || '';
+  if (title2Input) title2Input.value = currentShortsProject.topBarTitleLine2 || '';
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 56;
+  if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
 }
 
 function updateShortsStyleSettings() {
   if (!currentShortsProject) return;
   const colorInput = document.getElementById("shorts-topbar-color");
+  const heightInput = document.getElementById("shorts-topbar-height");
+  const titleColorInput = document.getElementById("shorts-topbar-title-color");
   const titleInput = document.getElementById("shorts-topbar-title");
+  const title2Input = document.getElementById("shorts-topbar-title-2");
   const sizeInput = document.getElementById("shorts-caption-size");
+  const captionColorInput = document.getElementById("shorts-caption-color");
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
+  currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 84) : 84;
+  currentShortsProject.topBarTitleColor = titleColorInput ? titleColorInput.value : '#ffffff';
   currentShortsProject.topBarTitle = titleInput ? titleInput.value : '';
+  currentShortsProject.topBarTitleLine2 = title2Input ? title2Input.value : '';
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 56) : 56;
+  currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
 }
 
 function renderShortsMediaPreview() {
@@ -4227,7 +4243,7 @@ async function buildShortsAssets(project) {
   return { front, images };
 }
 
-function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize) {
+function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color) {
   if (!text) return;
   const size = fontSize || 56;
   ctx.save();
@@ -4240,24 +4256,30 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize) {
   const boxH = size + 20;
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(canvasW / 2 - metrics.width / 2 - paddingX, y - boxH / 2 - paddingY / 2, metrics.width + paddingX * 2, boxH + paddingY);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = color || "#ffffff";
   ctx.fillText(text, canvasW / 2, y);
   ctx.restore();
 }
 
-// Optional colored banner + title across the top of the frame, configurable
-// per-project via the "영상 스타일 설정" panel (상단배경색/제목).
+// Optional colored banner + title (1~2 lines) across the top of the frame,
+// configurable per-project via the "영상 스타일 설정" panel.
 function drawShortsTopBar(ctx, project, canvasW) {
   if (!project || !project.topBarTitle) return;
-  const barH = 84;
+  const barH = project.topBarHeight || 84;
+  const lines = [project.topBarTitle, project.topBarTitleLine2].filter(Boolean);
   ctx.save();
   ctx.fillStyle = project.topBarColor || "#0b1a30";
   ctx.fillRect(0, 0, canvasW, barH);
   ctx.font = "bold 34px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(project.topBarTitle, canvasW / 2, barH / 2);
+  ctx.fillStyle = project.topBarTitleColor || "#ffffff";
+  if (lines.length === 1) {
+    ctx.fillText(lines[0], canvasW / 2, barH / 2);
+  } else {
+    ctx.fillText(lines[0], canvasW / 2, barH / 2 - 20);
+    ctx.fillText(lines[1], canvasW / 2, barH / 2 + 20);
+  }
   ctx.restore();
 }
 
@@ -4324,7 +4346,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         } else {
           drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
         }
-        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize);
+        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor);
       } else {
         let t = elapsed - frontDuration;
         let idx = 0;
@@ -4335,7 +4357,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         const cut = assets.images[idx];
         if (cut) {
           drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cut.duration, 1), W, H);
-          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize);
+          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor);
         }
       }
       drawShortsTopBar(ctx, project, W);

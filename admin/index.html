@@ -971,11 +971,27 @@
                 <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 배경색
                   <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
                 </label>
-                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 제목
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 배경 높이
+                  <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:80px;" min="40" max="240" step="4" value="84" onchange="updateShortsStyleSettings()">
+                </label>
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 제목 색상
+                  <input type="color" id="shorts-topbar-title-color" value="#ffffff" onchange="updateShortsStyleSettings()">
+                </label>
+              </div>
+              <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 제목 (1줄)
                   <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:200px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
                 </label>
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 제목 (2줄)
+                  <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:200px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
+                </label>
+              </div>
+              <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:10px;">
                 <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">자막 크기
                   <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:80px;" min="32" max="90" step="2" value="56" onchange="updateShortsStyleSettings()">
+                </label>
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">자막 색상
+                  <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
                 </label>
               </div>
             </div>
