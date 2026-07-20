@@ -3573,6 +3573,7 @@ async function openShortsProject(id) {
   }
   if (['media_ready', 'video_ready'].includes(project.status)) {
     document.getElementById("shorts-assembly-section").style.display = "block";
+    populateShortsStyleSettingsUI();
   }
   if (project.status === 'video_ready' && project.finalVideoUrl) {
     const previewEl = document.getElementById("shorts-final-preview");
@@ -3755,9 +3756,9 @@ async function generateShortsScript() {
 
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
-      : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 영어 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
+      : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 영어 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -3782,9 +3783,9 @@ ${backInstruction}
 반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오.
 {
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
-  "veoPrompt": "0:00~0:08 Veo 영상용 영어 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
+  "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "영어 이미지 프롬프트", "caption": "한국어 자막", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "caption": "한국어 자막", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)"
 }
@@ -4100,6 +4101,7 @@ async function generateShortsMedia() {
 
     const assemblySection = document.getElementById("shorts-assembly-section");
     assemblySection.style.display = "block";
+    populateShortsStyleSettingsUI();
     assemblySection.scrollIntoView({ behavior: "smooth" });
   } catch (err) {
     console.error("숏폼 미디어 생성 실패:", err);
@@ -4108,6 +4110,28 @@ async function generateShortsMedia() {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+// Syncs the 영상 스타일 설정 inputs (상단 배경색/제목, 자막 크기) with
+// currentShortsProject -- pure draw-time styling, so no need to rebuild
+// shortsAssets when these change, just re-preview/re-record.
+function populateShortsStyleSettingsUI() {
+  const colorInput = document.getElementById("shorts-topbar-color");
+  const titleInput = document.getElementById("shorts-topbar-title");
+  const sizeInput = document.getElementById("shorts-caption-size");
+  if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
+  if (titleInput) titleInput.value = currentShortsProject.topBarTitle || '';
+  if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 56;
+}
+
+function updateShortsStyleSettings() {
+  if (!currentShortsProject) return;
+  const colorInput = document.getElementById("shorts-topbar-color");
+  const titleInput = document.getElementById("shorts-topbar-title");
+  const sizeInput = document.getElementById("shorts-caption-size");
+  currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
+  currentShortsProject.topBarTitle = titleInput ? titleInput.value : '';
+  currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 56) : 56;
 }
 
 function renderShortsMediaPreview() {
@@ -4140,13 +4164,28 @@ async function buildShortsAssets(project) {
     const videoEl = document.createElement('video');
     videoEl.src = project.veoVideoUrl;
     videoEl.crossOrigin = "anonymous";
-    videoEl.muted = true;
+    videoEl.muted = false;
     videoEl.playsInline = true;
     await new Promise((resolve, reject) => {
       videoEl.onloadedmetadata = resolve;
       videoEl.onerror = () => reject(new Error("전반 영상을 불러오지 못했습니다."));
     });
     front = { type: 'video', el: videoEl, duration: Math.min(videoEl.duration || 8, 8) };
+
+    // Tap the Veo clip's own native audio (if any) so recorded shorts keep
+    // it — canvas.captureStream() alone only ever carries a video track.
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      await audioCtx.resume().catch(() => {});
+      const source = audioCtx.createMediaElementSource(videoEl);
+      const destination = audioCtx.createMediaStreamDestination();
+      source.connect(destination);
+      source.connect(audioCtx.destination);
+      front.audioDestination = destination;
+    } catch (err) {
+      console.warn("영상 오디오 트랙을 연결하지 못했습니다:", err);
+    }
   }
 
   const images = await Promise.all((project.imageCuts || []).map(cut => new Promise((resolve, reject) => {
@@ -4160,19 +4199,37 @@ async function buildShortsAssets(project) {
   return { front, images };
 }
 
-function drawShortsCaption(ctx, text, canvasW, canvasH) {
+function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize) {
   if (!text) return;
+  const size = fontSize || 56;
   ctx.save();
-  ctx.font = "bold 56px sans-serif";
+  ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const y = canvasH - 260;
   const metrics = ctx.measureText(text);
   const paddingX = 32, paddingY = 20;
+  const boxH = size + 20;
   ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillRect(canvasW / 2 - metrics.width / 2 - paddingX, y - 38 - paddingY / 2, metrics.width + paddingX * 2, 76);
+  ctx.fillRect(canvasW / 2 - metrics.width / 2 - paddingX, y - boxH / 2 - paddingY / 2, metrics.width + paddingX * 2, boxH + paddingY);
   ctx.fillStyle = "#ffffff";
   ctx.fillText(text, canvasW / 2, y);
+  ctx.restore();
+}
+
+// Optional colored banner + title across the top of the frame, configurable
+// per-project via the "영상 스타일 설정" panel (상단배경색/제목).
+function drawShortsTopBar(ctx, project, canvasW) {
+  if (!project || !project.topBarTitle) return;
+  const barH = 84;
+  ctx.save();
+  ctx.fillStyle = project.topBarColor || "#0b1a30";
+  ctx.fillRect(0, 0, canvasW, barH);
+  ctx.font = "bold 34px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(project.topBarTitle, canvasW / 2, barH / 2);
   ctx.restore();
 }
 
@@ -4209,6 +4266,9 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   let chunks = [];
   if (record) {
     const stream = canvas.captureStream(30);
+    if (assets.front.audioDestination) {
+      assets.front.audioDestination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+    }
     const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
     const mimeType = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || 'video/webm';
     recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4000000 });
@@ -4236,7 +4296,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         } else {
           drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
         }
-        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H);
+        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize);
       } else {
         let t = elapsed - frontDuration;
         let idx = 0;
@@ -4247,9 +4307,10 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         const cut = assets.images[idx];
         if (cut) {
           drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cut.duration, 1), W, H);
-          drawShortsCaption(ctx, cut.caption, W, H);
+          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize);
         }
       }
+      drawShortsTopBar(ctx, project, W);
 
       if (elapsed >= totalDuration) {
         if (assets.front.type === 'video') assets.front.el.pause();

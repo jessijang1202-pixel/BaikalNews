@@ -962,6 +962,22 @@
           <!-- Assembly / recording -->
           <div id="shorts-assembly-section" style="display:none; margin-top:24px; border-top:1px solid var(--admin-border); padding-top:20px;">
             <h4 style="margin-bottom: 12px; color: var(--admin-accent-cyan);">4. 최종 조립 및 녹화</h4>
+
+            <div class="form-group-admin" style="margin-bottom:12px;">
+              <label>영상 스타일 설정 (미리보기/녹화 전 언제든 수정 가능)</label>
+              <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 배경색
+                  <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
+                </label>
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">상단 제목
+                  <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:200px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
+                </label>
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px;">자막 크기
+                  <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:80px;" min="32" max="90" step="2" value="56" onchange="updateShortsStyleSettings()">
+                </label>
+              </div>
+            </div>
+
             <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
             <div style="margin-top:12px; display:flex; gap:12px;">
               <button type="button" class="btn-admin btn-admin-secondary" onclick="previewShortsAssembly()">미리보기 재생</button>
