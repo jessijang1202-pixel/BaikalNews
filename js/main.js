@@ -5,7 +5,7 @@
 // map over a stored article.categoryLabel so already-saved articles display
 // consistently even if they were created before this naming was unified.
 const CATEGORY_LABELS = {
-  culture: "문화·예술",
+  culture: "문화·생활",
   economy: "경제·산업",
   tech: "기술·미디어",
   local: "지역·평택",
