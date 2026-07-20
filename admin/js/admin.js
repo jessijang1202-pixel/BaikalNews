@@ -1728,10 +1728,20 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
 let trendingArticles = [];
 let selectedTrendingArticle = null;
 
-// Fetches a URL's raw HTML through a public CORS proxy (the browser can't fetch
-// arbitrary external pages directly). Public proxies like allorigins.win are
-// prone to transient timeouts (HTTP 408) under load, so this retries once per
-// proxy and falls back to a second proxy before giving up.
+// Fetches a clean, readable-text/markdown rendition of a page via r.jina.ai --
+// a free "reader" proxy purpose-built for exactly this (LLM-friendly content
+// extraction), and in practice far more reliable than raw-HTML CORS proxies,
+// which are prone to timeouts (allorigins.win) or now block unauthenticated
+// requests outright (corsproxy.io -> HTTP 403).
+async function fetchViaJinaReader(targetUrl) {
+  const response = await fetch(`https://r.jina.ai/${targetUrl}`);
+  if (!response.ok) throw new Error("HTTP error " + response.status);
+  return await response.text();
+}
+
+// Fetches a URL's raw HTML through a public CORS proxy -- used as a fallback
+// when the jina.ai reader is unavailable. Retries once per proxy and falls
+// back to a second proxy before giving up.
 async function fetchViaCorsProxy(targetUrl) {
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
@@ -1754,8 +1764,37 @@ async function fetchViaCorsProxy(targetUrl) {
   throw lastError;
 }
 
+// Naver's ranking page markdown (via jina.ai) renders each headline as a
+// standard [title](article-url) link -- pull those out directly instead of
+// needing DOM/CSS selectors that break whenever Naver changes its markup.
+function parseNaverTrendingFromMarkdown(markdown) {
+  const linkRegex = /\[([^\]]{8,80})\]\((https:\/\/n\.news\.naver\.com\/article\/[^)]+)\)/g;
+  const seen = new Set();
+  const unique = [];
+  let match;
+  while ((match = linkRegex.exec(markdown)) !== null) {
+    const title = match[1].trim();
+    const url = match[2];
+    if (!seen.has(title)) {
+      seen.add(title);
+      unique.push({ title, url });
+    }
+    if (unique.length >= 15) break;
+  }
+  return unique;
+}
+
 async function fetchNaverTrending() {
   const targetUrl = 'https://news.naver.com/main/ranking/popularDay.naver';
+
+  try {
+    const markdown = await fetchViaJinaReader(targetUrl);
+    const items = parseNaverTrendingFromMarkdown(markdown);
+    if (items.length > 0) return items;
+  } catch (err) {
+    console.warn("jina.ai reader 실패, HTML 프록시로 재시도합니다:", err);
+  }
+
   const html = await fetchViaCorsProxy(targetUrl);
 
   const parser = new DOMParser();
@@ -4675,40 +4714,53 @@ async function loadWritingStyles() {
   await populateStyleSelect(document.getElementById("ai-info-style"));
 }
 
-// CORS Proxy Scraper helper
+// Scrapes an external article URL's main body text -- tries the jina.ai reader
+// first (clean text, no HTML parsing needed), falling back to the CORS-proxy +
+// DOM-selector approach if that fails.
 async function scrapeExternalLink(url) {
   if (!url) return "";
+
+  try {
+    const markdown = await fetchViaJinaReader(url);
+    const cleaned = markdown.replace(/^Title:.*\n+URL Source:.*\n+Markdown Content:\n*/s, '').trim();
+    if (cleaned.length > 100) {
+      return cleaned.replace(/\s+/g, ' ').trim();
+    }
+  } catch (err) {
+    console.warn("jina.ai reader 실패, HTML 프록시로 재시도합니다:", err);
+  }
+
   try {
     const html = await fetchViaCorsProxy(url);
-    
+
     // Parse HTML to extract text content
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
-    
+
     // Extract main text: clean tags like script, style, nav, footer
     const removes = doc.querySelectorAll("script, style, nav, footer, header, iframe, noscript");
     removes.forEach(el => el.remove());
-    
+
     // Target main article elements if possible (general news sites)
     let bodyText = "";
     const articleSelectors = [
-      "article", ".article", "#articleBody", "#article_body", 
+      "article", ".article", "#articleBody", "#article_body",
       ".article_body", ".news_body", "#news_body_area", ".story-content",
       ".view_txt", ".article-body", "[itemprop='articleBody']", "main"
     ];
-    
+
     let mainEl = null;
     for (const selector of articleSelectors) {
       mainEl = doc.querySelector(selector);
       if (mainEl) break;
     }
-    
+
     if (mainEl) {
       bodyText = mainEl.innerText || mainEl.textContent || "";
     } else {
       bodyText = doc.body.innerText || doc.body.textContent || "";
     }
-    
+
     // Simple text cleanup: excessive whitespaces
     return bodyText.replace(/\s+/g, ' ').trim();
   } catch (err) {
