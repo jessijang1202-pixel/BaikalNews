@@ -27,14 +27,23 @@ function parseKoreanDate(dateStr) {
 // (set by admins reordering 많이 읽은 인기 기사 in the curation admin tab).
 // Any newly-popular article not covered by the saved order is appended in
 // view-rank order.
+//
+// The top-N is always computed from the FULL article pool first (not a
+// per-page-filtered one) so the ranking is identical everywhere the widget
+// appears; excludeId (the article page you're currently on, so it doesn't
+// list itself) is only applied afterward, as a display-time filter -- it
+// intentionally does NOT get backfilled with a 6th article, since doing so
+// would make each article page compute a different top-5 depending on
+// which article excluded itself, which is what caused the list to look
+// different from page to page.
 function getOrderedPopularArticles(published, curation, excludeId, count) {
-  const pool = excludeId ? published.filter(a => a.id !== excludeId) : published;
-  const topByViews = pool.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count);
+  const topByViews = published.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count);
   const topIds = new Set(topByViews.map(a => a.id));
   const orderIds = ((curation && curation.popularReadsIds) || []).filter(id => topIds.has(id));
   const ordered = orderIds.map(id => topByViews.find(a => a.id === id));
   const remaining = topByViews.filter(a => !orderIds.includes(a.id));
-  return [...ordered, ...remaining];
+  const result = [...ordered, ...remaining];
+  return excludeId ? result.filter(a => a.id !== excludeId) : result;
 }
 
 // A "scheduled" article becomes visible on its own once scheduledAt has passed --
