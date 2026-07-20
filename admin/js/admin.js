@@ -3245,7 +3245,7 @@ async function triggerAiImageGeneration() {
 // ==========================================================
 // 숏폼(Shorts) Auto-Generation
 // Workflow: 기사 선택 -> (선택) 참고 영상 업로드로 스타일 학습 -> (선택) 보유
-// 영상/사진을 전반·후반에 배정 -> Claude로 대본 생성(배정된 슬롯만큼 AI 생성량
+// 영상/사진을 전반·후반에 배정 -> Gemini로 대본 생성(배정된 슬롯만큼 AI 생성량
 // 감소) -> 관리자 검토/승인 -> Veo 8초 영상 또는 업로드 자료 + 이미지 22초
 // (기본 5컷, 업로드로 대체된 만큼 AI 생성 생략) 생성 -> 브라우저에서 canvas로
 // 재생하며 그대로 녹화(MediaRecorder)해 최종 영상 완성.
@@ -3790,7 +3790,7 @@ ${backInstruction}
 }
 `;
 
-    const resultText = await callClaudeApi(prompt, "당신은 숏폼 영상 기획 전문 PD입니다. 반드시 유효한 JSON 오브젝트로만 답하십시오.");
+    const resultText = await callGeminiTextApi(prompt, "당신은 숏폼 영상 기획 전문 PD입니다. 반드시 유효한 JSON 오브젝트로만 답하십시오.");
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
