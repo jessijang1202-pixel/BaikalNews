@@ -648,6 +648,25 @@
       return [];
     },
 
+    // Distinct visitor_id count across all recorded page_views, for the
+    // dashboard's 총 방문자수 stat.
+    fetchTotalUniqueVisitors: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client.from('page_views').select('visitor_id');
+            if (error) throw error;
+            const unique = new Set((data || []).map(r => r.visitor_id));
+            return unique.size;
+          } catch (err) {
+            console.error("Supabase fetchTotalUniqueVisitors error:", err);
+          }
+        }
+      }
+      return 0;
+    },
+
     // ==========================================
     // Newsletter subscribers (collected via the public site's #newsletter form)
     // ==========================================

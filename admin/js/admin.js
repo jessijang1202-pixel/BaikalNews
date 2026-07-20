@@ -741,6 +741,14 @@ async function refreshStats() {
   document.getElementById("stat-published-count").textContent = published;
   document.getElementById("stat-total-count").textContent = articles.length;
   document.getElementById("stat-total-views").textContent = totalViews.toLocaleString("ko-KR");
+
+  if (window.SupabaseAdapter) {
+    const subscribers = await window.SupabaseAdapter.fetchNewsletterSubscribers();
+    document.getElementById("stat-subscriber-count").textContent = subscribers.length.toLocaleString("ko-KR");
+
+    const totalVisitors = await window.SupabaseAdapter.fetchTotalUniqueVisitors();
+    document.getElementById("stat-total-visitors").textContent = totalVisitors.toLocaleString("ko-KR");
+  }
 }
 
 // Dashboard 예약 발행 내역 table -- every article still flagged 'scheduled',
