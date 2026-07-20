@@ -1728,12 +1728,35 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
 let trendingArticles = [];
 let selectedTrendingArticle = null;
 
+// Fetches a URL's raw HTML through a public CORS proxy (the browser can't fetch
+// arbitrary external pages directly). Public proxies like allorigins.win are
+// prone to transient timeouts (HTTP 408) under load, so this retries once per
+// proxy and falls back to a second proxy before giving up.
+async function fetchViaCorsProxy(targetUrl) {
+  const proxyUrls = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
+  ];
+
+  let lastError;
+  for (const proxyUrl of proxyUrls) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("HTTP error " + response.status);
+        return await response.text();
+      } catch (err) {
+        lastError = err;
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1200));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function fetchNaverTrending() {
   const targetUrl = 'https://news.naver.com/main/ranking/popularDay.naver';
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-  const response = await fetch(proxyUrl);
-  if (!response.ok) throw new Error("HTTP error " + response.status);
-  const html = await response.text();
+  const html = await fetchViaCorsProxy(targetUrl);
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -4656,11 +4679,7 @@ async function loadWritingStyles() {
 async function scrapeExternalLink(url) {
   if (!url) return "";
   try {
-    // Use Allorigins proxy to fetch raw HTML (cors bypass)
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("HTTP error " + response.status);
-    const html = await response.text();
+    const html = await fetchViaCorsProxy(url);
     
     // Parse HTML to extract text content
     const parser = new DOMParser();
