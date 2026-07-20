@@ -880,8 +880,12 @@
         <div class="panel" id="shorts-wizard-panel" style="display:none; padding: 24px;">
           <div class="panel-header">
             <h3 class="panel-title" id="shorts-wizard-title">새 숏폼 제작</h3>
-            <button class="btn-admin btn-admin-secondary" onclick="closeShortsWizard()">목록으로 돌아가기</button>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-admin btn-admin-success" onclick="archiveShortsProject()" title="번호·기사·대본만 Supabase에 저장 (이미지·영상은 저장 안 함)">보관 (대본만 저장)</button>
+              <button class="btn-admin btn-admin-secondary" onclick="closeShortsWizard()">목록으로 돌아가기</button>
+            </div>
           </div>
+          <p class="help-text" style="margin: -8px 24px 16px;">작성 중인 대본·프롬프트는 이 브라우저에 임시 저장되고, 생성된 이미지·영상은 이 탭에서만 유지됩니다 (Supabase 저장공간을 쓰지 않습니다). "보관"을 누르면 숏폼 번호·기사·대본만 Supabase에 남습니다.</p>
 
           <!-- API Key Config Panel (shared with AI 집필실) -->
           <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
@@ -1003,12 +1007,13 @@
             </div>
 
             <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
-            <div style="margin-top:12px; display:flex; gap:12px;">
+            <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
               <button type="button" class="btn-admin btn-admin-secondary" onclick="previewShortsAssembly()">미리보기 재생</button>
-              <button type="button" id="shorts-record-btn" class="btn-admin btn-admin-primary" onclick="recordShortsVideo()">영상으로 녹화 및 저장</button>
+              <button type="button" id="shorts-record-btn" class="btn-admin btn-admin-primary" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
             </div>
-            <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).</div>
+            <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
             <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
+            <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none; margin-top:8px;" download>⬇ 영상 다운로드</a>
           </div>
         </div>
       </section>

@@ -3286,6 +3286,70 @@ const SHORTS_MAX_BACK_UPLOADS = 5;
 const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
 const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
 
+// Storage-minimization: while a shorts project is being drafted, its script
+// text lives only in localStorage (cheap, tiny) and its media (images/Veo
+// clip/final render) lives only as in-browser object URLs -- neither ever
+// touches Supabase. Only 보관(archive) writes anything to Supabase, and even
+// then just {id, articleId, hookText, scriptMd} -- never the media.
+const SHORTS_LOCAL_DRAFTS_KEY = "baikal_shorts_local_drafts";
+
+function getShortsLocalDrafts() {
+  try {
+    return JSON.parse(localStorage.getItem(SHORTS_LOCAL_DRAFTS_KEY) || "[]");
+  } catch (err) {
+    return [];
+  }
+}
+
+function setShortsLocalDrafts(drafts) {
+  localStorage.setItem(SHORTS_LOCAL_DRAFTS_KEY, JSON.stringify(drafts));
+}
+
+function saveShortsDraftLocally() {
+  if (!currentShortsProject) return;
+  if (!currentShortsProject.localDraftId) {
+    currentShortsProject.localDraftId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+  const snapshot = {
+    localDraftId: currentShortsProject.localDraftId,
+    articleId: currentShortsProject.articleId || null,
+    status: currentShortsProject.status,
+    hookText: currentShortsProject.hookText || '',
+    veoPrompt: currentShortsProject.veoPrompt || '',
+    scriptMd: currentShortsProject.scriptMd || '',
+    styleGuide: currentShortsProject.styleGuide || '',
+    imageCuts: (currentShortsProject.imageCuts || []).map(c => ({ prompt: c.prompt, caption: c.caption, duration: c.duration })),
+    createdBy: currentShortsProject.createdBy || '',
+    updatedAt: new Date().toISOString()
+  };
+  const drafts = getShortsLocalDrafts();
+  const idx = drafts.findIndex(d => d.localDraftId === snapshot.localDraftId);
+  if (idx !== -1) drafts[idx] = snapshot; else drafts.unshift(snapshot);
+  setShortsLocalDrafts(drafts);
+}
+
+function deleteShortsDraftLocally(localDraftId) {
+  setShortsLocalDrafts(getShortsLocalDrafts().filter(d => d.localDraftId !== localDraftId));
+}
+
+// Turns a generated/uploaded Blob into an in-browser object URL instead of
+// uploading it to Supabase Storage -- valid only for this tab/session, but
+// costs zero server storage. Download or 보관 before closing the tab if the
+// result needs to survive.
+function keepShortsBlobLocal(blob) {
+  return URL.createObjectURL(blob);
+}
+
+async function keepShortsImageLocal(fileOrBlob) {
+  let blob = fileOrBlob;
+  try {
+    blob = await resizeAndCompressImage(fileOrBlob);
+  } catch (err) {
+    console.warn("이미지 압축 실패, 원본을 사용합니다:", err);
+  }
+  return URL.createObjectURL(blob);
+}
+
 function getShortsStyleTemplates() {
   return JSON.parse(localStorage.getItem(SHORTS_STYLE_TEMPLATES_KEY) || "[]");
 }
@@ -3381,34 +3445,43 @@ async function renderShortsList() {
   const tbody = document.getElementById("shorts-list-body");
   if (!tbody) return;
 
-  const [list, articles] = await Promise.all([
+  const [archivedList, articles] = await Promise.all([
     window.SupabaseAdapter.fetchShorts(),
     window.SupabaseAdapter.fetchArticles()
   ]);
+  const localDrafts = getShortsLocalDrafts();
 
   const statusLabels = {
-    script_draft: "대본 작성 중",
-    script_approved: "대본 승인됨",
-    media_ready: "미디어 생성 완료",
-    video_ready: "영상 완성"
+    script_draft: "대본 작성 중 (로컬)",
+    script_approved: "대본 승인됨 (로컬)",
+    media_ready: "미디어 생성 완료 (로컬)",
+    video_ready: "영상 완성 (로컬)",
+    archived: "보관됨 (대본만)"
   };
 
-  if (list.length === 0) {
+  const combined = [
+    ...localDrafts.map(d => ({ ...d, __local: true })),
+    ...archivedList.map(s => ({ ...s, __local: false }))
+  ].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+  if (combined.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--admin-text-muted); padding:24px 0;">생성된 숏폼이 없습니다. "+ 새 숏폼 만들기"로 시작하세요.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = list.map(s => {
+  tbody.innerHTML = combined.map(s => {
     const art = articles.find(a => a.id === s.articleId);
+    const openCall = s.__local ? `openLocalShortsDraft('${s.localDraftId}')` : `openShortsProject(${s.id})`;
+    const deleteCall = s.__local ? `deleteShortsLocalDraft('${s.localDraftId}')` : `deleteShortsProject(${s.id})`;
     return `
       <tr>
-        <td>${s.id}</td>
+        <td>${s.__local ? '로컬' : s.id}</td>
         <td>${art ? art.title : '(삭제된 기사)'}</td>
         <td>${statusLabels[s.status] || s.status}</td>
         <td>${s.updatedAt ? new Date(s.updatedAt).toLocaleString('ko-KR') : ''}</td>
         <td>
-          <button type="button" class="btn-admin btn-admin-secondary" onclick="openShortsProject(${s.id})">열기</button>
-          <button type="button" class="btn-admin btn-admin-danger" onclick="deleteShortsProject(${s.id})">삭제</button>
+          <button type="button" class="btn-admin btn-admin-secondary" onclick="${openCall}">열기</button>
+          <button type="button" class="btn-admin btn-admin-danger" onclick="${deleteCall}">삭제</button>
         </td>
       </tr>
     `;
@@ -3416,9 +3489,15 @@ async function renderShortsList() {
 }
 
 async function deleteShortsProject(id) {
-  if (!confirm("이 숏폼 프로젝트를 삭제하시겠습니까? (생성된 영상/이미지 파일은 Storage에 남아있을 수 있습니다)")) return;
+  if (!confirm("이 숏폼 프로젝트를 삭제하시겠습니까?")) return;
   await window.SupabaseAdapter.deleteShorts(id);
   await renderShortsList();
+}
+
+function deleteShortsLocalDraft(localDraftId) {
+  if (!confirm("이 로컬 임시 숏폼을 삭제하시겠습니까? (Supabase에는 저장된 적이 없어 복구할 수 없습니다)")) return;
+  deleteShortsDraftLocally(localDraftId);
+  renderShortsList();
 }
 
 async function populateShortsArticleSelect() {
@@ -3434,6 +3513,8 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-media-section").style.display = "none";
   document.getElementById("shorts-assembly-section").style.display = "none";
   document.getElementById("shorts-final-preview").style.display = "none";
+  const downloadEl = document.getElementById("shorts-final-download");
+  if (downloadEl) downloadEl.style.display = "none";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -3493,11 +3574,9 @@ async function assignShortsUpload(tempId, placement) {
   try {
     let url;
     if (isVideo) {
-      const ext = (pending.file.name.split('.').pop() || 'mp4').toLowerCase();
-      const result = await uploadRawBlobToStorage(pending.file, ext);
-      url = result.publicUrl;
+      url = keepShortsBlobLocal(pending.file);
     } else {
-      url = await uploadImageToStorage(pending.file);
+      url = await keepShortsImageLocal(pending.file);
     }
 
     if (placement === 'front') {
@@ -3614,6 +3693,55 @@ async function openShortsProject(id) {
   loadClaudeApiKey();
 }
 
+// Resumes a local-only draft (script text saved via saveShortsDraftLocally).
+// Media never survives a reload since it's only ever an in-browser object
+// URL, so this always reopens at most at the 대본 승인 stage -- media/조립
+// sections stay hidden and must be regenerated if needed.
+async function openLocalShortsDraft(localDraftId) {
+  const draft = getShortsLocalDrafts().find(d => d.localDraftId === localDraftId);
+  if (!draft) {
+    alert("로컬 임시 숏폼을 찾을 수 없습니다.");
+    return;
+  }
+  currentShortsProject = {
+    id: null,
+    localDraftId: draft.localDraftId,
+    articleId: draft.articleId,
+    status: ['media_ready', 'video_ready'].includes(draft.status) ? 'script_approved' : draft.status,
+    hookText: draft.hookText,
+    veoPrompt: draft.veoPrompt,
+    scriptMd: draft.scriptMd,
+    styleGuide: draft.styleGuide,
+    imageCuts: (draft.imageCuts || []).map(c => ({ ...c, imageUrl: '', uploaded: false })),
+    createdBy: draft.createdBy,
+    frontUpload: null,
+    backUploads: []
+  };
+  shortsAssets = null;
+
+  document.getElementById("shorts-wizard-title").textContent = "로컬 임시 숏폼 편집";
+  await populateShortsArticleSelect();
+  document.getElementById("shorts-article-select").value = draft.articleId || "";
+  populateShortsStyleTemplateSelect("");
+  document.getElementById("shorts-style-guide").value = draft.styleGuide || "";
+  document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
+  resetShortsWizardSections();
+
+  if (currentShortsProject.scriptMd || currentShortsProject.veoPrompt) {
+    renderShortsScriptReview();
+  }
+  if (currentShortsProject.status !== 'script_draft') {
+    document.getElementById("shorts-media-section").style.display = "block";
+    if (draft.status !== 'script_draft' && draft.status !== 'script_approved') {
+      document.getElementById("shorts-media-status").textContent = "이미지/영상은 로컬 세션에만 있어 새로고침 후 사라졌습니다. \"미디어 생성\"을 다시 눌러주세요.";
+    }
+  }
+
+  document.getElementById("shorts-wizard-panel").style.display = "block";
+  loadGeminiApiKey();
+  loadClaudeApiKey();
+}
+
 function closeShortsWizard() {
   document.getElementById("shorts-wizard-panel").style.display = "none";
   currentShortsProject = null;
@@ -3621,12 +3749,41 @@ function closeShortsWizard() {
   renderShortsList();
 }
 
+// Local-only save during drafting -- text fields go to localStorage, media
+// stays as in-browser object URLs. Nothing reaches Supabase here.
 async function persistCurrentShortsProject() {
   const session = getAdminSession();
   currentShortsProject.createdBy = currentShortsProject.createdBy || (session ? session.name : '');
-  const saved = await window.SupabaseAdapter.saveShorts(currentShortsProject);
-  if (saved && saved.id) currentShortsProject.id = saved.id;
+  saveShortsDraftLocally();
   await renderShortsList();
+}
+
+// 보관: the only point in the shorts flow that writes to Supabase, and only
+// {articleId, hookText, scriptMd} -- never the generated images/영상/음성.
+// Those stay local only; download them first if they need to be kept.
+async function archiveShortsProject() {
+  if (!currentShortsProject) return;
+  if (!currentShortsProject.scriptMd && !currentShortsProject.hookText) {
+    alert("보관할 대본이 없습니다. 먼저 대본을 생성해 주세요.");
+    return;
+  }
+  const session = getAdminSession();
+  const minimal = {
+    id: currentShortsProject.id || null,
+    articleId: currentShortsProject.articleId,
+    status: 'archived',
+    hookText: currentShortsProject.hookText || '',
+    scriptMd: currentShortsProject.scriptMd || '',
+    createdBy: currentShortsProject.createdBy || (session ? session.name : '')
+  };
+  const saved = await window.SupabaseAdapter.saveShorts(minimal);
+  if (saved && saved.id) currentShortsProject.id = saved.id;
+  currentShortsProject.status = 'archived';
+  if (currentShortsProject.localDraftId) {
+    deleteShortsDraftLocally(currentShortsProject.localDraftId);
+  }
+  await renderShortsList();
+  alert("숏폼 번호·기사·대본만 Supabase에 보관했습니다. 이미지·영상은 저장공간 절약을 위해 서버에 올리지 않으니, 필요하면 지금 다운로드해 두세요.");
 }
 
 // Uploads a file to Gemini's Files API (supports up to 2GB per file, unlike
@@ -4105,8 +4262,7 @@ async function generateShortsMedia() {
     } else {
       statusEl.textContent = "Veo 영상 생성 중... (몇 분 소요될 수 있습니다)";
       const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { statusEl.textContent = msg; });
-      const { publicUrl: veoUrl } = await uploadRawBlobToStorage(veoBlob, 'mp4');
-      currentShortsProject.veoVideoUrl = veoUrl;
+      currentShortsProject.veoVideoUrl = keepShortsBlobLocal(veoBlob);
       currentShortsProject.frontIsImage = false;
     }
     await persistCurrentShortsProject();
@@ -4119,7 +4275,7 @@ async function generateShortsMedia() {
       const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
       const dataUrl = await generateGeminiImage(verticalPrompt);
       const blob = await (await fetch(dataUrl)).blob();
-      cut.imageUrl = await uploadImageToStorage(blob, 'jpg');
+      cut.imageUrl = await keepShortsImageLocal(blob);
       renderShortsMediaPreview();
     }
 
@@ -4182,14 +4338,16 @@ function updateShortsStyleSettings() {
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
 }
 
+// Media previews link to their own object URL with `download` so the admin
+// can grab a local copy -- none of this is uploaded anywhere (see 보관).
 function renderShortsMediaPreview() {
   const container = document.getElementById("shorts-media-preview");
   const items = [];
   if (currentShortsProject.veoVideoUrl) {
-    items.push(`<video src="${currentShortsProject.veoVideoUrl}" controls muted style="width:120px; border-radius:6px;"></video>`);
+    items.push(`<a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4"><video src="${currentShortsProject.veoVideoUrl}" controls muted style="width:120px; border-radius:6px;"></video></a>`);
   }
-  (currentShortsProject.imageCuts || []).forEach(cut => {
-    if (cut.imageUrl) items.push(`<img src="${cut.imageUrl}" style="width:80px; height:142px; object-fit:cover; border-radius:6px;">`);
+  (currentShortsProject.imageCuts || []).forEach((cut, i) => {
+    if (cut.imageUrl) items.push(`<a href="${cut.imageUrl}" download="shorts-cut-${i + 1}.jpg"><img src="${cut.imageUrl}" style="width:80px; height:142px; object-fit:cover; border-radius:6px;"></a>`);
   });
   container.innerHTML = items.join('') || `<span class="help-text">아직 생성된 미디어가 없습니다.</span>`;
 }
@@ -4416,8 +4574,7 @@ async function recordShortsVideo() {
     statusEl.textContent = "녹화 중... (약 30초 소요)";
     const videoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
 
-    statusEl.textContent = "완성된 영상 업로드 중...";
-    const { publicUrl } = await uploadRawBlobToStorage(videoBlob, 'webm');
+    const publicUrl = keepShortsBlobLocal(videoBlob);
     currentShortsProject.finalVideoUrl = publicUrl;
     currentShortsProject.status = 'video_ready';
     await persistCurrentShortsProject();
@@ -4426,7 +4583,14 @@ async function recordShortsVideo() {
     previewEl.src = publicUrl;
     previewEl.style.display = "block";
 
-    statusEl.textContent = "완료! 아래에서 재생하거나 다운로드할 수 있습니다.";
+    const downloadEl = document.getElementById("shorts-final-download");
+    if (downloadEl) {
+      downloadEl.href = publicUrl;
+      downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.webm`;
+      downloadEl.style.display = "inline-block";
+    }
+
+    statusEl.textContent = "완료! 아래에서 재생/다운로드할 수 있습니다. (서버에는 저장되지 않으니 필요하면 지금 다운로드하거나 보관 버튼으로 대본을 남겨두세요.)";
   } catch (err) {
     console.error("숏폼 녹화 실패:", err);
     statusEl.textContent = "녹화 실패: " + err.message;
