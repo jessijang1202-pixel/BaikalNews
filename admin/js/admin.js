@@ -2598,9 +2598,13 @@ function resetAiImagePromptFields() {
   if (focusEl) focusEl.value = "";
 }
 
+let mediaLibraryCurrentPage = 1;
+const MEDIA_LIBRARY_PAGE_SIZE = 12;
+
 function openMediaLibraryModal() {
   document.getElementById("media-library-modal").classList.add("active");
   switchModalMediaTab('select');
+  mediaLibraryCurrentPage = 1;
   renderMediaLibraryGrid();
 }
 
@@ -2645,8 +2649,15 @@ function renderMediaLibraryGrid() {
 
   // Load currently available images
   const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
-  
-  gridEl.innerHTML = mediaList.map(src => {
+
+  const totalPages = Math.max(1, Math.ceil(mediaList.length / MEDIA_LIBRARY_PAGE_SIZE));
+  if (mediaLibraryCurrentPage > totalPages) mediaLibraryCurrentPage = totalPages;
+  if (mediaLibraryCurrentPage < 1) mediaLibraryCurrentPage = 1;
+
+  const startIdx = (mediaLibraryCurrentPage - 1) * MEDIA_LIBRARY_PAGE_SIZE;
+  const pageItems = mediaList.slice(startIdx, startIdx + MEDIA_LIBRARY_PAGE_SIZE);
+
+  gridEl.innerHTML = pageItems.map(src => {
     const filename = src.substring(src.lastIndexOf('/') + 1);
     const isSelected = selectedMediaImage === src;
     const displaySrc = /^https?:\/\//i.test(src) ? src : `https://baikalnews.com/${src}`;
@@ -2662,6 +2673,30 @@ function renderMediaLibraryGrid() {
       </div>
     `;
   }).join('');
+
+  renderMediaLibraryPagination(totalPages);
+}
+
+function renderMediaLibraryPagination(totalPages) {
+  const paginationEl = document.getElementById("modal-media-pagination");
+  if (!paginationEl) return;
+
+  if (totalPages <= 1) {
+    paginationEl.innerHTML = '';
+    return;
+  }
+
+  let buttons = '';
+  for (let p = 1; p <= totalPages; p++) {
+    buttons += `<button type="button" class="btn-admin ${p === mediaLibraryCurrentPage ? 'btn-admin-primary' : 'btn-admin-secondary'}" style="padding:6px 12px; min-width:36px;" onclick="changeMediaLibraryPage(${p})">${p}</button>`;
+  }
+
+  paginationEl.innerHTML = `<div style="display:flex; gap:6px; justify-content:center; margin-top:16px; flex-wrap:wrap;">${buttons}</div>`;
+}
+
+function changeMediaLibraryPage(page) {
+  mediaLibraryCurrentPage = page;
+  renderMediaLibraryGrid();
 }
 
 function selectMediaCard(cardEl, src) {
