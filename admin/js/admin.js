@@ -774,6 +774,7 @@ async function renderScheduledList() {
       <td style="white-space: nowrap;">${art.scheduledAt ? new Date(art.scheduledAt).toLocaleString("ko-KR") : '-'}</td>
       <td class="action-links">
         <a onclick="editArticle(${art.id})">편집</a>
+        <a onclick="previewArticle(${art.id})">미리보기</a>
       </td>
     </tr>
   `).join('');
