@@ -748,6 +748,7 @@ async function refreshStats() {
 // time passes, so this can include entries whose time has already arrived).
 async function renderScheduledList() {
   const listEl = document.getElementById("dashboard-scheduled-list");
+  const panelEl = document.getElementById("dashboard-scheduled-panel");
   if (!listEl) return;
 
   let articles = [];
@@ -759,8 +760,9 @@ async function renderScheduledList() {
     .slice()
     .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
 
+  if (panelEl) panelEl.style.display = scheduled.length > 0 ? '' : 'none';
   if (scheduled.length === 0) {
-    listEl.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--admin-text-muted); padding: 24px 0;">예약 발행 대기 중인 기사가 없습니다.</td></tr>`;
+    listEl.innerHTML = '';
     return;
   }
 
@@ -890,6 +892,7 @@ async function renderViewsChart() {
 // Render Dashboard Review list
 async function renderPendingList() {
   const listEl = document.getElementById("dashboard-pending-list");
+  const panelEl = document.getElementById("dashboard-pending-panel");
   if (!listEl) return;
 
   let articles = [];
@@ -898,8 +901,9 @@ async function renderPendingList() {
   }
   const pending = articles.filter(a => a.status === 'review');
 
+  if (panelEl) panelEl.style.display = pending.length > 0 ? '' : 'none';
   if (pending.length === 0) {
-    listEl.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--admin-text-muted); padding: 24px 0;">검토 요청 대기 상태인 기사가 없습니다.</td></tr>`;
+    listEl.innerHTML = '';
     return;
   }
 

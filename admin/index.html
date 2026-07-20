@@ -146,10 +146,33 @@
           </div>
         </div>
 
+        <!-- Scheduled publish list -- hidden entirely when there are none -->
+        <div class="panel" id="dashboard-scheduled-panel" style="margin-top: 24px; padding: 24px; display: none;">
+          <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
+            <h3 class="panel-title">발행 예약된 기사</h3>
+          </div>
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>카테고리</th>
+                  <th>기사 제목</th>
+                  <th>승인인</th>
+                  <th>예약 발행 일시</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-scheduled-list">
+                <!-- Dynamically loaded list of scheduled articles -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Dashboard Content Grid -->
         <div class="grid-main-sidebar">
-          <!-- Left: Pending approvals queue -->
-          <div class="panel" style="padding: 24px;">
+          <!-- Left: Pending approvals queue -- hidden entirely when there are none -->
+          <div class="panel" id="dashboard-pending-panel" style="padding: 24px; display: none;">
             <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
               <h3 class="panel-title">최종 승인 대기 기사</h3>
             </div>
@@ -226,29 +249,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        <!-- Scheduled publish list -->
-        <div class="panel" style="margin-top: 24px; padding: 24px;">
-          <div class="panel-header" style="margin-bottom: 16px; padding-bottom: 8px;">
-            <h3 class="panel-title">예약 발행 내역</h3>
-          </div>
-          <div class="admin-table-wrapper">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>카테고리</th>
-                  <th>기사 제목</th>
-                  <th>승인인</th>
-                  <th>예약 발행 일시</th>
-                  <th>작업</th>
-                </tr>
-              </thead>
-              <tbody id="dashboard-scheduled-list">
-                <!-- Dynamically loaded list of scheduled articles -->
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
