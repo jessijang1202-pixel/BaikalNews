@@ -398,24 +398,29 @@ function renderHomepage() {
     heroContainer.innerHTML = createArticleCardHTML(heroArt, 'hero');
   }
 
-  // Feature #2: Latest Articles Grid (secondary headlines, up to 3 items).
-  // Uses the manually curated 최신 보도 picks if set; otherwise auto-fills
-  // with the most recently dated published articles (excluding the hero).
+  // Feature #2: Latest Articles Grid (secondary headlines, 5 items on desktop --
+  // CSS hides the last 2 on mobile so it still shows 3 there). Uses the
+  // manually curated 최신 보도 picks if set, auto-filling any remaining slots
+  // with the most recently dated published articles (excluding the hero and
+  // whatever's already picked).
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
     let heroArt = published.find(a => a.id === curation.featuredHeroId) || published[0];
     const latestNewsIds = curation.latestNewsIds || [];
+    const LATEST_NEWS_COUNT = 5;
 
     let latestItems = latestNewsIds
       .map(id => published.find(a => a.id === id))
       .filter(Boolean);
 
-    if (latestItems.length === 0) {
-      latestItems = published
-        .filter(a => a.id !== heroArt.id)
+    if (latestItems.length < LATEST_NEWS_COUNT) {
+      const usedIds = new Set([heroArt.id, ...latestItems.map(a => a.id)]);
+      const autoFill = published
+        .filter(a => !usedIds.has(a.id))
         .slice()
         .sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date))
-        .slice(0, 3);
+        .slice(0, LATEST_NEWS_COUNT - latestItems.length);
+      latestItems = [...latestItems, ...autoFill];
     }
 
     if (latestItems.length > 0) {

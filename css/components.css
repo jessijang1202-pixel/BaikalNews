@@ -659,6 +659,18 @@
     font-size: 1.45rem;
   }
 
+  /* 최신 보도 shows 5 items on desktop but only 3 on mobile -- hide the
+     last 2 and restore "last item" styling (no border/padding) on the
+     3rd, since it's now the visually-last row even though #4/#5 still
+     exist right after it in the DOM. */
+  #latest-grid-container .card:nth-child(n+4) {
+    display: none;
+  }
+  #latest-grid-container .card:nth-child(3) {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
   /* Category/related article rows become compact thumbnail+text rows,
      matching the mobile reference (instead of full-width stacked cards) */
   .home-row {
