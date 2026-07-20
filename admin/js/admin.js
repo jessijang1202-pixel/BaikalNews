@@ -953,6 +953,11 @@ async function renderArticlesList() {
     shorts = await window.SupabaseAdapter.fetchShorts();
   }
 
+  const publishedCountEl = document.getElementById("articles-published-count");
+  const scheduledCountEl = document.getElementById("articles-scheduled-count");
+  if (publishedCountEl) publishedCountEl.textContent = articles.filter(a => getArticleStatusDisplay(a).label === '발행').length;
+  if (scheduledCountEl) scheduledCountEl.textContent = articles.filter(a => getArticleStatusDisplay(a).label === '예약').length;
+
   if (articles.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
