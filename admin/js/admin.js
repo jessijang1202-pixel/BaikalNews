@@ -2990,7 +2990,7 @@ async function autoGenerateImagePrompt() {
       "클로즈업 디테일 샷 (손, 도구, 질감 위주)",
       "넓은 풍경 와이드샷, 인물은 작게 배치",
       "저녁 노을빛이 스며드는 실내 또는 실외 장면",
-      "비 온 뒤 젖은 거리나 창문 너머로 바라본 구도",
+      "창문 너머로 바라본 구도, 은은한 배경 흐림",
       "흑백 필름 사진 같은 다큐멘터리 질감",
       "계절감이 뚜렷한 자연 풍경 (가을 낙엽, 겨울 눈, 초여름 신록 등)",
       "안개 낀 새벽 풍경, 낮은 채도",
@@ -3025,10 +3025,11 @@ ${randomHint}
 - 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·날씨·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
 - 인물이 등장한다면 얼굴이 뚜렷하게 보이지 않는 뒷모습, 실루엣, 손이나 작업 동작 위주의 구도로 묘사하십시오.
 - "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적이며 채도가 높은 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도, 그레인을 지향하십시오.
+- 비, 빗방울, 젖은 표면, 물방울 맺힌 유리창 등 비/물기 관련 묘사는 기사 내용과 직접 관련이 없다면 넣지 마십시오. 최근 이미지들에 이런 요소가 과도하게 반복되고 있으니 특별한 이유가 없는 한 피하십시오. (은은한 아웃포커스/블러 정도는 괜찮습니다.)
 - 텍스트가 등장하는 요소는 최대한 배제하십시오. AI가 생성하는 한글 텍스트는 대부분 알아볼 수 없는 깨진 글자로 나오기 때문입니다. 특히 문서, 종이, 서류, 손글씨, 화면, 클로즈업된 글자는 절대로 장면에 등장시키지 마십시오. 거리의 간판이나 상점 간판 정도는 장면에 자연스럽게 어울린다면 포함해도 괜찮지만, 작게·흐릿하게·초점 밖에 배치하여 읽기 어렵게 묘사하십시오. 혹시라도 텍스트가 뚜렷하게 등장해야 하는 상황이라면 반드시 한글로만 묘사하고 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 한글로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 사실적이고 간결한 사진 묘사 프롬프트를 작성하는 다큐멘터리 사진 편집자입니다. 일러스트나 디지털 아트 스타일은 절대 사용하지 마십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 사실적이고 간결한 사진 묘사 프롬프트를 작성하는 다큐멘터리 사진 편집자입니다. 일러스트나 디지털 아트 스타일은 절대 사용하지 마십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 비/빗방울/젖은 표면 등 물기 관련 묘사는 기사 내용과 무관하면 넣지 마십시오 (은은한 블러는 괜찮습니다). 프롬프트 본문은 반드시 한글로만 작성하십시오.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -3072,6 +3073,7 @@ async function resolveGeminiImageModel(apiKey) {
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
 const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
+const IMAGE_NO_RAIN_RULE = "\n\nAVOID: rain, raindrops, wet surfaces, water droplets on glass, or other rain/moisture imagery, unless the article content specifically calls for it. These have been overused in recent generations. A subtle out-of-focus/blur background is fine.";
 
 async function generateGeminiImage(promptText) {
   const apiKey = localStorage.getItem("baikal_gemini_key");
@@ -3085,7 +3087,7 @@ async function generateGeminiImage(promptText) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_TEXT_LANGUAGE_RULE }] }] })
+    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE }] }] })
   });
 
   if (!response.ok) {
