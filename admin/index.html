@@ -1002,6 +1002,13 @@
                   <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">색상
                     <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
                   </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">위치
+                    <select id="shorts-caption-position" class="form-control-admin" onchange="updateShortsStyleSettings()">
+                      <option value="top">위</option>
+                      <option value="center">가운데</option>
+                      <option value="bottom" selected>아래</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>

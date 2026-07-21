@@ -4319,6 +4319,7 @@ function populateShortsStyleSettingsUI() {
   const title2Input = document.getElementById("shorts-topbar-title-2");
   const sizeInput = document.getElementById("shorts-caption-size");
   const captionColorInput = document.getElementById("shorts-caption-color");
+  const positionInput = document.getElementById("shorts-caption-position");
   if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
   if (heightInput) heightInput.value = currentShortsProject.topBarHeight || 84;
   if (titleColorInput) titleColorInput.value = currentShortsProject.topBarTitleColor || '#ffffff';
@@ -4327,6 +4328,7 @@ function populateShortsStyleSettingsUI() {
   if (title2Input) title2Input.value = currentShortsProject.topBarTitleLine2 || '';
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 56;
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
+  if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
 }
 
 function updateShortsStyleSettings() {
@@ -4339,6 +4341,7 @@ function updateShortsStyleSettings() {
   const title2Input = document.getElementById("shorts-topbar-title-2");
   const sizeInput = document.getElementById("shorts-caption-size");
   const captionColorInput = document.getElementById("shorts-caption-color");
+  const positionInput = document.getElementById("shorts-caption-position");
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
   currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 84) : 84;
   currentShortsProject.topBarTitleColor = titleColorInput ? titleColorInput.value : '#ffffff';
@@ -4347,6 +4350,7 @@ function updateShortsStyleSettings() {
   currentShortsProject.topBarTitleLine2 = title2Input ? title2Input.value : '';
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 56) : 56;
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
+  currentShortsProject.captionPosition = positionInput ? positionInput.value : 'bottom';
 }
 
 // Media previews link to their own object URL with `download` so the admin
@@ -4416,14 +4420,16 @@ async function buildShortsAssets(project) {
   return { front, images };
 }
 
-function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color) {
+function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
   if (!text) return;
   const size = fontSize || 56;
   ctx.save();
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const y = canvasH - 260;
+  const y = position === 'top' ? canvasH * 0.22
+    : position === 'center' ? canvasH / 2
+    : canvasH - 260; // 'bottom' (default) -- original position
   const metrics = ctx.measureText(text);
   const paddingX = 32, paddingY = 20;
   const boxH = size + 20;
@@ -4524,7 +4530,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         } else {
           drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
         }
-        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor);
+        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
       } else {
         let t = elapsed - frontDuration;
         let idx = 0;
@@ -4535,7 +4541,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         const cut = assets.images[idx];
         if (cut) {
           drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cut.duration, 1), W, H);
-          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor);
+          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
         }
       }
       drawShortsTopBar(ctx, project, W);
