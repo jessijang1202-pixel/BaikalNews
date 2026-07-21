@@ -1552,7 +1552,23 @@ async function saveArticle() {
     // Create Mode
     const newId = articles.length > 0 ? Math.max(...articles.map(a => a.id)) + 1 : 1;
     actionName = "신규 기사 초안 작성";
-    
+
+    // 수정 이력 should only show actual publish/approval events, never the
+    // draft registration itself -- so plain drafts start with no entry at all,
+    // and creating directly as published/scheduled logs only that 발행 event.
+    const createRevisionHistory = [];
+    if (status === 'published') {
+      createRevisionHistory.push({
+        date: new Date().toLocaleString("ko-KR"),
+        action: `보도 최종 승인 및 공개 발행 (승인인: ${approver})`
+      });
+    } else if (status === 'scheduled') {
+      createRevisionHistory.push({
+        date: new Date().toLocaleString("ko-KR"),
+        action: `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`
+      });
+    }
+
     art = {
       id: newId,
       title,
@@ -1575,10 +1591,7 @@ async function saveArticle() {
       draftedBy: "홍길동",
       approvedAt: (status === 'approved' || status === 'published' || status === 'scheduled') ? new Date().toISOString() : null,
       scheduledAt: status === 'scheduled' ? scheduledAt : null,
-      revisionHistory: [{
-        date: new Date().toLocaleString("ko-KR"),
-        action: `신규 초안 등록 (상태: ${status})`
-      }],
+      revisionHistory: createRevisionHistory,
       seoTitle,
       seoMeta,
       slug,
