@@ -542,7 +542,6 @@ function renderCategoryPage() {
   if (navEl) navEl.classList.add("active");
 
   const curation = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
-  const popularIds = curation.popularReadsIds || [];
 
   // Sort: 최신순 (newest date first) / 인기순 (highest view count first)
   const sort = getQueryParam("sort") === "popular" ? "popular" : "latest";
@@ -597,14 +596,12 @@ function renderCategoryPage() {
     }
   }
 
-  // Sidebar ranking widget (실시간 인기기사 - reuses the same curation as the homepage)
+  // Sidebar ranking widget (실시간 인기기사 - views descending, admin reorder on top,
+  // same getOrderedPopularArticles logic as the homepage/article page instances)
   const rankingContainer = document.getElementById("category-ranking-container");
   if (rankingContainer) {
     const published = window.ARTICLES.filter(a => isArticleLive(a));
-    let rankingItems = published.filter(a => popularIds.includes(a.id)).slice(0, 5);
-    if (rankingItems.length === 0) {
-      rankingItems = published.slice(Math.max(0, published.length - 5));
-    }
+    const rankingItems = getOrderedPopularArticles(published, curation, null, 5);
     rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
   }
 }
