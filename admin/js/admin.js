@@ -952,6 +952,9 @@ function getArticleStatusDisplay(art) {
   if (art.status === 'archived') {
     return { label: '미발행', cls: 'badge-archived' };
   }
+  if (art.status === 'correction') {
+    return { label: '정정', cls: 'badge-correction' };
+  }
   const isLive = art.status === 'published' ||
     (art.status === 'scheduled' && art.scheduledAt && new Date(art.scheduledAt) <= new Date());
   if (isLive) {
@@ -984,7 +987,7 @@ async function renderArticlesList() {
     return;
   }
 
-  const shortsEligibleStatuses = ['published', 'approved', 'scheduled'];
+  const shortsEligibleStatuses = ['published', 'approved', 'scheduled', 'correction'];
 
   // Same-day articles (date is day-only, no time) tie-break on whichever
   // precise timestamp the article actually has -- approvedAt for anything
@@ -1269,7 +1272,7 @@ function onStatusChangeInForm(status) {
     document.getElementById("wf-step-approved").classList.add("active");
     document.getElementById("wf-conn-review").classList.add("active");
     document.getElementById("wf-conn-approved").classList.add("active");
-  } else if (status === 'published') {
+  } else if (status === 'published' || status === 'correction') {
     document.getElementById("wf-step-draft").classList.add("active");
     document.getElementById("wf-step-review").classList.add("active");
     document.getElementById("wf-step-approved").classList.add("active");
@@ -1279,9 +1282,9 @@ function onStatusChangeInForm(status) {
     document.getElementById("wf-conn-published").classList.add("active");
   }
 
-  // Show approver selector if status is approved, scheduled, or published
+  // Show approver selector if status is approved, scheduled, published, or correction
   const approverGroup = document.getElementById("approver-select-group");
-  if (status === 'approved' || status === 'published' || status === 'scheduled') {
+  if (status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') {
     approverGroup.style.display = "block";
     document.getElementById("form-approver").setAttribute("required", "required");
   } else {
@@ -1465,8 +1468,8 @@ async function saveArticle() {
   };
 
   // Critical Validation: Approval requires an Approver name
-  if ((status === 'approved' || status === 'published' || status === 'scheduled') && !approver) {
-    alert("승인 완료·예약 발행·공개 발행 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
+  if ((status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') && !approver) {
+    alert("승인 완료·예약 발행·공개 발행·기사 정정 상태로 전환하기 위해서는 검토에 책임을 질 최종 데스크 승인인(최상락 또는 장승희)을 반드시 지정해야 합니다.");
     return;
   }
 
@@ -1500,9 +1503,10 @@ async function saveArticle() {
     art = articles.find(a => a.id === id);
     if (!art) return;
 
-    // Log the change
+    // Log the change -- only actual status transitions get a 수정 이력 entry;
+    // a plain content edit with no status change logs nothing.
     actionName = `기사 편집 및 상태 변경 (${status.toUpperCase()})`;
-    let revisionMsg = `기사 내용 수정 및 보완 (상태: ${status})`;
+    let revisionMsg = null;
 
     if (art.status !== status) {
       revisionMsg = `상태 변경: ${art.status} -> ${status}`;
@@ -1510,6 +1514,8 @@ async function saveArticle() {
         revisionMsg = `보도 최종 승인 및 공개 발행 (승인인: ${approver})`;
       } else if (status === 'scheduled') {
         revisionMsg = `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`;
+      } else if (status === 'correction') {
+        revisionMsg = `기사 내용 정정 (승인인: ${approver})`;
       }
     }
 
@@ -1529,7 +1535,7 @@ async function saveArticle() {
     // Workflow updates
     if (status !== art.status) {
       art.status = status;
-      if (status === 'approved' || status === 'published' || status === 'scheduled') {
+      if (status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') {
         art.approver = approver;
         art.byline = `${approver} 기자`;
         art.approvedAt = new Date().toISOString();
@@ -1541,12 +1547,14 @@ async function saveArticle() {
     }
     art.scheduledAt = status === 'scheduled' ? scheduledAt : null;
 
-    // Add to revision log
-    if (!art.revisionHistory) art.revisionHistory = [];
-    art.revisionHistory.push({
-      date: new Date().toLocaleString("ko-KR"),
-      action: revisionMsg
-    });
+    // Add to revision log -- only when there was an actual status transition
+    if (revisionMsg) {
+      if (!art.revisionHistory) art.revisionHistory = [];
+      art.revisionHistory.push({
+        date: new Date().toLocaleString("ko-KR"),
+        action: revisionMsg
+      });
+    }
 
   } else {
     // Create Mode
@@ -1567,6 +1575,11 @@ async function saveArticle() {
         date: new Date().toLocaleString("ko-KR"),
         action: `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`
       });
+    } else if (status === 'correction') {
+      createRevisionHistory.push({
+        date: new Date().toLocaleString("ko-KR"),
+        action: `기사 내용 정정 (승인인: ${approver})`
+      });
     }
 
     art = {
@@ -1586,10 +1599,10 @@ async function saveArticle() {
         email: "gd.hong@baikalnews.com",
         bio: "바른 시각으로 우리 사회와 환경을 보도하는 저널리스트."
       },
-      approver: (status === 'approved' || status === 'published' || status === 'scheduled') ? approver : null,
-      byline: (status === 'approved' || status === 'published' || status === 'scheduled') ? `${approver} 기자` : "",
+      approver: (status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') ? approver : null,
+      byline: (status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') ? `${approver} 기자` : "",
       draftedBy: "홍길동",
-      approvedAt: (status === 'approved' || status === 'published' || status === 'scheduled') ? new Date().toISOString() : null,
+      approvedAt: (status === 'approved' || status === 'published' || status === 'scheduled' || status === 'correction') ? new Date().toISOString() : null,
       scheduledAt: status === 'scheduled' ? scheduledAt : null,
       revisionHistory: createRevisionHistory,
       seoTitle,

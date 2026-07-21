@@ -137,6 +137,17 @@
   color: var(--text-primary);
 }
 
+.correction-notice {
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background-color: rgba(234, 88, 12, 0.08);
+  border-left: 4px solid #ea580c;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
 .article-body blockquote footer,
 .article-body blockquote cite {
   display: block;

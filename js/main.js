@@ -50,7 +50,7 @@ function getOrderedPopularArticles(published, curation, excludeId, count) {
 // there's no server/cron to flip its status, so this check happens at render time.
 function isArticleLive(article) {
   if (!article) return false;
-  if (article.status === 'published') return true;
+  if (article.status === 'published' || article.status === 'correction') return true;
   if (article.status === 'scheduled' && article.scheduledAt) {
     return new Date(article.scheduledAt) <= new Date();
   }
@@ -748,7 +748,10 @@ function renderArticlePage() {
     leadEl.textContent = article.lead;
     leadEl.className = `article-lead lead-${article.category}`;
   }
-  if (bodyEl) bodyEl.innerHTML = article.content;
+  const correctionNotice = article.status === 'correction'
+    ? `<div class="correction-notice">기사 내용 정정: 이 기사는 게재 이후 일부 내용이 정정되었습니다.</div>`
+    : '';
+  if (bodyEl) bodyEl.innerHTML = correctionNotice + article.content;
 
   // Inject Reporter Bio Box
   const reporterAvatarEl = document.getElementById("reporter-avatar-char");
