@@ -4351,8 +4351,8 @@ function populateShortsStyleSettingsUI() {
   if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
   if (heightInput) heightInput.value = currentShortsProject.topBarHeight || 360;
   if (titleSizeInput) titleSizeInput.value = currentShortsProject.topBarTitleFontSize || 110;
-  if (titleColorInput) titleColorInput.value = currentShortsProject.topBarTitleColor || '#ffffff';
-  if (titleColor2Input) titleColor2Input.value = currentShortsProject.topBarTitleColorLine2 || '#ffffff';
+  if (titleColorInput) titleColorInput.value = currentShortsProject.topBarTitleColor || '#ffff00';
+  if (titleColor2Input) titleColor2Input.value = currentShortsProject.topBarTitleColorLine2 || '#ff0000';
   if (titleInput) titleInput.value = currentShortsProject.topBarTitle || '';
   if (title2Input) title2Input.value = currentShortsProject.topBarTitleLine2 || '';
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 56;
@@ -4375,8 +4375,8 @@ function updateShortsStyleSettings() {
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
   currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 360) : 360;
   currentShortsProject.topBarTitleFontSize = titleSizeInput ? (parseInt(titleSizeInput.value, 10) || 110) : 110;
-  currentShortsProject.topBarTitleColor = titleColorInput ? titleColorInput.value : '#ffffff';
-  currentShortsProject.topBarTitleColorLine2 = titleColor2Input ? titleColor2Input.value : '#ffffff';
+  currentShortsProject.topBarTitleColor = titleColorInput ? titleColorInput.value : '#ffff00';
+  currentShortsProject.topBarTitleColorLine2 = titleColor2Input ? titleColor2Input.value : '#ff0000';
   currentShortsProject.topBarTitle = titleInput ? titleInput.value : '';
   currentShortsProject.topBarTitleLine2 = title2Input ? title2Input.value : '';
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 56) : 56;
@@ -4478,8 +4478,8 @@ function drawShortsTopBar(ctx, project, canvasW) {
   const barH = project.topBarHeight || 360;
   const fontSize = project.topBarTitleFontSize || 110;
   const lines = [
-    { text: project.topBarTitle, color: project.topBarTitleColor || "#ffffff" },
-    { text: project.topBarTitleLine2, color: project.topBarTitleColorLine2 || "#ffffff" }
+    { text: project.topBarTitle, color: project.topBarTitleColor || "#ffff00" },
+    { text: project.topBarTitleLine2, color: project.topBarTitleColorLine2 || "#ff0000" }
   ].filter(l => l.text);
   ctx.save();
   ctx.fillStyle = project.topBarColor || "#0b1a30";
