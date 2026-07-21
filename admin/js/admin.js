@@ -3215,6 +3215,11 @@ async function resolveGeminiImageModel(apiKey) {
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
 const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
 const IMAGE_NO_RAIN_RULE = "\n\nAVOID: rain, raindrops, wet surfaces, water droplets on glass, or other rain/moisture imagery, unless the article content specifically calls for it. These have been overused in recent generations. A subtle out-of-focus/blur background is fine.";
+// Only appended for the article representative image (triggerAiImageGeneration) --
+// that slot is always displayed in a 16:9 box (object-fit:cover), and Gemini's
+// image model otherwise defaults to a square 1:1 output, which forces a harsh
+// crop that cuts off headroom/context instead of a properly composed shot.
+const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape composition (not square, not portrait). Compose the shot with this widescreen framing in mind, leaving natural headroom/context at top and bottom rather than a tightly cropped square subject.";
 
 async function generateGeminiImage(promptText) {
   const apiKey = localStorage.getItem("baikal_gemini_key");
@@ -3262,7 +3267,7 @@ async function triggerAiImageGeneration() {
   loader.style.display = "flex";
 
   try {
-    const dataUrl = await generateGeminiImage(promptText);
+    const dataUrl = await generateGeminiImage(promptText + IMAGE_ASPECT_RATIO_RULE);
     const blob = await (await fetch(dataUrl)).blob();
     const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
     const publicUrl = await uploadImageToStorage(blob, ext);
