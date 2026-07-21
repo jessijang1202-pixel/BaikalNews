@@ -349,8 +349,7 @@
 
 .about-hero-image img {
   width: 100%;
-  aspect-ratio: 16 / 7;
-  object-fit: cover;
+  height: auto;
   display: block;
 }
 
