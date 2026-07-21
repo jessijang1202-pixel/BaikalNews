@@ -4142,7 +4142,7 @@ async function generateShortsScript() {
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -4171,7 +4171,7 @@ ${backInstruction}
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "한글 이미지 프롬프트", "caption": "한국어 자막", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
@@ -4183,7 +4183,7 @@ ${backInstruction}
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
-      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.caption || '',
+      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.narration || c.caption || '',
       duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
@@ -4239,28 +4239,31 @@ function renderShortsScriptReview() {
 // a hidden field (still needed for image generation, just not shown).
 function renderImageCutsEditor(cuts) {
   const container = document.getElementById("shorts-image-cuts-editor");
+  const boxStyle = "margin-bottom:8px; min-height:44px; max-height:44px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;";
   const rows = cuts.map((cut, i) => `
     <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:12px; margin-bottom:10px;">
-      <div style="font-size:0.8rem; font-weight:600; color:var(--admin-text-secondary); margin-bottom:6px;">컷 ${i + 1}</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <div style="font-size:0.8rem; font-weight:600; color:var(--admin-text-secondary);">컷 ${i + 1}</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-admin btn-admin-secondary" onclick="editCutNarration(${i})">편집</button>
+          <button type="button" class="btn-admin btn-admin-secondary" onclick="removeShortsCut(${i})">삭제</button>
+        </div>
+      </div>
       <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
 
-      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">대본 (나레이션으로 읽힙니다)</label>
-      <textarea class="form-control-admin shorts-cut-narration-text" style="margin-bottom:8px; min-height:50px;" placeholder="이 컷에서 읽어줄 문장">${(cut.narrationText || cut.caption || '').replace(/</g, '&lt;')}</textarea>
+      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
+      <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
 
-      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">자막 (화면에 표시)</label>
-      <input type="text" class="form-control-admin shorts-cut-caption" style="margin-bottom:8px;" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
+      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
+      <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
 
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
         <label style="font-size:0.75rem; color:var(--admin-text-secondary); white-space:nowrap;">길이(초)
           <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}">
         </label>
         ${cut.narrationUrl
           ? `<audio controls src="${cut.narrationUrl}" style="height:32px; max-width:220px;"></audio>`
           : `<span class="help-text">나레이션 없음</span>`}
-      </div>
-      <div style="display:flex; gap:8px; margin-top:8px;">
-        <button type="button" class="btn-admin btn-admin-secondary" onclick="editCutNarration(${i})">편집</button>
-        <button type="button" class="btn-admin btn-admin-secondary" onclick="removeShortsCut(${i})">삭제</button>
       </div>
     </div>
   `).join('');
