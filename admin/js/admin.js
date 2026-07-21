@@ -3553,6 +3553,10 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-final-preview").style.display = "none";
   const downloadEl = document.getElementById("shorts-final-download");
   if (downloadEl) downloadEl.style.display = "none";
+  const narrationPreviewEl = document.getElementById("shorts-narration-preview");
+  if (narrationPreviewEl) { narrationPreviewEl.style.display = "none"; narrationPreviewEl.src = ""; }
+  const narrationStatusEl = document.getElementById("shorts-narration-status");
+  if (narrationStatusEl) narrationStatusEl.textContent = "전체 영상(전반+후반) 내내 재생되는 배경 음성입니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -4287,6 +4291,151 @@ async function generateVeoVideo(promptText, onStatus) {
   return await videoRes.blob();
 }
 
+// Resolves a Gemini TTS-capable model -- same auto-discovery/caching pattern
+// as resolveVeoModel/resolveGeminiImageModel.
+async function resolveGeminiTtsModel(apiKey) {
+  const cacheKey = "baikal_gemini_tts_model";
+  const cacheTimeKey = "baikal_gemini_tts_model_cached_at";
+  const cached = localStorage.getItem(cacheKey);
+  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cachedAt) < oneDayMs) {
+    return cached;
+  }
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
+  const data = await res.json();
+  const models = (data.models || []).filter(m => /tts/i.test(m.name));
+  if (models.length === 0) {
+    throw new Error("이 API 키로 사용 가능한 음성(TTS) 생성 모델을 찾지 못했습니다. Google AI Studio에서 TTS 모델 접근 권한을 확인해 주세요.");
+  }
+
+  const chosen = models.find(m => /flash/i.test(m.name)) || models[0];
+  const modelName = chosen.name.replace(/^models\//, '');
+  localStorage.setItem(cacheKey, modelName);
+  localStorage.setItem(cacheTimeKey, String(Date.now()));
+  return modelName;
+}
+
+// Wraps Gemini TTS's raw headerless PCM16 response in a minimal WAV header
+// so it can be played/decoded by <audio> and Web Audio's decodeAudioData.
+function pcm16ToWavBlob(base64Pcm, sampleRate) {
+  const binary = atob(base64Pcm);
+  const pcmBytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) pcmBytes[i] = binary.charCodeAt(i);
+
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = pcmBytes.length;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  function writeString(offset, str) {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+  new Uint8Array(buffer, 44).set(pcmBytes);
+
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+// Calls Gemini's native TTS (same API key already used for images/Veo) and
+// returns a playable WAV Blob.
+async function generateGeminiSpeech(text) {
+  const apiKey = localStorage.getItem("baikal_gemini_key");
+  if (!apiKey) {
+    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
+  }
+
+  const model = await resolveGeminiTtsModel(apiKey);
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+      }
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    if (res.status === 404) {
+      localStorage.removeItem("baikal_gemini_tts_model");
+      localStorage.removeItem("baikal_gemini_tts_model_cached_at");
+    }
+    throw new Error(`나레이션 생성 실패 (HTTP ${res.status}, 모델: ${model}): ${errText}`);
+  }
+
+  const data = await res.json();
+  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  const audioPart = parts.find(p => p.inlineData && p.inlineData.data);
+  if (!audioPart) {
+    throw new Error("AI가 음성 데이터를 반환하지 않았습니다.");
+  }
+
+  const mimeType = audioPart.inlineData.mimeType || "audio/L16;rate=24000";
+  const rateMatch = mimeType.match(/rate=(\d+)/);
+  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+  return pcm16ToWavBlob(audioPart.inlineData.data, sampleRate);
+}
+
+// Generates a single narration track (Gemini TTS) covering the hook text
+// plus every image-cut caption, read in order -- this plays for the whole
+// 30s timeline, not just the Veo segment, unlike the Veo clip's own audio.
+// Kept local-only (object URL), matching the shorts storage-minimization design.
+async function generateShortsNarration() {
+  const statusEl = document.getElementById("shorts-narration-status");
+  const btn = document.getElementById("shorts-narration-btn");
+  if (btn) btn.disabled = true;
+
+  try {
+    const narrationText = [currentShortsProject.hookText, ...(currentShortsProject.imageCuts || []).map(c => c.caption)]
+      .filter(Boolean)
+      .join('. ');
+    if (!narrationText) {
+      throw new Error("나레이션으로 읽을 후킹 문구/자막이 없습니다. 먼저 대본을 생성해 주세요.");
+    }
+
+    statusEl.textContent = "나레이션 음성 생성 중...";
+    const wavBlob = await generateGeminiSpeech(narrationText);
+    currentShortsProject.narrationUrl = keepShortsBlobLocal(wavBlob);
+    shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
+
+    const previewEl = document.getElementById("shorts-narration-preview");
+    if (previewEl) {
+      previewEl.src = currentShortsProject.narrationUrl;
+      previewEl.style.display = "block";
+    }
+    statusEl.textContent = "나레이션 생성 완료. 미리보기로 확인 후 녹화하세요.";
+  } catch (err) {
+    console.error("나레이션 생성 실패:", err);
+    statusEl.textContent = "나레이션 생성 실패: " + err.message;
+    alert("나레이션 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function generateShortsMedia() {
   const statusEl = document.getElementById("shorts-media-status");
   const btn = document.getElementById("shorts-generate-media-btn");
@@ -4403,6 +4552,21 @@ function renderShortsMediaPreview() {
 // when the admin uploaded a photo for that slot instead.
 async function buildShortsAssets(project) {
   let front;
+  // A single shared AudioContext + MediaStreamDestination mixes the Veo
+  // clip's own native audio (front-segment only) with the generated
+  // narration (full timeline) into one audio track for the recording --
+  // canvas.captureStream() alone only ever carries video.
+  let audioCtx = null;
+  let mixDestination = null;
+  function ensureAudioMix() {
+    if (!mixDestination) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioCtx();
+      mixDestination = audioCtx.createMediaStreamDestination();
+    }
+    return { audioCtx, destination: mixDestination };
+  }
+
   if (project.frontIsImage) {
     const img = await new Promise((resolve, reject) => {
       const el = new Image();
@@ -4424,17 +4588,12 @@ async function buildShortsAssets(project) {
     });
     front = { type: 'video', el: videoEl, duration: Math.min(videoEl.duration || 8, 8) };
 
-    // Tap the Veo clip's own native audio (if any) so recorded shorts keep
-    // it — canvas.captureStream() alone only ever carries a video track.
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioCtx();
-      await audioCtx.resume().catch(() => {});
-      const source = audioCtx.createMediaElementSource(videoEl);
-      const destination = audioCtx.createMediaStreamDestination();
-      source.connect(destination);
-      source.connect(audioCtx.destination);
-      front.audioDestination = destination;
+      const mix = ensureAudioMix();
+      await mix.audioCtx.resume().catch(() => {});
+      const source = mix.audioCtx.createMediaElementSource(videoEl);
+      source.connect(mix.destination);
+      source.connect(mix.audioCtx.destination);
     } catch (err) {
       console.warn("영상 오디오 트랙을 연결하지 못했습니다:", err);
     }
@@ -4448,7 +4607,22 @@ async function buildShortsAssets(project) {
     img.src = cut.imageUrl;
   })));
 
-  return { front, images };
+  // Narration (Gemini TTS) covers the whole timeline, unlike the Veo clip's
+  // own audio which only exists for the front 8s segment.
+  let narrationBuffer = null;
+  if (project.narrationUrl) {
+    try {
+      const mix = ensureAudioMix();
+      await mix.audioCtx.resume().catch(() => {});
+      const resp = await fetch(project.narrationUrl);
+      const arrayBuf = await resp.arrayBuffer();
+      narrationBuffer = await mix.audioCtx.decodeAudioData(arrayBuf);
+    } catch (err) {
+      console.warn("나레이션 오디오 디코딩 실패:", err);
+    }
+  }
+
+  return { front, images, audioCtx, mixDestination, narrationBuffer };
 }
 
 function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
@@ -4533,8 +4707,8 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   let chunks = [];
   if (record) {
     const stream = canvas.captureStream(30);
-    if (assets.front.audioDestination) {
-      assets.front.audioDestination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+    if (assets.mixDestination) {
+      assets.mixDestination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
     }
     const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
     const mimeType = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || 'video/webm';
@@ -4544,11 +4718,20 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   }
 
   await new Promise((resolve) => {
+    let narrationSource = null;
+    if (assets.narrationBuffer && assets.audioCtx && assets.mixDestination) {
+      narrationSource = assets.audioCtx.createBufferSource();
+      narrationSource.buffer = assets.narrationBuffer;
+      narrationSource.connect(assets.mixDestination);
+      narrationSource.connect(assets.audioCtx.destination);
+    }
+
     if (assets.front.type === 'video') {
       assets.front.el.currentTime = 0;
       const playPromise = assets.front.el.play();
       if (playPromise && playPromise.catch) playPromise.catch(() => {});
     }
+    if (narrationSource) narrationSource.start(0);
 
     const startTime = performance.now();
 
@@ -4581,6 +4764,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
 
       if (elapsed >= totalDuration) {
         if (assets.front.type === 'video') assets.front.el.pause();
+        if (narrationSource) { try { narrationSource.stop(); } catch (err) {} }
         resolve();
         return;
       }
