@@ -474,11 +474,43 @@ body {
   margin-bottom: 3px;
 }
 
-/* Media thumbnail grid (step 3) */
+/* Media thumbnail grid (step 3) -- every cell is a uniform 9:16 box so a
+   wider front-video thumbnail can never bleed into the next column. */
 .shorts-media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 10px;
+}
+.shorts-media-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+}
+.shorts-media-thumb video,
+.shorts-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Narration recap card (step 4) */
+.shorts-narration-recap-item + .shorts-narration-recap-item {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sf-divider, rgba(0,0,0,0.1));
+}
+.shorts-narration-recap-text {
+  font-size: 0.85rem;
+  margin: 4px 0 6px;
+  color: var(--sf-text, inherit);
+}
+.shorts-narration-recap-item audio {
+  width: 100%;
+  height: 32px;
 }
 
 /* Bottom action bar */

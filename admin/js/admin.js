@@ -4724,6 +4724,7 @@ async function regenerateCutNarration(i) {
   try {
     await generateCutNarration(cut, cut.narrationText || cut.caption, voiceName, ensureShortsLocalDraftId());
     renderImageCutsEditor(currentShortsProject.imageCuts);
+    renderShortsNarrationRecap();
     saveShortsDraftLocally();
     shortsAssets = null;
   } catch (err) {
@@ -4748,6 +4749,7 @@ async function regenerateHookNarration() {
       hookAudioEl.src = currentShortsProject.hookNarrationUrl;
       hookAudioEl.style.display = "block";
     }
+    renderShortsNarrationRecap();
   } catch (err) {
     console.error("후킹 나레이션 재생성 실패:", err);
     alert("나레이션 재생성 실패: " + err.message);
@@ -4826,6 +4828,54 @@ function populateShortsStyleSettingsUI() {
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 72;
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
   if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
+  renderShortsNarrationRecap();
+}
+
+// Read-only recap of the narration already generated back in step 2 (hook +
+// each cut's 대본), so the admin can review/replay it here in step 4 without
+// flipping back -- editing still happens in step 2, this is just playback.
+function renderShortsNarrationRecap() {
+  const container = document.getElementById("shorts-narration-recap");
+  if (!container || !currentShortsProject) return;
+  const esc = (s) => (s || '').replace(/</g, '&lt;');
+
+  const items = [];
+  items.push(`
+    <div class="shorts-narration-recap-item">
+      <div class="shorts-card-kicker">후킹 문구 · 0:00~0:03</div>
+      <p class="shorts-narration-recap-text">${esc(currentShortsProject.hookText) || '<span class="help-text">후킹 문구 없음</span>'}</p>
+      ${currentShortsProject.hookNarrationUrl
+        ? `<audio controls src="${currentShortsProject.hookNarrationUrl}"></audio>`
+        : `<span class="help-text">나레이션 없음</span>`}
+    </div>
+  `);
+  (currentShortsProject.imageCuts || []).forEach((cut, i) => {
+    items.push(`
+      <div class="shorts-narration-recap-item">
+        <div class="shorts-card-kicker">컷 ${i + 1}</div>
+        <p class="shorts-narration-recap-text">${esc(cut.narrationText) || '<span class="help-text">대본 없음</span>'}</p>
+        ${cut.narrationUrl
+          ? `<audio controls src="${cut.narrationUrl}"></audio>`
+          : `<span class="help-text">나레이션 없음</span>`}
+      </div>
+    `);
+  });
+  container.innerHTML = items.join('');
+}
+
+// "전체 나레이션 다시 생성" in step 4 -- reuses the same generator step 2's
+// approval calls, then refreshes both this recap and step 2's cut cards.
+async function generateShortsNarrationFromAssembly() {
+  if (!currentShortsProject) return;
+  const statusEl = document.getElementById("shorts-narration-status");
+  if (statusEl) statusEl.textContent = "나레이션 생성 중...";
+  try {
+    await generateShortsNarration();
+    renderShortsNarrationRecap();
+  } catch (err) {
+    console.error("나레이션 재생성 실패:", err);
+    alert("나레이션 재생성 실패: " + err.message);
+  }
 }
 
 function updateShortsStyleSettings() {
@@ -4859,10 +4909,10 @@ function renderShortsMediaPreview() {
   const container = document.getElementById("shorts-media-preview");
   const items = [];
   if (currentShortsProject.veoVideoUrl) {
-    items.push(`<a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4"><video src="${currentShortsProject.veoVideoUrl}" controls muted style="width:120px; border-radius:6px;"></video></a>`);
+    items.push(`<a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4" class="shorts-media-thumb"><video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline></video></a>`);
   }
   (currentShortsProject.imageCuts || []).forEach((cut, i) => {
-    if (cut.imageUrl) items.push(`<a href="${cut.imageUrl}" download="shorts-cut-${i + 1}.jpg"><img src="${cut.imageUrl}" style="width:80px; height:142px; object-fit:cover; border-radius:6px;"></a>`);
+    if (cut.imageUrl) items.push(`<a href="${cut.imageUrl}" download="shorts-cut-${i + 1}.jpg" class="shorts-media-thumb"><img src="${cut.imageUrl}"></a>`);
   });
   container.innerHTML = items.join('') || `<span class="help-text">아직 생성된 미디어가 없습니다.</span>`;
 }
