@@ -976,20 +976,20 @@
                 <div style="font-size:0.82rem; font-weight:600; color: var(--admin-accent-cyan); margin-bottom:12px;">상단 배너</div>
 
                 <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">배경색
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경색
                     <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">배경 높이
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경 높이
                     <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:90px;" min="40" max="400" step="4" value="360" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">제목 크기
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목 크기
                     <input type="number" id="shorts-topbar-title-size" class="form-control-admin" style="width:90px;" min="16" max="150" step="2" value="110" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">제목(1줄)
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(1줄)
                     <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:150px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
                     <input type="color" id="shorts-topbar-title-color" value="#ffff00" title="1줄 색상" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">제목(2줄)
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(2줄)
                     <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:150px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
                     <input type="color" id="shorts-topbar-title-color-2" value="#ff0000" title="2줄 색상" onchange="updateShortsStyleSettings()">
                   </label>
@@ -999,14 +999,14 @@
               <div style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; margin-top: 12px;">
                 <div style="font-size:0.82rem; font-weight:600; color: var(--admin-accent-cyan); margin-bottom:12px;">자막</div>
                 <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">크기
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
                     <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="56" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">색상
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
                     <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
                   </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">위치
-                    <select id="shorts-caption-position" class="form-control-admin" onchange="updateShortsStyleSettings()">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
+                    <select id="shorts-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
                       <option value="top">위</option>
                       <option value="center">가운데</option>
                       <option value="bottom" selected>아래</option>
