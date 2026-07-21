@@ -4403,17 +4403,33 @@ async function generateGeminiSpeech(text) {
 // plus every image-cut caption, read in order -- this plays for the whole
 // 30s timeline, not just the Veo segment, unlike the Veo clip's own audio.
 // Kept local-only (object URL), matching the shorts storage-minimization design.
+// Strips markdown syntax (headers, table pipes/separators, bold/italic,
+// links) from scriptMd so TTS reads plain prose instead of literal symbols.
+function stripMarkdownForNarration(md) {
+  return (md || '')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\|/g, ' ')
+    .replace(/^\s*-{2,}\s*$/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 async function generateShortsNarration() {
   const statusEl = document.getElementById("shorts-narration-status");
   const btn = document.getElementById("shorts-narration-btn");
   if (btn) btn.disabled = true;
 
   try {
-    const narrationText = [currentShortsProject.hookText, ...(currentShortsProject.imageCuts || []).map(c => c.caption)]
-      .filter(Boolean)
-      .join('. ');
+    const narrationText = stripMarkdownForNarration(currentShortsProject.scriptMd);
     if (!narrationText) {
-      throw new Error("나레이션으로 읽을 후킹 문구/자막이 없습니다. 먼저 대본을 생성해 주세요.");
+      throw new Error("나레이션으로 읽을 대본이 없습니다. 먼저 대본을 생성해 주세요.");
     }
 
     statusEl.textContent = "나레이션 음성 생성 중...";
