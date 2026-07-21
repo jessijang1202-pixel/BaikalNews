@@ -986,7 +986,17 @@ async function renderArticlesList() {
 
   const shortsEligibleStatuses = ['published', 'approved', 'scheduled'];
 
-  const sortedArticles = articles.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
+  // Same-day articles (date is day-only, no time) tie-break on whichever
+  // precise timestamp the article actually has -- approvedAt for anything
+  // that's gone through approval, scheduledAt otherwise -- so the true
+  // most-recent one still sorts first instead of falling back to id/insertion order.
+  const sortedArticles = articles.slice().sort((a, b) => {
+    const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+    const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
+    return bTime - aTime;
+  });
 
   tbody.innerHTML = sortedArticles.map((art, i) => {
     const rowNumber = sortedArticles.length - i; // oldest = 1, even though newest displays first
