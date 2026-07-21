@@ -3655,6 +3655,12 @@ function resetShortsWizardSections() {
   shortsPendingUploads = [];
   renderShortsPendingUploads();
   renderShortsAssignedUploads();
+
+  // Every step reopens expanded on a fresh/reopened project, regardless of
+  // how the admin left a previous project's steps collapsed.
+  document.querySelectorAll(".shorts-step-header, .shorts-step-body").forEach(el => {
+    el.classList.remove("is-collapsed");
+  });
 }
 
 // Selecting files just queues them -- nothing uploads until the admin picks
@@ -3948,6 +3954,17 @@ function closeShortsWizard() {
   renderShortsList();
 }
 
+// Collapses/expands one of the wizard's STEP sections -- purely a display
+// toggle on top of the existing "reveal this step" logic (steps 3/4 still
+// get shown/hidden by the pipeline itself; this just lets the admin fold
+// away a step they're done with).
+function toggleShortsStep(n, headerEl) {
+  const body = document.getElementById(`shorts-step-body-${n}`);
+  if (!body) return;
+  body.classList.toggle("is-collapsed");
+  if (headerEl) headerEl.classList.toggle("is-collapsed");
+}
+
 // Local-only save during drafting -- text fields go to localStorage, media
 // stays as in-browser object URLs. Nothing reaches Supabase here.
 async function persistCurrentShortsProject() {
@@ -4239,26 +4256,26 @@ function renderShortsScriptReview() {
 // a hidden field (still needed for image generation, just not shown).
 function renderImageCutsEditor(cuts) {
   const container = document.getElementById("shorts-image-cuts-editor");
-  const boxStyle = "margin-bottom:8px; min-height:44px; max-height:44px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;";
+  const boxStyle = "margin-bottom:10px; min-height:44px; max-height:44px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;";
   const rows = cuts.map((cut, i) => `
-    <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:12px; margin-bottom:10px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.8rem; font-weight:600; color:var(--admin-text-secondary);">컷 ${i + 1}</div>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn-admin btn-admin-secondary" onclick="editCutNarration(${i})">편집</button>
-          <button type="button" class="btn-admin btn-admin-secondary" onclick="removeShortsCut(${i})">삭제</button>
+    <div class="shorts-cut-row">
+      <div class="shorts-cut-row-header">
+        <span class="shorts-card-kicker">컷 ${i + 1} · 0:08~0:30</span>
+        <div class="shorts-cut-row-actions">
+          <button type="button" class="shorts-ghost-btn" onclick="editCutNarration(${i})">편집</button>
+          <button type="button" class="shorts-ghost-btn shorts-ghost-btn-danger" onclick="removeShortsCut(${i})">삭제</button>
         </div>
       </div>
       <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
 
-      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
+      <label class="shorts-field-label">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
       <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
 
-      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
+      <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
       <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
 
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
-        <label style="font-size:0.75rem; color:var(--admin-text-secondary); white-space:nowrap;">길이(초)
+        <label style="font-size:0.75rem; color:var(--sf-text-muted, var(--admin-text-secondary)); white-space:nowrap;">길이(초)
           <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}">
         </label>
         ${cut.narrationUrl

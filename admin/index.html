@@ -877,161 +877,189 @@
         </div>
 
         <!-- Wizard panel -->
-        <div class="panel" id="shorts-wizard-panel" style="display:none; padding: 24px;">
+        <div class="panel shorts-editorial" id="shorts-wizard-panel" style="display:none;">
           <div class="panel-header">
             <h3 class="panel-title" id="shorts-wizard-title">새 숏폼 제작</h3>
           </div>
-          <p class="help-text" style="margin: -8px 24px 16px;">작성 중인 대본·프롬프트는 이 브라우저에 임시 저장되고, 생성된 이미지·영상은 이 탭에서만 유지됩니다 (Supabase 저장공간을 쓰지 않습니다). 하단의 "보관"을 누르면 숏폼 번호·기사·대본만 Supabase에 남습니다.</p>
+          <p class="help-text" style="margin: -4px 0 20px;">작성 중인 대본·프롬프트는 이 브라우저에 임시 저장되고, 생성된 이미지·영상은 이 탭에서만 유지됩니다 (Supabase 저장공간을 쓰지 않습니다). 하단의 "보관"을 누르면 숏폼 번호·기사·대본만 Supabase에 남습니다.</p>
 
           <!-- API Key Config Panel (shared with AI 집필실) -->
-          <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
-            <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
+          <div class="ai-api-config-panel" style="padding: 16px; border-radius: 8px; margin-bottom: 8px;">
+            <div style="font-size: 0.8rem;">
               대본 작성, 영상(Veo)/이미지/나레이션 생성, 참고 영상 분석 모두 Gemini API Key가 필요합니다. AI 집필실 상단에서 등록한 키를 그대로 사용합니다.
             </div>
           </div>
 
           <!-- Step 1: 기사 선택 + 스타일 참고 -->
-          <div class="shorts-step-title">1. 원본 기사 선택</div>
-          <div class="form-group-admin">
-            <select id="shorts-article-select" class="form-control-admin"></select>
-          </div>
-
-          <div class="form-group-admin">
-            <label for="shorts-style-template-select">스타일 템플릿 선택</label>
-            <select id="shorts-style-template-select" class="form-control-admin" onchange="applyShortsStyleTemplate(this.value)">
-              <option value="">-- 직접 입력 / 새로 업로드 --</option>
-            </select>
-          </div>
-
-          <div class="form-group-admin">
-            <label for="shorts-style-video-input">참고 숏폼 영상 업로드 (선택 · 분석 결과를 템플릿으로 저장해 재사용)</label>
-            <input type="file" id="shorts-style-video-input" class="form-control-admin" accept="video/*" onchange="handleShortsStyleUpload(event)">
-            <div class="help-text" id="shorts-style-status">업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. 템플릿으로 저장해 두면 다음부터 매번 업로드하지 않고 골라서 쓸 수 있습니다.</div>
-            <textarea id="shorts-style-guide" class="form-control-admin" style="margin-top:8px; min-height:70px;" placeholder="스타일 가이드가 여기에 채워집니다 (직접 입력/수정 가능, 비워두면 기본 다큐멘터리 톤으로 생성)"></textarea>
-            <div style="display:flex; gap:8px; margin-top:6px;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsStyleTemplate()">템플릿으로 저장</button>
-              <button type="button" class="btn-admin btn-admin-danger" id="shorts-delete-template-btn" onclick="deleteShortsStyleTemplate()" style="display:none;">이 템플릿 삭제</button>
+          <div class="shorts-step">
+            <div class="shorts-step-header" onclick="toggleShortsStep(1, this)">
+              <span class="shorts-step-kicker">Step 1</span>
+              <h3 class="shorts-step-heading">원본 기사 선택</h3>
+              <span class="shorts-step-chevron">▲</span>
             </div>
-          </div>
-
-          <div class="form-group-admin">
-            <label for="shorts-media-upload-input">보유 동영상/사진 업로드 (선택 · 있으면 AI 생성 대신 사용)</label>
-            <input type="file" id="shorts-media-upload-input" class="form-control-admin" accept="video/*,image/*" multiple onchange="handleShortsMediaUpload(event)">
-            <div class="help-text">업로드한 자료가 있으면 그만큼 AI 생성을 건너뜁니다. 파일마다 전반(0:00~0:08)에 쓸지, 후반(정지 이미지 구간)에 쓸지 골라주세요.</div>
-            <div id="shorts-pending-uploads" style="margin-top: 10px;"></div>
-            <div id="shorts-assigned-uploads" style="margin-top: 10px;"></div>
-          </div>
-
-          <div class="shorts-step-title">2. 대본(스크립트) 자동 생성</div>
-          <div class="form-group-admin">
-            <button type="button" id="shorts-generate-script-btn" class="btn-admin btn-admin-primary" onclick="generateShortsScript()">대본 생성하기</button>
-          </div>
-
-          <!-- Script review gate -->
-          <div id="shorts-script-review" style="display:none;">
-            <p class="help-text" style="margin-bottom:16px;">아래에서 대본 내용을 확인하고 필요하면 직접 수정한 뒤 승인하세요.</p>
-
-            <div class="form-group-admin">
-              <label for="shorts-hook-text">0:00~0:03 후킹 문구</label>
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장">
-                <button type="button" class="btn-admin btn-admin-secondary" onclick="regenerateHookNarration()">나레이션 재생성</button>
+            <div class="shorts-step-body" id="shorts-step-body-1">
+              <div class="form-group-admin">
+                <select id="shorts-article-select" class="form-control-admin"></select>
               </div>
-              <audio id="shorts-hook-narration-preview" controls style="display:none; margin-top:8px; height:32px;"></audio>
-            </div>
 
-            <!-- Hidden: kept for image/Veo generation, no longer shown to the admin -->
-            <textarea id="shorts-veo-prompt" style="display:none;"></textarea>
-            <textarea id="shorts-script-md" style="display:none;"></textarea>
-
-            <div class="form-group-admin">
-              <label>0:08~0:30 이미지 컷 (대본을 그대로 나레이션으로 읽습니다 · 자막은 화면에 보이는 문구)</label>
-              <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
-                <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">나레이션 목소리
-                  <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
-                    <option value="Kore" selected>여성</option>
-                    <option value="Puck">남성</option>
-                  </select>
-                </label>
-                <span class="help-text" id="shorts-narration-status">대본 승인 시 나레이션이 자동으로 생성됩니다.</span>
+              <div class="form-group-admin">
+                <label for="shorts-style-template-select">스타일 템플릿 선택</label>
+                <select id="shorts-style-template-select" class="form-control-admin" onchange="applyShortsStyleTemplate(this.value)">
+                  <option value="">-- 직접 입력 / 새로 업로드 --</option>
+                </select>
               </div>
-              <div id="shorts-image-cuts-editor"></div>
-            </div>
 
-            <button type="button" class="btn-admin btn-admin-success" onclick="approveShortsScript()">대본 승인하고 다음 단계로</button>
-          </div>
-
-          <!-- Media generation -->
-          <div id="shorts-media-section" style="display:none;">
-            <div class="shorts-step-title">3. 미디어 생성</div>
-            <button type="button" id="shorts-generate-media-btn" class="btn-admin btn-admin-primary" onclick="generateShortsMedia()">Veo 영상 + 이미지 컷 생성</button>
-            <div class="help-text" id="shorts-media-status"></div>
-            <div id="shorts-media-preview" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;"></div>
-          </div>
-
-          <!-- Assembly / recording -->
-          <div id="shorts-assembly-section" style="display:none;">
-            <div class="shorts-step-title">4. 최종 조립 및 녹화</div>
-
-            <div class="form-group-admin" style="margin-bottom:16px;">
-              <label>영상 스타일 설정 (미리보기/녹화 전 언제든 수정 가능)</label>
-
-              <div style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; margin-top: 8px;">
-                <div style="font-size:0.82rem; font-weight:600; color: var(--admin-accent-cyan); margin-bottom:12px;">상단 배너</div>
-
-                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경색
-                    <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경 높이
-                    <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:90px;" min="40" max="400" step="4" value="360" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목 크기
-                    <input type="number" id="shorts-topbar-title-size" class="form-control-admin" style="width:90px;" min="16" max="150" step="2" value="110" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(1줄)
-                    <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:150px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
-                    <input type="color" id="shorts-topbar-title-color" value="#ffff00" title="1줄 색상" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(2줄)
-                    <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:150px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
-                    <input type="color" id="shorts-topbar-title-color-2" value="#ff0000" title="2줄 색상" onchange="updateShortsStyleSettings()">
-                  </label>
+              <div class="form-group-admin">
+                <label for="shorts-style-video-input">참고 숏폼 영상 업로드 (선택 · 분석 결과를 템플릿으로 저장해 재사용)</label>
+                <input type="file" id="shorts-style-video-input" class="form-control-admin" accept="video/*" onchange="handleShortsStyleUpload(event)">
+                <div class="help-text" id="shorts-style-status">업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다. 템플릿으로 저장해 두면 다음부터 매번 업로드하지 않고 골라서 쓸 수 있습니다.</div>
+                <textarea id="shorts-style-guide" class="form-control-admin" style="margin-top:8px; min-height:70px;" placeholder="스타일 가이드가 여기에 채워집니다 (직접 입력/수정 가능, 비워두면 기본 다큐멘터리 톤으로 생성)"></textarea>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                  <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsStyleTemplate()">템플릿으로 저장</button>
+                  <button type="button" class="btn-admin btn-admin-danger" id="shorts-delete-template-btn" onclick="deleteShortsStyleTemplate()" style="display:none;">이 템플릿 삭제</button>
                 </div>
               </div>
 
-              <div style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; margin-top: 12px;">
-                <div style="font-size:0.82rem; font-weight:600; color: var(--admin-accent-cyan); margin-bottom:12px;">자막</div>
-                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
-                    <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="72" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
-                    <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
-                  </label>
-                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
-                    <select id="shorts-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
-                      <option value="top">위</option>
-                      <option value="center">가운데</option>
-                      <option value="bottom" selected>아래</option>
-                    </select>
-                  </label>
-                </div>
+              <div class="form-group-admin">
+                <label for="shorts-media-upload-input">보유 동영상/사진 업로드 (선택 · 있으면 AI 생성 대신 사용)</label>
+                <input type="file" id="shorts-media-upload-input" class="form-control-admin" accept="video/*,image/*" multiple onchange="handleShortsMediaUpload(event)">
+                <div class="help-text">업로드한 자료가 있으면 그만큼 AI 생성을 건너뜁니다. 파일마다 전반(0:00~0:08)에 쓸지, 후반(정지 이미지 구간)에 쓸지 골라주세요.</div>
+                <div id="shorts-pending-uploads" style="margin-top: 10px;"></div>
+                <div id="shorts-assigned-uploads" style="margin-top: 10px;"></div>
               </div>
             </div>
+          </div>
 
-            <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
-            <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="previewShortsAssembly()">미리보기 재생</button>
-              <button type="button" id="shorts-record-btn" class="btn-admin btn-admin-primary" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
+          <!-- Step 2: 대본 생성 및 검토 -->
+          <div class="shorts-step">
+            <div class="shorts-step-header" onclick="toggleShortsStep(2, this)">
+              <span class="shorts-step-kicker">Step 2</span>
+              <h3 class="shorts-step-heading">대본(스크립트) 자동 생성</h3>
+              <span class="shorts-step-chevron">▲</span>
             </div>
-            <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
-            <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
-            <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none; margin-top:8px;" download>⬇ 영상 다운로드</a>
+            <div class="shorts-step-body" id="shorts-step-body-2">
+              <div class="form-group-admin">
+                <button type="button" id="shorts-generate-script-btn" class="btn-admin btn-admin-primary" onclick="generateShortsScript()">대본 생성하기</button>
+              </div>
+
+              <!-- Script review gate -->
+              <div id="shorts-script-review" style="display:none;">
+                <p class="help-text" style="margin-bottom:16px;">아래에서 대본 내용을 확인하고 필요하면 직접 수정한 뒤 승인하세요.</p>
+
+                <div class="form-group-admin">
+                  <label for="shorts-hook-text">0:00~0:03 후킹 문구</label>
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장">
+                    <button type="button" class="shorts-ghost-btn" onclick="regenerateHookNarration()">나레이션 재생성</button>
+                  </div>
+                  <audio id="shorts-hook-narration-preview" controls style="display:none; margin-top:8px; height:32px;"></audio>
+                </div>
+
+                <!-- Hidden: kept for image/Veo generation, no longer shown to the admin -->
+                <textarea id="shorts-veo-prompt" style="display:none;"></textarea>
+                <textarea id="shorts-script-md" style="display:none;"></textarea>
+
+                <div class="form-group-admin">
+                  <label>0:08~0:30 이미지 컷 (대본을 그대로 나레이션으로 읽습니다 · 자막은 화면에 보이는 문구)</label>
+                  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">나레이션 목소리
+                      <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
+                        <option value="Kore" selected>여성</option>
+                        <option value="Puck">남성</option>
+                      </select>
+                    </label>
+                    <span class="help-text" id="shorts-narration-status">대본 승인 시 나레이션이 자동으로 생성됩니다.</span>
+                  </div>
+                  <div id="shorts-image-cuts-editor"></div>
+                </div>
+
+                <button type="button" class="btn-admin btn-admin-success" onclick="approveShortsScript()">대본 승인하고 다음 단계로</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Media generation -->
+          <div class="shorts-step" id="shorts-media-section" style="display:none;">
+            <div class="shorts-step-header" onclick="toggleShortsStep(3, this)">
+              <span class="shorts-step-kicker">Step 3</span>
+              <h3 class="shorts-step-heading">미디어 생성</h3>
+              <span class="shorts-step-chevron">▲</span>
+            </div>
+            <div class="shorts-step-body" id="shorts-step-body-3">
+              <button type="button" id="shorts-generate-media-btn" class="btn-admin btn-admin-primary" onclick="generateShortsMedia()">Veo 영상 + 이미지 컷 생성</button>
+              <div class="help-text" id="shorts-media-status"></div>
+              <div id="shorts-media-preview" class="shorts-media-grid" style="margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <!-- Step 4: Assembly / recording -->
+          <div class="shorts-step" id="shorts-assembly-section" style="display:none;">
+            <div class="shorts-step-header" onclick="toggleShortsStep(4, this)">
+              <span class="shorts-step-kicker">Step 4</span>
+              <h3 class="shorts-step-heading">최종 조립 및 녹화</h3>
+              <span class="shorts-step-chevron">▲</span>
+            </div>
+            <div class="shorts-step-body" id="shorts-step-body-4">
+              <div class="form-group-admin" style="margin-bottom:16px;">
+                <label>영상 스타일 설정 (미리보기/녹화 전 언제든 수정 가능)</label>
+
+                <div class="shorts-card">
+                  <div class="shorts-card-kicker" style="margin-bottom:12px;">상단 배너</div>
+
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경색
+                      <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경 높이
+                      <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:90px;" min="40" max="400" step="4" value="360" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목 크기
+                      <input type="number" id="shorts-topbar-title-size" class="form-control-admin" style="width:90px;" min="16" max="150" step="2" value="110" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(1줄)
+                      <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:150px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
+                      <input type="color" id="shorts-topbar-title-color" value="#ffff00" title="1줄 색상" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(2줄)
+                      <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:150px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
+                      <input type="color" id="shorts-topbar-title-color-2" value="#ff0000" title="2줄 색상" onchange="updateShortsStyleSettings()">
+                    </label>
+                  </div>
+                </div>
+
+                <div class="shorts-card">
+                  <div class="shorts-card-kicker" style="margin-bottom:12px;">자막</div>
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
+                      <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="72" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
+                      <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
+                      <select id="shorts-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
+                        <option value="top">위</option>
+                        <option value="center">가운데</option>
+                        <option value="bottom" selected>아래</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
+              <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="previewShortsAssembly()">미리보기 재생</button>
+                <button type="button" id="shorts-record-btn" class="btn-admin btn-admin-primary" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
+              </div>
+              <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
+              <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
+              <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none; margin-top:8px;" download>⬇ 영상 다운로드</a>
+            </div>
           </div>
 
           <!-- Wizard-level actions, always at the bottom -->
-          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:32px; padding-top:16px; border-top:1px solid var(--admin-border);">
+          <div class="shorts-actions-bar" style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px; padding-top:16px; border-top:1px solid var(--admin-border);">
             <button class="btn-admin btn-admin-success" onclick="archiveShortsProject()" title="번호·기사·대본만 Supabase에 저장 (이미지·영상은 저장 안 함)">보관 (대본만 저장)</button>
             <button class="btn-admin btn-admin-secondary" onclick="closeShortsWizard()">목록으로 돌아가기</button>
           </div>
