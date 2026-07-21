@@ -4316,6 +4316,7 @@ async function generateShortsMedia() {
 function populateShortsStyleSettingsUI() {
   const colorInput = document.getElementById("shorts-topbar-color");
   const heightInput = document.getElementById("shorts-topbar-height");
+  const titleSizeInput = document.getElementById("shorts-topbar-title-size");
   const titleColorInput = document.getElementById("shorts-topbar-title-color");
   const titleColor2Input = document.getElementById("shorts-topbar-title-color-2");
   const titleInput = document.getElementById("shorts-topbar-title");
@@ -4325,6 +4326,7 @@ function populateShortsStyleSettingsUI() {
   const positionInput = document.getElementById("shorts-caption-position");
   if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
   if (heightInput) heightInput.value = currentShortsProject.topBarHeight || 84;
+  if (titleSizeInput) titleSizeInput.value = currentShortsProject.topBarTitleFontSize || 34;
   if (titleColorInput) titleColorInput.value = currentShortsProject.topBarTitleColor || '#ffffff';
   if (titleColor2Input) titleColor2Input.value = currentShortsProject.topBarTitleColorLine2 || '#ffffff';
   if (titleInput) titleInput.value = currentShortsProject.topBarTitle || '';
@@ -4338,6 +4340,7 @@ function updateShortsStyleSettings() {
   if (!currentShortsProject) return;
   const colorInput = document.getElementById("shorts-topbar-color");
   const heightInput = document.getElementById("shorts-topbar-height");
+  const titleSizeInput = document.getElementById("shorts-topbar-title-size");
   const titleColorInput = document.getElementById("shorts-topbar-title-color");
   const titleColor2Input = document.getElementById("shorts-topbar-title-color-2");
   const titleInput = document.getElementById("shorts-topbar-title");
@@ -4347,6 +4350,7 @@ function updateShortsStyleSettings() {
   const positionInput = document.getElementById("shorts-caption-position");
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
   currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 84) : 84;
+  currentShortsProject.topBarTitleFontSize = titleSizeInput ? (parseInt(titleSizeInput.value, 10) || 34) : 34;
   currentShortsProject.topBarTitleColor = titleColorInput ? titleColorInput.value : '#ffffff';
   currentShortsProject.topBarTitleColorLine2 = titleColor2Input ? titleColor2Input.value : '#ffffff';
   currentShortsProject.topBarTitle = titleInput ? titleInput.value : '';
@@ -4448,6 +4452,7 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
 function drawShortsTopBar(ctx, project, canvasW) {
   if (!project || !project.topBarTitle) return;
   const barH = project.topBarHeight || 84;
+  const fontSize = project.topBarTitleFontSize || 34;
   const lines = [
     { text: project.topBarTitle, color: project.topBarTitleColor || "#ffffff" },
     { text: project.topBarTitleLine2, color: project.topBarTitleColorLine2 || "#ffffff" }
@@ -4455,17 +4460,18 @@ function drawShortsTopBar(ctx, project, canvasW) {
   ctx.save();
   ctx.fillStyle = project.topBarColor || "#0b1a30";
   ctx.fillRect(0, 0, canvasW, barH);
-  ctx.font = "bold 34px sans-serif";
+  ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   if (lines.length === 1) {
     ctx.fillStyle = lines[0].color;
     ctx.fillText(lines[0].text, canvasW / 2, barH / 2);
   } else {
+    const lineGap = fontSize * 0.6;
     ctx.fillStyle = lines[0].color;
-    ctx.fillText(lines[0].text, canvasW / 2, barH / 2 - 20);
+    ctx.fillText(lines[0].text, canvasW / 2, barH / 2 - lineGap);
     ctx.fillStyle = lines[1].color;
-    ctx.fillText(lines[1].text, canvasW / 2, barH / 2 + 20);
+    ctx.fillText(lines[1].text, canvasW / 2, barH / 2 + lineGap);
   }
   ctx.restore();
 }
