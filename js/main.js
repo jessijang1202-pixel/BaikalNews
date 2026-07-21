@@ -544,17 +544,13 @@ function renderCategoryPage() {
   const curation = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
   const popularIds = curation.popularReadsIds || [];
 
-  // Sort: 최신순 (newest id first) / 인기순 (curated popular reads first)
+  // Sort: 최신순 (newest date first) / 인기순 (highest view count first)
   const sort = getQueryParam("sort") === "popular" ? "popular" : "latest";
   let filtered = getArticlesByCategory(cat);
   if (sort === "popular") {
     filtered = filtered.slice().sort((a, b) => {
-      const aIdx = popularIds.indexOf(a.id);
-      const bIdx = popularIds.indexOf(b.id);
-      if (aIdx === -1 && bIdx === -1) return parseKoreanDate(b.date) - parseKoreanDate(a.date);
-      if (aIdx === -1) return 1;
-      if (bIdx === -1) return -1;
-      return aIdx - bIdx;
+      const viewDiff = (b.views || 0) - (a.views || 0);
+      return viewDiff !== 0 ? viewDiff : parseKoreanDate(b.date) - parseKoreanDate(a.date);
     });
   } else {
     filtered = filtered.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
