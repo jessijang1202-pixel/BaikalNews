@@ -785,10 +785,13 @@ function renderArticlePage() {
     if (article.revisionHistory && article.revisionHistory.length > 0) {
       let logHTML = '';
       article.revisionHistory.forEach(rev => {
+        // Strips the "(상태: X)" suffix some older log entries still carry --
+        // it's internal workflow bookkeeping, not something readers need.
+        const action = (rev.action || '').replace(/\s*\(상태:\s*[^)]*\)/g, '');
         logHTML += `
           <li class="revision-item">
             <span class="revision-date">${rev.date}</span>
-            <span class="revision-action">${rev.action}</span>
+            <span class="revision-action">${action}</span>
           </li>
         `;
       });
