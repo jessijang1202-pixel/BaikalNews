@@ -880,23 +880,19 @@
         <div class="panel" id="shorts-wizard-panel" style="display:none; padding: 24px;">
           <div class="panel-header">
             <h3 class="panel-title" id="shorts-wizard-title">새 숏폼 제작</h3>
-            <div style="display:flex; gap:10px;">
-              <button class="btn-admin btn-admin-success" onclick="archiveShortsProject()" title="번호·기사·대본만 Supabase에 저장 (이미지·영상은 저장 안 함)">보관 (대본만 저장)</button>
-              <button class="btn-admin btn-admin-secondary" onclick="closeShortsWizard()">목록으로 돌아가기</button>
-            </div>
           </div>
-          <p class="help-text" style="margin: -8px 24px 16px;">작성 중인 대본·프롬프트는 이 브라우저에 임시 저장되고, 생성된 이미지·영상은 이 탭에서만 유지됩니다 (Supabase 저장공간을 쓰지 않습니다). "보관"을 누르면 숏폼 번호·기사·대본만 Supabase에 남습니다.</p>
+          <p class="help-text" style="margin: -8px 24px 16px;">작성 중인 대본·프롬프트는 이 브라우저에 임시 저장되고, 생성된 이미지·영상은 이 탭에서만 유지됩니다 (Supabase 저장공간을 쓰지 않습니다). 하단의 "보관"을 누르면 숏폼 번호·기사·대본만 Supabase에 남습니다.</p>
 
           <!-- API Key Config Panel (shared with AI 집필실) -->
           <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
             <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
-              대본 작성, 영상(Veo)/이미지 생성, 참고 영상 분석 모두 Gemini API Key가 필요합니다. AI 집필실 상단에서 등록한 키를 그대로 사용합니다.
+              대본 작성, 영상(Veo)/이미지/나레이션 생성, 참고 영상 분석 모두 Gemini API Key가 필요합니다. AI 집필실 상단에서 등록한 키를 그대로 사용합니다.
             </div>
           </div>
 
           <!-- Step 1: 기사 선택 + 스타일 참고 -->
+          <div class="shorts-step-title">1. 원본 기사 선택</div>
           <div class="form-group-admin">
-            <label for="shorts-article-select">1. 원본 기사 선택</label>
             <select id="shorts-article-select" class="form-control-admin"></select>
           </div>
 
@@ -926,48 +922,57 @@
             <div id="shorts-assigned-uploads" style="margin-top: 10px;"></div>
           </div>
 
+          <div class="shorts-step-title">2. 대본(스크립트) 자동 생성</div>
           <div class="form-group-admin">
-            <button type="button" id="shorts-generate-script-btn" class="btn-admin btn-admin-primary" style="width:100%; justify-content:center;" onclick="generateShortsScript()">2. 대본(스크립트) 자동 생성</button>
+            <button type="button" id="shorts-generate-script-btn" class="btn-admin btn-admin-primary" style="width:100%; justify-content:center;" onclick="generateShortsScript()">대본 생성하기</button>
           </div>
 
           <!-- Script review gate -->
-          <div id="shorts-script-review" style="display:none; margin-top:24px; border-top:1px solid var(--admin-border); padding-top:20px;">
-            <h4 style="margin-bottom: 12px; color: var(--admin-accent-cyan);">대본 검토 (필요하면 직접 수정한 뒤 승인하세요)</h4>
+          <div id="shorts-script-review" style="display:none;">
+            <p class="help-text" style="margin-bottom:16px;">아래에서 대본 내용을 확인하고 필요하면 직접 수정한 뒤 승인하세요.</p>
 
             <div class="form-group-admin">
               <label for="shorts-hook-text">0:00~0:03 후킹 문구</label>
-              <input type="text" id="shorts-hook-text" class="form-control-admin" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="regenerateHookNarration()">나레이션 재생성</button>
+              </div>
+              <audio id="shorts-hook-narration-preview" controls style="display:none; margin-top:8px; height:32px;"></audio>
             </div>
 
-            <div class="form-group-admin">
-              <label for="shorts-veo-prompt">0:00~0:08 Veo 영상 프롬프트 (영어)</label>
-              <textarea id="shorts-veo-prompt" class="form-control-admin" style="min-height:70px;"></textarea>
-            </div>
+            <!-- Hidden: kept for image/Veo generation, no longer shown to the admin -->
+            <textarea id="shorts-veo-prompt" style="display:none;"></textarea>
+            <textarea id="shorts-script-md" style="display:none;"></textarea>
 
             <div class="form-group-admin">
-              <label>0:08~0:30 이미지 컷 (기본 5개 · 프롬프트 / 자막 / 길이초, 합계 22초 권장)</label>
+              <label>0:08~0:30 이미지 컷 (자막 + 나레이션, 재생 시간은 나레이션 길이에 맞춰 자동 조정됩니다)</label>
+              <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">목소리
+                  <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
+                    <option value="Kore" selected>여성</option>
+                    <option value="Puck">남성</option>
+                  </select>
+                </label>
+                <button type="button" id="shorts-narration-btn" class="btn-admin btn-admin-secondary" onclick="generateShortsNarration()">전체 나레이션 생성</button>
+                <span class="help-text" id="shorts-narration-status">각 컷 화면에 나올 자막을 그대로 읽습니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.</span>
+              </div>
               <div id="shorts-image-cuts-editor"></div>
-            </div>
-
-            <div class="form-group-admin">
-              <label for="shorts-script-md">전체 대본 (Markdown)</label>
-              <textarea id="shorts-script-md" class="form-control-admin" style="min-height:200px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;"></textarea>
             </div>
 
             <button type="button" class="btn-admin btn-admin-success" onclick="approveShortsScript()">대본 승인하고 다음 단계로</button>
           </div>
 
           <!-- Media generation -->
-          <div id="shorts-media-section" style="display:none; margin-top:24px; border-top:1px solid var(--admin-border); padding-top:20px;">
-            <h4 style="margin-bottom: 12px; color: var(--admin-accent-cyan);">미디어 생성</h4>
-            <button type="button" id="shorts-generate-media-btn" class="btn-admin btn-admin-primary" onclick="generateShortsMedia()">3. Veo 영상 + 이미지 컷 생성</button>
+          <div id="shorts-media-section" style="display:none;">
+            <div class="shorts-step-title">3. 미디어 생성</div>
+            <button type="button" id="shorts-generate-media-btn" class="btn-admin btn-admin-primary" onclick="generateShortsMedia()">Veo 영상 + 이미지 컷 생성</button>
             <div class="help-text" id="shorts-media-status"></div>
             <div id="shorts-media-preview" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;"></div>
           </div>
 
           <!-- Assembly / recording -->
-          <div id="shorts-assembly-section" style="display:none; margin-top:24px; border-top:1px solid var(--admin-border); padding-top:20px;">
-            <h4 style="margin-bottom: 12px; color: var(--admin-accent-cyan);">4. 최종 조립 및 녹화</h4>
+          <div id="shorts-assembly-section" style="display:none;">
+            <div class="shorts-step-title">4. 최종 조립 및 녹화</div>
 
             <div class="form-group-admin" style="margin-bottom:16px;">
               <label>영상 스타일 설정 (미리보기/녹화 전 언제든 수정 가능)</label>
@@ -1016,21 +1021,6 @@
               </div>
             </div>
 
-            <div class="form-group-admin" style="margin-bottom:16px;">
-              <label>AI 목소리 나레이션 (Gemini TTS, 선택)</label>
-              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
-                <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">목소리
-                  <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
-                    <option value="Kore" selected>여성</option>
-                    <option value="Puck">남성</option>
-                  </select>
-                </label>
-                <button type="button" id="shorts-narration-btn" class="btn-admin btn-admin-secondary" onclick="generateShortsNarration()">대본으로 나레이션 생성</button>
-                <span class="help-text" id="shorts-narration-status">전체 영상(전반+후반) 내내 재생되는 배경 음성입니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.</span>
-              </div>
-              <audio id="shorts-narration-preview" controls style="display:none; margin-top:8px; width:100%; max-width:320px;"></audio>
-            </div>
-
             <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
             <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
               <button type="button" class="btn-admin btn-admin-secondary" onclick="previewShortsAssembly()">미리보기 재생</button>
@@ -1039,6 +1029,12 @@
             <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
             <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
             <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none; margin-top:8px;" download>⬇ 영상 다운로드</a>
+          </div>
+
+          <!-- Wizard-level actions, always at the bottom -->
+          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:32px; padding-top:16px; border-top:1px solid var(--admin-border);">
+            <button class="btn-admin btn-admin-success" onclick="archiveShortsProject()" title="번호·기사·대본만 Supabase에 저장 (이미지·영상은 저장 안 함)">보관 (대본만 저장)</button>
+            <button class="btn-admin btn-admin-secondary" onclick="closeShortsWizard()">목록으로 돌아가기</button>
           </div>
         </div>
       </section>

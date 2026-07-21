@@ -3420,10 +3420,10 @@ function saveShortsDraftLocally() {
     frontIsImage: !!currentShortsProject.frontIsImage,
     hasFront: !!currentShortsProject.veoVideoUrl,
     hasFinal: !!currentShortsProject.finalVideoUrl,
-    hasNarration: !!currentShortsProject.narrationUrl,
+    hasHookNarration: !!currentShortsProject.hookNarrationUrl,
     imageCuts: (currentShortsProject.imageCuts || []).map(c => ({
       prompt: c.prompt, caption: c.caption, duration: c.duration,
-      uploaded: !!c.uploaded, imageKey: c.imageKey || null
+      uploaded: !!c.uploaded, imageKey: c.imageKey || null, narrationKey: c.narrationKey || null
     })),
     topBarColor: currentShortsProject.topBarColor,
     topBarHeight: currentShortsProject.topBarHeight,
@@ -3645,10 +3645,10 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-final-preview").style.display = "none";
   const downloadEl = document.getElementById("shorts-final-download");
   if (downloadEl) downloadEl.style.display = "none";
-  const narrationPreviewEl = document.getElementById("shorts-narration-preview");
-  if (narrationPreviewEl) { narrationPreviewEl.style.display = "none"; narrationPreviewEl.src = ""; }
   const narrationStatusEl = document.getElementById("shorts-narration-status");
-  if (narrationStatusEl) narrationStatusEl.textContent = "전체 영상(전반+후반) 내내 재생되는 배경 음성입니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.";
+  if (narrationStatusEl) narrationStatusEl.textContent = "각 컷 화면에 나올 자막을 그대로 읽습니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.";
+  const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
+  if (hookAudioEl) { hookAudioEl.style.display = "none"; hookAudioEl.src = ""; }
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -3885,14 +3885,21 @@ async function openLocalShortsDraft(localDraftId) {
       const blob = await idbGetBlob(`${localDraftId}:final`);
       if (blob) currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
     }
-    if (draft.hasNarration) {
-      const blob = await idbGetBlob(`${localDraftId}:narration`);
-      if (blob) currentShortsProject.narrationUrl = URL.createObjectURL(blob);
+    if (draft.hasHookNarration) {
+      const blob = await idbGetBlob(`${localDraftId}:narration:hook`);
+      if (blob) {
+        currentShortsProject.hookNarrationKey = `${localDraftId}:narration:hook`;
+        currentShortsProject.hookNarrationUrl = URL.createObjectURL(blob);
+      }
     }
     for (const cut of currentShortsProject.imageCuts) {
       if (cut.imageKey) {
         const blob = await idbGetBlob(cut.imageKey);
         if (blob) cut.imageUrl = URL.createObjectURL(blob);
+      }
+      if (cut.narrationKey) {
+        const blob = await idbGetBlob(cut.narrationKey);
+        if (blob) cut.narrationUrl = URL.createObjectURL(blob);
       }
     }
   } catch (err) {
@@ -3929,14 +3936,6 @@ async function openLocalShortsDraft(localDraftId) {
       downloadEl.style.display = "inline-block";
     }
   }
-  if (currentShortsProject.narrationUrl) {
-    const narrationPreviewEl = document.getElementById("shorts-narration-preview");
-    if (narrationPreviewEl) {
-      narrationPreviewEl.src = currentShortsProject.narrationUrl;
-      narrationPreviewEl.style.display = "block";
-    }
-  }
-
   document.getElementById("shorts-wizard-panel").style.display = "block";
   loadGeminiApiKey();
   loadClaudeApiKey();
@@ -4215,21 +4214,41 @@ function renderShortsScriptReview() {
   document.getElementById("shorts-hook-text").value = currentShortsProject.hookText || '';
   document.getElementById("shorts-veo-prompt").value = currentShortsProject.veoPrompt || '';
   document.getElementById("shorts-script-md").value = currentShortsProject.scriptMd || '';
+  const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
+  if (hookAudioEl) {
+    if (currentShortsProject.hookNarrationUrl) {
+      hookAudioEl.src = currentShortsProject.hookNarrationUrl;
+      hookAudioEl.style.display = "block";
+    } else {
+      hookAudioEl.style.display = "none";
+    }
+  }
   renderImageCutsEditor(currentShortsProject.imageCuts || []);
   document.getElementById("shorts-script-review").style.display = "block";
 }
 
+// Shows caption + narration side by side per cut, with an individual
+// regenerate button -- the raw (English-labeled, now actually Korean but
+// still implementation detail) image prompt stays out of view in a hidden
+// field so it's still there for image (re)generation without cluttering
+// the review screen.
 function renderImageCutsEditor(cuts) {
   const container = document.getElementById("shorts-image-cuts-editor");
   const rows = cuts.map((cut, i) => `
-    <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:10px; margin-bottom:8px;">
-      <div style="font-size:0.75rem; color:var(--admin-text-secondary); margin-bottom:4px;">컷 ${i + 1}</div>
-      <textarea class="form-control-admin shorts-cut-prompt" style="min-height:50px; margin-bottom:6px;" placeholder="이미지 프롬프트 (영어)">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
-      <input type="text" class="form-control-admin shorts-cut-caption" style="margin-bottom:6px;" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
-      <label style="font-size:0.75rem; color:var(--admin-text-secondary);">길이(초)
-        <input type="number" class="form-control-admin shorts-cut-duration" style="width:90px; display:inline-block; margin-left:6px;" min="1" max="15" value="${cut.duration || 5}">
-      </label>
-      <button type="button" class="btn-admin btn-admin-danger" style="margin-left:8px;" onclick="removeShortsCut(${i})">컷 삭제</button>
+    <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:12px; margin-bottom:10px;">
+      <div style="font-size:0.8rem; font-weight:600; color:var(--admin-text-secondary); margin-bottom:6px;">컷 ${i + 1}</div>
+      <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
+      <input type="text" class="form-control-admin shorts-cut-caption" style="margin-bottom:8px;" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <label style="font-size:0.75rem; color:var(--admin-text-secondary); white-space:nowrap;">길이(초)
+          <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}">
+        </label>
+        ${cut.narrationUrl
+          ? `<audio controls src="${cut.narrationUrl}" style="height:32px; max-width:220px;"></audio>`
+          : `<span class="help-text">나레이션 없음</span>`}
+        <button type="button" class="btn-admin btn-admin-secondary" onclick="regenerateCutNarration(${i})">나레이션 재생성</button>
+        <button type="button" class="btn-admin btn-admin-danger" onclick="removeShortsCut(${i})">컷 삭제</button>
+      </div>
     </div>
   `).join('');
   container.innerHTML = rows + `<button type="button" class="btn-admin btn-admin-secondary" onclick="addShortsCut()">+ 컷 추가</button>`;
@@ -4245,7 +4264,9 @@ function readImageCutsFromDom() {
       duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
       imageUrl: (existing && existing.imageUrl) || '',
       uploaded: !!(existing && existing.uploaded),
-      imageKey: (existing && existing.imageKey) || null
+      imageKey: (existing && existing.imageKey) || null,
+      narrationUrl: (existing && existing.narrationUrl) || '',
+      narrationKey: (existing && existing.narrationKey) || null
     };
   });
 }
@@ -4574,54 +4595,118 @@ async function generateGeminiSpeech(text, voiceName) {
 // Kept local-only (object URL), matching the shorts storage-minimization design.
 // Strips markdown syntax (headers, table pipes/separators, bold/italic,
 // links) from scriptMd so TTS reads plain prose instead of literal symbols.
-function stripMarkdownForNarration(md) {
-  return (md || '')
-    .replace(/^#+\s*/gm, '')
-    .replace(/\|/g, ' ')
-    .replace(/^\s*-{2,}\s*$/gm, '')
-    .replace(/^\s*[-*]\s+/gm, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/\n{2,}/g, '. ')
-    .replace(/\n/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+// Reads a Blob's playback duration via a throwaway <audio> element --
+// cheaper than decoding the whole thing through Web Audio just to get a
+// number.
+function getAudioBlobDuration(blob) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('audio');
+    el.preload = 'metadata';
+    el.onloadedmetadata = () => { resolve(el.duration); URL.revokeObjectURL(el.src); };
+    el.onerror = () => reject(new Error("오디오 길이를 확인하지 못했습니다."));
+    el.src = URL.createObjectURL(blob);
+  });
 }
 
+// Generates one narration clip for either the hook (cutObj=null) or a
+// specific image cut, storing it in IndexedDB and -- for a cut -- updating
+// its duration to match the clip's actual length. This is what keeps audio
+// and visuals in sync: each segment's on-screen time comes directly from
+// its own narration length instead of a stretched/guessed estimate.
+async function generateCutNarration(cutObj, text, voiceName, draftId) {
+  if (!text) return;
+  const wavBlob = await generateGeminiSpeech(text, voiceName);
+  const duration = await getAudioBlobDuration(wavBlob);
+  if (cutObj) {
+    if (!cutObj.narrationKey) {
+      cutObj.narrationKey = `${draftId}:narration:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    cutObj.narrationUrl = await keepShortsBlobLocal(wavBlob, cutObj.narrationKey);
+    cutObj.duration = Math.max(1, duration + 0.3);
+  } else {
+    currentShortsProject.hookNarrationKey = `${draftId}:narration:hook`;
+    currentShortsProject.hookNarrationUrl = await keepShortsBlobLocal(wavBlob, currentShortsProject.hookNarrationKey);
+  }
+}
+
+// Generates narration for the hook and every image cut in one pass --
+// reads the actual caption text shown on screen, not the raw scriptMd
+// (which used to leak structural labels like "[상단 고정 타이틀: ...]"
+// into the audio).
 async function generateShortsNarration() {
   const statusEl = document.getElementById("shorts-narration-status");
   const btn = document.getElementById("shorts-narration-btn");
   if (btn) btn.disabled = true;
 
   try {
-    const narrationText = stripMarkdownForNarration(currentShortsProject.scriptMd);
-    if (!narrationText) {
-      throw new Error("나레이션으로 읽을 대본이 없습니다. 먼저 대본을 생성해 주세요.");
-    }
-
+    currentShortsProject.imageCuts = readImageCutsFromDom();
     const voiceSelect = document.getElementById("shorts-narration-voice");
     const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+    const draftId = ensureShortsLocalDraftId();
 
-    statusEl.textContent = "나레이션 음성 생성 중...";
-    const wavBlob = await generateGeminiSpeech(narrationText, voiceName);
-    currentShortsProject.narrationUrl = await keepShortsBlobLocal(wavBlob, `${ensureShortsLocalDraftId()}:narration`);
+    if (currentShortsProject.hookText) {
+      statusEl.textContent = "나레이션 생성 중... (후킹 문구)";
+      await generateCutNarration(null, currentShortsProject.hookText, voiceName, draftId);
+    }
+
+    const cuts = currentShortsProject.imageCuts || [];
+    for (let i = 0; i < cuts.length; i++) {
+      statusEl.textContent = `나레이션 생성 중... (컷 ${i + 1}/${cuts.length})`;
+      await generateCutNarration(cuts[i], cuts[i].caption, voiceName, draftId);
+    }
+
+    renderImageCutsEditor(currentShortsProject.imageCuts);
     saveShortsDraftLocally();
     shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
-
-    const previewEl = document.getElementById("shorts-narration-preview");
-    if (previewEl) {
-      previewEl.src = currentShortsProject.narrationUrl;
-      previewEl.style.display = "block";
-    }
-    statusEl.textContent = "나레이션 생성 완료. 미리보기로 확인 후 녹화하세요.";
+    statusEl.textContent = "나레이션 생성 완료. 각 컷 재생 시간이 나레이션 길이에 맞춰 자동 조정되었습니다.";
   } catch (err) {
     console.error("나레이션 생성 실패:", err);
     statusEl.textContent = "나레이션 생성 실패: " + err.message;
     alert("나레이션 생성 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+// Regenerates just one cut's narration (e.g. after editing its caption),
+// without touching the others.
+async function regenerateCutNarration(i) {
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  const cut = currentShortsProject.imageCuts[i];
+  if (!cut) return;
+  const voiceSelect = document.getElementById("shorts-narration-voice");
+  const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+
+  try {
+    await generateCutNarration(cut, cut.caption, voiceName, ensureShortsLocalDraftId());
+    renderImageCutsEditor(currentShortsProject.imageCuts);
+    saveShortsDraftLocally();
+    shortsAssets = null;
+  } catch (err) {
+    console.error("컷 나레이션 재생성 실패:", err);
+    alert("나레이션 재생성 실패: " + err.message);
+  }
+}
+
+// Regenerates just the hook's narration.
+async function regenerateHookNarration() {
+  currentShortsProject.hookText = document.getElementById("shorts-hook-text").value.trim();
+  if (!currentShortsProject.hookText) return;
+  const voiceSelect = document.getElementById("shorts-narration-voice");
+  const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+
+  try {
+    await generateCutNarration(null, currentShortsProject.hookText, voiceName, ensureShortsLocalDraftId());
+    saveShortsDraftLocally();
+    shortsAssets = null;
+    const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
+    if (hookAudioEl) {
+      hookAudioEl.src = currentShortsProject.hookNarrationUrl;
+      hookAudioEl.style.display = "block";
+    }
+  } catch (err) {
+    console.error("후킹 나레이션 재생성 실패:", err);
+    alert("나레이션 재생성 실패: " + err.message);
   }
 }
 
@@ -4793,27 +4878,41 @@ async function buildShortsAssets(project) {
   const images = await Promise.all((project.imageCuts || []).map(cut => new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption });
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, narrationUrl: cut.narrationUrl });
     img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
     img.src = cut.imageUrl;
   })));
 
-  // Narration (Gemini TTS) covers the whole timeline, unlike the Veo clip's
-  // own audio which only exists for the front 8s segment.
-  let narrationBuffer = null;
-  if (project.narrationUrl) {
+  // Per-segment narration (Gemini TTS): one clip for the hook, one per image
+  // cut. Each is scheduled (in runShortsTimeline) to start exactly when its
+  // matching visual segment starts, so there's nothing to drift/stretch --
+  // durations already match because cut.duration was set from the clip's
+  // own length when it was generated.
+  let hookNarrationBuffer = null;
+  if (project.hookNarrationUrl) {
     try {
       const mix = ensureAudioMix();
       await mix.audioCtx.resume().catch(() => {});
-      const resp = await fetch(project.narrationUrl);
-      const arrayBuf = await resp.arrayBuffer();
-      narrationBuffer = await mix.audioCtx.decodeAudioData(arrayBuf);
+      const resp = await fetch(project.hookNarrationUrl);
+      hookNarrationBuffer = await mix.audioCtx.decodeAudioData(await resp.arrayBuffer());
     } catch (err) {
-      console.warn("나레이션 오디오 디코딩 실패:", err);
+      console.warn("후킹 나레이션 디코딩 실패:", err);
+    }
+  }
+  for (const imgAsset of images) {
+    if (imgAsset.narrationUrl) {
+      try {
+        const mix = ensureAudioMix();
+        await mix.audioCtx.resume().catch(() => {});
+        const resp = await fetch(imgAsset.narrationUrl);
+        imgAsset.narrationBuffer = await mix.audioCtx.decodeAudioData(await resp.arrayBuffer());
+      } catch (err) {
+        console.warn("컷 나레이션 디코딩 실패:", err);
+      }
     }
   }
 
-  return { front, images, audioCtx, mixDestination, narrationBuffer };
+  return { front, images, audioCtx, mixDestination, hookNarrationBuffer };
 }
 
 function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
@@ -4893,18 +4992,14 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   const W = canvas.width, H = canvas.height;
   const frontDuration = assets.front.duration;
 
-  // When narration exists, its actual read-aloud length rarely matches the
-  // per-cut durations picked at script-generation time -- stretch/shrink the
-  // image-cut portion so the whole visual timeline lines up with how long
-  // the narration actually takes, instead of drifting out of sync or ending early/late.
-  let cutDurations = (project.imageCuts || []).map(c => c.duration || 0);
-  const originalCutsTotal = cutDurations.reduce((s, d) => s + d, 0);
-  if (assets.narrationBuffer && originalCutsTotal > 0) {
-    const targetCutsTotal = Math.max(1, assets.narrationBuffer.duration - frontDuration);
-    const scale = targetCutsTotal / originalCutsTotal;
-    cutDurations = cutDurations.map(d => d * scale);
-  }
+  // Each cut's duration already comes from its own narration clip's actual
+  // length (set when the narration was generated) -- no stretching/guessing
+  // needed, since visuals and audio are timed from the same source.
+  const cutDurations = (project.imageCuts || []).map(c => c.duration || 0);
   const totalDuration = frontDuration + cutDurations.reduce((s, d) => s + d, 0);
+  const hookCaptionDuration = assets.hookNarrationBuffer
+    ? Math.min(assets.hookNarrationBuffer.duration, frontDuration)
+    : 3;
 
   let recorder = null;
   let chunks = [];
@@ -4921,12 +5016,32 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   }
 
   await new Promise((resolve) => {
-    let narrationSource = null;
-    if (assets.narrationBuffer && assets.audioCtx && assets.mixDestination) {
-      narrationSource = assets.audioCtx.createBufferSource();
-      narrationSource.buffer = assets.narrationBuffer;
-      narrationSource.connect(assets.mixDestination);
-      narrationSource.connect(assets.audioCtx.destination);
+    // Schedule every narration clip up front, each starting exactly when its
+    // matching visual segment starts -- sample-accurate via the shared audio
+    // clock, so there's nothing left to drift out of sync.
+    const scheduledSources = [];
+    if (assets.audioCtx && assets.mixDestination) {
+      const base = assets.audioCtx.currentTime + 0.05;
+      if (assets.hookNarrationBuffer) {
+        const src = assets.audioCtx.createBufferSource();
+        src.buffer = assets.hookNarrationBuffer;
+        src.connect(assets.mixDestination);
+        src.connect(assets.audioCtx.destination);
+        src.start(base);
+        scheduledSources.push(src);
+      }
+      let cursor = frontDuration;
+      assets.images.forEach((imgAsset, i) => {
+        if (imgAsset.narrationBuffer) {
+          const src = assets.audioCtx.createBufferSource();
+          src.buffer = imgAsset.narrationBuffer;
+          src.connect(assets.mixDestination);
+          src.connect(assets.audioCtx.destination);
+          src.start(base + cursor);
+          scheduledSources.push(src);
+        }
+        cursor += cutDurations[i] || 0;
+      });
     }
 
     if (assets.front.type === 'video') {
@@ -4934,7 +5049,6 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
       const playPromise = assets.front.el.play();
       if (playPromise && playPromise.catch) playPromise.catch(() => {});
     }
-    if (narrationSource) narrationSource.start(0);
 
     const startTime = performance.now();
 
@@ -4949,7 +5063,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         } else {
           drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
         }
-        if (elapsed < 3) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
+        if (elapsed < hookCaptionDuration) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
       } else {
         let t = elapsed - frontDuration;
         let idx = 0;
@@ -4959,7 +5073,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         }
         const cut = assets.images[idx];
         if (cut) {
-          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cutDurations[idx], 1), W, H);
+          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H);
           drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
         }
       }
@@ -4967,7 +5081,7 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
 
       if (elapsed >= totalDuration) {
         if (assets.front.type === 'video') assets.front.el.pause();
-        if (narrationSource) { try { narrationSource.stop(); } catch (err) {} }
+        scheduledSources.forEach(src => { try { src.stop(); } catch (err) {} });
         resolve();
         return;
       }

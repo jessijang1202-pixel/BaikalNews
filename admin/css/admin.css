@@ -310,6 +310,19 @@ body {
   gap: 8px;
 }
 
+/* Unified big step headers for the 숏폼 자동 생성 wizard (1~4) */
+.shorts-step-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--admin-accent-cyan);
+  margin: 28px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--admin-accent-cyan);
+}
+.shorts-step-title:first-child {
+  margin-top: 0;
+}
+
 /* Buttons */
 .btn-admin {
   padding: 10px 20px;
