@@ -551,13 +551,13 @@ function renderCategoryPage() {
     filtered = filtered.slice().sort((a, b) => {
       const aIdx = popularIds.indexOf(a.id);
       const bIdx = popularIds.indexOf(b.id);
-      if (aIdx === -1 && bIdx === -1) return b.id - a.id;
+      if (aIdx === -1 && bIdx === -1) return parseKoreanDate(b.date) - parseKoreanDate(a.date);
       if (aIdx === -1) return 1;
       if (bIdx === -1) return -1;
       return aIdx - bIdx;
     });
   } else {
-    filtered = filtered.slice().sort((a, b) => b.id - a.id);
+    filtered = filtered.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
   }
 
   const sortLatestEl = document.getElementById("sort-latest");
