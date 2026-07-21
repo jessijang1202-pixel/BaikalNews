@@ -2,6 +2,41 @@
 // Exposes window.SupabaseAdapter globally
 
 (function() {
+  // Converts a raw Postgres row (snake_case) to the camelCase shape the rest
+  // of the site reads (e.g. article.scheduledAt) -- fetchArticles/fetchArticleById
+  // used to return raw rows here, so isArticleLive()'s scheduledAt check was
+  // always undefined and a scheduled article could never go live on its own.
+  function mapArticleRow(row) {
+    if (!row) return row;
+    return {
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle,
+      lead: row.lead,
+      content: row.content,
+      category: row.category,
+      categoryLabel: row.category_label,
+      date: row.date,
+      status: row.status,
+      image: row.image,
+      author: row.author,
+      approver: row.approver,
+      byline: row.byline,
+      draftedBy: row.drafted_by,
+      approvedAt: row.approved_at,
+      scheduledAt: row.scheduled_at,
+      revisionHistory: row.revision_history,
+      seoTitle: row.seo_title,
+      seoMeta: row.seo_meta,
+      slug: row.slug,
+      canonicalUrl: row.canonical_url,
+      isYMYL: row.is_ymyl,
+      isPinned: row.is_pinned,
+      isFeatured: row.is_featured,
+      views: row.views || 0
+    };
+  }
+
   const Adapter = {
     // 1. Connection states (falls back to the site's baked-in project config
     // in js/supabase-config.js if no per-browser override is set)
@@ -40,7 +75,7 @@
               .order('id', { ascending: true });
             
             if (error) throw error;
-            return data || [];
+            return (data || []).map(mapArticleRow);
           } catch (err) {
             console.error("Supabase fetchArticles error, falling back to LocalStorage:", err);
           }
@@ -64,7 +99,7 @@
               .maybeSingle();
             
             if (error) throw error;
-            return data;
+            return mapArticleRow(data);
           } catch (err) {
             console.error(`Supabase fetchArticleById (${id}) error, falling back to LocalStorage:`, err);
           }
@@ -361,34 +396,8 @@
             if (error) throw error;
             
             if (data) {
-              const camelCased = data.map(row => ({
-                id: row.id,
-                title: row.title,
-                subtitle: row.subtitle,
-                lead: row.lead,
-                content: row.content,
-                category: row.category,
-                categoryLabel: row.category_label,
-                date: row.date,
-                status: row.status,
-                image: row.image,
-                author: row.author,
-                approver: row.approver,
-                byline: row.byline,
-                draftedBy: row.drafted_by,
-                approvedAt: row.approved_at,
-                scheduledAt: row.scheduled_at,
-                revisionHistory: row.revision_history,
-                seoTitle: row.seo_title,
-                seoMeta: row.seo_meta,
-                slug: row.slug,
-                canonicalUrl: row.canonical_url,
-                isYMYL: row.is_ymyl,
-                isPinned: row.is_pinned,
-                isFeatured: row.is_featured,
-                views: row.views || 0
-              }));
-              
+              const camelCased = data.map(mapArticleRow);
+
               localStorage.setItem("baikal_articles", JSON.stringify(camelCased));
               window.ARTICLES = camelCased;
               console.log("Supabase database synced to LocalStorage cache successfully.");
