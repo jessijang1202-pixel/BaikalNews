@@ -4520,7 +4520,7 @@ function populateShortsStyleSettingsUI() {
   if (titleColor2Input) titleColor2Input.value = currentShortsProject.topBarTitleColorLine2 || '#ff0000';
   if (titleInput) titleInput.value = currentShortsProject.topBarTitle || '';
   if (title2Input) title2Input.value = currentShortsProject.topBarTitleLine2 || '';
-  if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 56;
+  if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 72;
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
   if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
 }
@@ -4544,7 +4544,7 @@ function updateShortsStyleSettings() {
   currentShortsProject.topBarTitleColorLine2 = titleColor2Input ? titleColor2Input.value : '#ff0000';
   currentShortsProject.topBarTitle = titleInput ? titleInput.value : '';
   currentShortsProject.topBarTitleLine2 = title2Input ? title2Input.value : '';
-  currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 56) : 56;
+  currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 72) : 72;
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
   currentShortsProject.captionPosition = positionInput ? positionInput.value : 'bottom';
 }
@@ -4643,7 +4643,7 @@ async function buildShortsAssets(project) {
 
 function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
   if (!text) return;
-  const size = fontSize || 56;
+  const size = fontSize || 72;
   ctx.save();
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
@@ -4717,7 +4717,19 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const frontDuration = assets.front.duration;
-  const totalDuration = frontDuration + (project.imageCuts || []).reduce((s, c) => s + (c.duration || 0), 0);
+
+  // When narration exists, its actual read-aloud length rarely matches the
+  // per-cut durations picked at script-generation time -- stretch/shrink the
+  // image-cut portion so the whole visual timeline lines up with how long
+  // the narration actually takes, instead of drifting out of sync or ending early/late.
+  let cutDurations = (project.imageCuts || []).map(c => c.duration || 0);
+  const originalCutsTotal = cutDurations.reduce((s, d) => s + d, 0);
+  if (assets.narrationBuffer && originalCutsTotal > 0) {
+    const targetCutsTotal = Math.max(1, assets.narrationBuffer.duration - frontDuration);
+    const scale = targetCutsTotal / originalCutsTotal;
+    cutDurations = cutDurations.map(d => d * scale);
+  }
+  const totalDuration = frontDuration + cutDurations.reduce((s, d) => s + d, 0);
 
   let recorder = null;
   let chunks = [];
@@ -4766,13 +4778,13 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
       } else {
         let t = elapsed - frontDuration;
         let idx = 0;
-        while (idx < assets.images.length - 1 && t > assets.images[idx].duration) {
-          t -= assets.images[idx].duration;
+        while (idx < assets.images.length - 1 && t > cutDurations[idx]) {
+          t -= cutDurations[idx];
           idx++;
         }
         const cut = assets.images[idx];
         if (cut) {
-          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cut.duration, 1), W, H);
+          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / cutDurations[idx], 1), W, H);
           drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
         }
       }
