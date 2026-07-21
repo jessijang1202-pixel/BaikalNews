@@ -1032,11 +1032,13 @@
                 </div>
 
                 <div class="shorts-card">
-                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
-                    <div class="shorts-card-kicker">나레이션</div>
-                    <button type="button" class="shorts-ghost-btn" onclick="generateShortsNarrationFromAssembly()">전체 나레이션 다시 생성</button>
+                  <div class="shorts-card-kicker" style="margin-bottom:10px;">나레이션</div>
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="playShortsNarrationSequence()">▶ 재생</button>
+                    <span class="help-text" id="shorts-narration-recap-status"></span>
                   </div>
-                  <div id="shorts-narration-recap"></div>
+                  <audio id="shorts-narration-playback" style="display:none;"></audio>
                 </div>
 
                 <div class="shorts-card">

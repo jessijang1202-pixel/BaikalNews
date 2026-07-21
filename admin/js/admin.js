@@ -4879,40 +4879,24 @@ function populateShortsStyleSettingsUI() {
 // Read-only recap of the narration already generated back in step 2 (hook +
 // each cut's 대본), so the admin can review/replay it here in step 4 without
 // flipping back -- editing still happens in step 2, this is just playback.
+// Step 4's 나레이션 card only needs a one-line status, not the full per-cut
+// breakdown -- that detail already lives in step 2, where it's editable.
 function renderShortsNarrationRecap() {
-  const container = document.getElementById("shorts-narration-recap");
-  if (!container || !currentShortsProject) return;
-  const esc = (s) => (s || '').replace(/</g, '&lt;');
-
-  const items = [];
-  items.push(`
-    <div class="shorts-narration-recap-item">
-      <div class="shorts-card-kicker">후킹 문구 · 0:00~0:03</div>
-      <p class="shorts-narration-recap-text">${esc(currentShortsProject.hookText) || '<span class="help-text">후킹 문구 없음</span>'}</p>
-      ${currentShortsProject.hookNarrationUrl
-        ? `<audio controls src="${currentShortsProject.hookNarrationUrl}"></audio>`
-        : `<span class="help-text">나레이션 없음</span>`}
-    </div>
-  `);
-  (currentShortsProject.imageCuts || []).forEach((cut, i) => {
-    items.push(`
-      <div class="shorts-narration-recap-item">
-        <div class="shorts-card-kicker">컷 ${i + 1}</div>
-        <p class="shorts-narration-recap-text">${esc(cut.narrationText) || '<span class="help-text">대본 없음</span>'}</p>
-        ${cut.narrationUrl
-          ? `<audio controls src="${cut.narrationUrl}"></audio>`
-          : `<span class="help-text">나레이션 없음</span>`}
-      </div>
-    `);
-  });
-  container.innerHTML = items.join('');
+  const statusEl = document.getElementById("shorts-narration-recap-status");
+  if (!statusEl || !currentShortsProject) return;
+  const cuts = currentShortsProject.imageCuts || [];
+  const readyCount = (currentShortsProject.hookNarrationUrl ? 1 : 0) + cuts.filter(c => c.narrationUrl).length;
+  const totalCount = 1 + cuts.length;
+  statusEl.textContent = readyCount === 0
+    ? "생성된 나레이션이 없습니다."
+    : `나레이션 ${readyCount}/${totalCount}개 준비됨`;
 }
 
-// "전체 나레이션 다시 생성" in step 4 -- reuses the same generator step 2's
-// approval calls, then refreshes both this recap and step 2's cut cards.
+// "나레이션 생성" in step 4 -- reuses the same generator step 2's approval
+// calls, then refreshes this card's status and step 2's cut cards.
 async function generateShortsNarrationFromAssembly() {
   if (!currentShortsProject) return;
-  const statusEl = document.getElementById("shorts-narration-status");
+  const statusEl = document.getElementById("shorts-narration-recap-status");
   if (statusEl) statusEl.textContent = "나레이션 생성 중...";
   try {
     await generateShortsNarration();
@@ -4921,6 +4905,37 @@ async function generateShortsNarrationFromAssembly() {
     console.error("나레이션 재생성 실패:", err);
     alert("나레이션 재생성 실패: " + err.message);
   }
+}
+
+// "▶ 재생" -- plays the hook narration then every cut's narration back to
+// back in one continuous <audio>, so the admin can hear the whole thing
+// without opening each cut individually.
+function playShortsNarrationSequence() {
+  if (!currentShortsProject) return;
+  const player = document.getElementById("shorts-narration-playback");
+  if (!player) return;
+
+  const queue = [];
+  if (currentShortsProject.hookNarrationUrl) queue.push(currentShortsProject.hookNarrationUrl);
+  (currentShortsProject.imageCuts || []).forEach(cut => {
+    if (cut.narrationUrl) queue.push(cut.narrationUrl);
+  });
+
+  if (queue.length === 0) {
+    alert("재생할 나레이션이 없습니다. 먼저 나레이션을 생성해 주세요.");
+    return;
+  }
+
+  let idx = 0;
+  player.onended = () => {
+    idx += 1;
+    if (idx < queue.length) {
+      player.src = queue[idx];
+      player.play();
+    }
+  };
+  player.src = queue[0];
+  player.play();
 }
 
 function updateShortsStyleSettings() {
