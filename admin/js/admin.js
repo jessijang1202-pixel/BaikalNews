@@ -1503,20 +1503,14 @@ async function saveArticle() {
     art = articles.find(a => a.id === id);
     if (!art) return;
 
-    // Log the change -- only actual status transitions get a 수정 이력 entry;
-    // a plain content edit with no status change logs nothing.
+    // 수정 이력 only ever logs a 기사 정정 entry, and only on the transition
+    // into that status -- plain edits, approvals, and publishing leave no
+    // entry at all (readers only need to know when content was corrected).
     actionName = `기사 편집 및 상태 변경 (${status.toUpperCase()})`;
     let revisionMsg = null;
 
-    if (art.status !== status) {
-      revisionMsg = `상태 변경: ${art.status} -> ${status}`;
-      if (status === 'published') {
-        revisionMsg = `보도 최종 승인 및 공개 발행 (승인인: ${approver})`;
-      } else if (status === 'scheduled') {
-        revisionMsg = `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`;
-      } else if (status === 'correction') {
-        revisionMsg = `기사 내용 정정 (승인인: ${approver})`;
-      }
+    if (status === 'correction' && art.status !== 'correction') {
+      revisionMsg = `기사 내용 정정 (승인인: ${approver})`;
     }
 
     art.title = title;
@@ -1561,21 +1555,10 @@ async function saveArticle() {
     const newId = articles.length > 0 ? Math.max(...articles.map(a => a.id)) + 1 : 1;
     actionName = "신규 기사 초안 작성";
 
-    // 수정 이력 should only show actual publish/approval events, never the
-    // draft registration itself -- so plain drafts start with no entry at all,
-    // and creating directly as published/scheduled logs only that 발행 event.
+    // 수정 이력 only ever logs a 기사 정정 entry -- nothing for a fresh draft,
+    // even one created directly as published/scheduled.
     const createRevisionHistory = [];
-    if (status === 'published') {
-      createRevisionHistory.push({
-        date: new Date().toLocaleString("ko-KR"),
-        action: `보도 최종 승인 및 공개 발행 (승인인: ${approver})`
-      });
-    } else if (status === 'scheduled') {
-      createRevisionHistory.push({
-        date: new Date().toLocaleString("ko-KR"),
-        action: `보도 승인 및 예약 발행 설정 (승인인: ${approver}, 예약일시: ${new Date(scheduledAt).toLocaleString("ko-KR")})`
-      });
-    } else if (status === 'correction') {
+    if (status === 'correction') {
       createRevisionHistory.push({
         date: new Date().toLocaleString("ko-KR"),
         action: `기사 내용 정정 (승인인: ${approver})`
