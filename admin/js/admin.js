@@ -875,6 +875,7 @@ async function renderViewsChart() {
 
   const maxVal = Math.max(1, ...data.map(d => Math.max(d.views, d.visitors)));
   const chartHeight = 180;
+  const topPad = 18; // room for the value labels above the tallest bar
   const barGroupWidth = 44;
   const barWidth = 14;
   const svgWidth = data.length * barGroupWidth;
@@ -883,18 +884,28 @@ async function renderViewsChart() {
     const x = i * barGroupWidth;
     const viewsH = Math.round((d.views / maxVal) * chartHeight);
     const visitorsH = Math.round((d.visitors / maxVal) * chartHeight);
+    const viewsY = topPad + chartHeight - viewsH;
+    const visitorsY = topPad + chartHeight - visitorsH;
+    const viewsLabel = d.views > 0
+      ? `<text x="${x + 4 + barWidth / 2}" y="${Math.max(viewsY - 5, 10)}" font-size="10" text-anchor="middle" fill="var(--admin-text-secondary)">${d.views}</text>`
+      : '';
+    const visitorsLabel = d.visitors > 0
+      ? `<text x="${x + 4 + barWidth + 2 + barWidth / 2}" y="${Math.max(visitorsY - 5, 10)}" font-size="10" text-anchor="middle" fill="var(--admin-text-secondary)">${d.visitors}</text>`
+      : '';
     return `
       <g>
         <title>${d.label}: 조회수 ${d.views}회 / 방문자 ${d.visitors}명</title>
-        <rect x="${x + 4}" y="${chartHeight - viewsH}" width="${barWidth}" height="${Math.max(viewsH, 1)}" fill="#f97316" rx="2"></rect>
-        <rect x="${x + 4 + barWidth + 2}" y="${chartHeight - visitorsH}" width="${barWidth}" height="${Math.max(visitorsH, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+        <rect x="${x + 4}" y="${viewsY}" width="${barWidth}" height="${Math.max(viewsH, 1)}" fill="#f97316" rx="2"></rect>
+        <rect x="${x + 4 + barWidth + 2}" y="${visitorsY}" width="${barWidth}" height="${Math.max(visitorsH, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+        ${viewsLabel}
+        ${visitorsLabel}
       </g>
-      <text x="${x + barGroupWidth / 2}" y="${chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${d.label}</text>
+      <text x="${x + barGroupWidth / 2}" y="${topPad + chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${d.label}</text>
     `;
   }).join('');
 
   container.innerHTML = `
-    <svg width="${svgWidth}" height="${chartHeight + 30}" viewBox="0 0 ${svgWidth} ${chartHeight + 30}" style="min-width: 100%;">
+    <svg width="${svgWidth}" height="${topPad + chartHeight + 30}" viewBox="0 0 ${svgWidth} ${topPad + chartHeight + 30}" style="min-width: 100%;">
       ${bars}
     </svg>
   `;
@@ -4671,6 +4682,7 @@ function renderNewsletterTrendChart(subscribers) {
 
   const maxVal = Math.max(1, ...buckets.map(b => b.count));
   const chartHeight = 140;
+  const topPad = 18; // room for the value label above the tallest bar
   const barGroupWidth = 36;
   const barWidth = 20;
   const svgWidth = buckets.length * barGroupWidth;
@@ -4678,17 +4690,22 @@ function renderNewsletterTrendChart(subscribers) {
   const bars = buckets.map((b, i) => {
     const x = i * barGroupWidth;
     const h = Math.round((b.count / maxVal) * chartHeight);
+    const y = topPad + chartHeight - h;
+    const label = b.count > 0
+      ? `<text x="${x + 8 + barWidth / 2}" y="${Math.max(y - 5, 10)}" font-size="10" text-anchor="middle" fill="var(--admin-text-secondary)">${b.count}</text>`
+      : '';
     return `
       <g>
         <title>${b.label}: 신규 구독 ${b.count}명</title>
-        <rect x="${x + 8}" y="${chartHeight - h}" width="${barWidth}" height="${Math.max(h, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+        <rect x="${x + 8}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
+        ${label}
       </g>
-      <text x="${x + barGroupWidth / 2}" y="${chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${b.label}</text>
+      <text x="${x + barGroupWidth / 2}" y="${topPad + chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${b.label}</text>
     `;
   }).join('');
 
   container.innerHTML = `
-    <svg width="${svgWidth}" height="${chartHeight + 30}" viewBox="0 0 ${svgWidth} ${chartHeight + 30}" style="min-width: 100%;">
+    <svg width="${svgWidth}" height="${topPad + chartHeight + 30}" viewBox="0 0 ${svgWidth} ${topPad + chartHeight + 30}" style="min-width: 100%;">
       ${bars}
     </svg>
   `;
