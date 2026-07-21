@@ -252,7 +252,7 @@ const DEFAULT_PAGE_CONTENTS = {
   <div class="contact-box">
     취재 의뢰, 광고·협업 문의, 오보 정정 요청, 제보는 아래 연락처로 접수해 주세요.<br>
     대표이메일 <strong>baikalnews815@gmail.com</strong><br>
-    제보이메일 <strong>baikalnews815.jebo@gmail.com</strong><br>
+    제보이메일 <strong>baikalnews.jebo@gmail.com</strong><br>
     대표전화 <strong>010-4282-3393</strong>
   </div>
 </section>`,
@@ -455,7 +455,7 @@ const DEFAULT_PAGE_CONTENTS = {
     본지의 보도로 인해 권익을 침해당했거나 사실 관계의 위배를 목격하신 이용자는 다음과 같은 절차에 따라 정정 신청을 하실 수 있습니다.
   </p>
   <p>
-    1. <strong>신청 방법</strong>: 제보 및 문의 페이지의 온라인 접수 양식을 이용하시거나, 정정요청 이메일(<a href="mailto:baikalnews815.jebo@gmail.com">baikalnews815.jebo@gmail.com</a>)로 접수해 주십시오.<br>
+    1. <strong>신청 방법</strong>: 제보 및 문의 페이지의 온라인 접수 양식을 이용하시거나, 정정요청 이메일(<a href="mailto:baikalnews.jebo@gmail.com">baikalnews.jebo@gmail.com</a>)로 접수해 주십시오.<br>
     2. <strong>제출 서류</strong>: 정정을 요청하시는 기사의 링크, 문제가 되는 본문 단락, 올바른 사실관계를 증빙할 수 있는 신뢰성 있는 객관적 자료(공문서, 팩트 자료, 통계 자료 등)를 첨부해 주십시오.<br>
     3. <strong>심의 및 결과 회신</strong>: 편집국 데스크가 접수 즉시 팩트 검증을 재실행하며, 접수 후 48시간 이내에 반영 여부 및 향후 반영 조치 계획을 신청인에게 서면(이메일)으로 정중히 전달합니다.
   </p>
@@ -480,7 +480,7 @@ const DEFAULT_PAGE_CONTENTS = {
   <div class="contact-method">
     <h3>기사 제보</h3>
     <p>익명이 보장되는 기사 관련 제보는 아래 이메일로 관련 첨부 자료 및 정황 문서를 송부해 주시기 바랍니다.</p>
-    <p style="margin-top: 4px; font-weight: 600; color: var(--accent-cyan);">baikalnews815.jebo@gmail.com</p>
+    <p style="margin-top: 4px; font-weight: 600; color: var(--accent-cyan);">baikalnews.jebo@gmail.com</p>
   </div>
 
   <div class="contact-method">
