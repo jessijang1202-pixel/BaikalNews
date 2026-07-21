@@ -4269,7 +4269,7 @@ function renderImageCutsEditor(cuts) {
       <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
 
       <label class="shorts-field-label">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
-      <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
+      <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장">${(cut.narrationText || cut.caption || '').replace(/</g, '&lt;')}</textarea>
 
       <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
       <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
