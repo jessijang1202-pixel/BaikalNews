@@ -4364,7 +4364,7 @@ function pcm16ToWavBlob(base64Pcm, sampleRate) {
 
 // Calls Gemini's native TTS (same API key already used for images/Veo) and
 // returns a playable WAV Blob.
-async function generateGeminiSpeech(text) {
+async function generateGeminiSpeech(text, voiceName) {
   const apiKey = localStorage.getItem("baikal_gemini_key");
   if (!apiKey) {
     throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
@@ -4378,7 +4378,7 @@ async function generateGeminiSpeech(text) {
       contents: [{ parts: [{ text }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName || "Kore" } } }
       }
     })
   });
@@ -4438,8 +4438,11 @@ async function generateShortsNarration() {
       throw new Error("나레이션으로 읽을 대본이 없습니다. 먼저 대본을 생성해 주세요.");
     }
 
+    const voiceSelect = document.getElementById("shorts-narration-voice");
+    const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+
     statusEl.textContent = "나레이션 음성 생성 중...";
-    const wavBlob = await generateGeminiSpeech(narrationText);
+    const wavBlob = await generateGeminiSpeech(narrationText, voiceName);
     currentShortsProject.narrationUrl = keepShortsBlobLocal(wavBlob);
     shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
 
