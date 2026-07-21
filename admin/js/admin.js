@@ -3422,7 +3422,7 @@ function saveShortsDraftLocally() {
     hasFinal: !!currentShortsProject.finalVideoUrl,
     hasHookNarration: !!currentShortsProject.hookNarrationUrl,
     imageCuts: (currentShortsProject.imageCuts || []).map(c => ({
-      prompt: c.prompt, caption: c.caption, duration: c.duration,
+      prompt: c.prompt, narrationText: c.narrationText || '', caption: c.caption, duration: c.duration,
       uploaded: !!c.uploaded, imageKey: c.imageKey || null, narrationKey: c.narrationKey || null
     })),
     topBarColor: currentShortsProject.topBarColor,
@@ -4183,10 +4183,11 @@ ${backInstruction}
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
-      prompt: c.prompt || '', caption: c.caption || '', duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
+      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.caption || '',
+      duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
-      prompt: '', caption: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
+      prompt: '', caption: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
     }));
 
     currentShortsProject.articleId = articleId;
@@ -4232,13 +4233,23 @@ function renderShortsScriptReview() {
 // still implementation detail) image prompt stays out of view in a hidden
 // field so it's still there for image (re)generation without cluttering
 // the review screen.
+// Each cut shows two stacked boxes -- 대본 (the text that gets read aloud
+// as narration) and 자막 (the short on-screen caption) -- both start out
+// identical but are independently editable. The raw image prompt stays in
+// a hidden field (still needed for image generation, just not shown).
 function renderImageCutsEditor(cuts) {
   const container = document.getElementById("shorts-image-cuts-editor");
   const rows = cuts.map((cut, i) => `
     <div class="shorts-cut-row" style="border:1px solid var(--admin-border); border-radius:6px; padding:12px; margin-bottom:10px;">
       <div style="font-size:0.8rem; font-weight:600; color:var(--admin-text-secondary); margin-bottom:6px;">컷 ${i + 1}</div>
       <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
+
+      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">대본 (나레이션으로 읽힙니다)</label>
+      <textarea class="form-control-admin shorts-cut-narration-text" style="margin-bottom:8px; min-height:50px;" placeholder="이 컷에서 읽어줄 문장">${(cut.narrationText || cut.caption || '').replace(/</g, '&lt;')}</textarea>
+
+      <label style="font-size:0.72rem; color:var(--admin-text-secondary); display:block; margin-bottom:2px;">자막 (화면에 표시)</label>
       <input type="text" class="form-control-admin shorts-cut-caption" style="margin-bottom:8px;" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
+
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <label style="font-size:0.75rem; color:var(--admin-text-secondary); white-space:nowrap;">길이(초)
           <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}">
@@ -4246,8 +4257,10 @@ function renderImageCutsEditor(cuts) {
         ${cut.narrationUrl
           ? `<audio controls src="${cut.narrationUrl}" style="height:32px; max-width:220px;"></audio>`
           : `<span class="help-text">나레이션 없음</span>`}
-        <button type="button" class="btn-admin btn-admin-secondary" onclick="regenerateCutNarration(${i})">나레이션 재생성</button>
-        <button type="button" class="btn-admin btn-admin-danger" onclick="removeShortsCut(${i})">컷 삭제</button>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" class="btn-admin btn-admin-secondary" onclick="editCutNarration(${i})">편집</button>
+        <button type="button" class="btn-admin btn-admin-secondary" onclick="removeShortsCut(${i})">삭제</button>
       </div>
     </div>
   `).join('');
@@ -4260,6 +4273,7 @@ function readImageCutsFromDom() {
     const existing = currentShortsProject.imageCuts[i];
     return {
       prompt: row.querySelector(".shorts-cut-prompt").value.trim(),
+      narrationText: row.querySelector(".shorts-cut-narration-text").value.trim(),
       caption: row.querySelector(".shorts-cut-caption").value.trim(),
       duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
       imageUrl: (existing && existing.imageUrl) || '',
@@ -4273,7 +4287,7 @@ function readImageCutsFromDom() {
 
 function addShortsCut() {
   currentShortsProject.imageCuts = readImageCutsFromDom();
-  currentShortsProject.imageCuts.push({ prompt: '', caption: '', duration: 5, imageUrl: '' });
+  currentShortsProject.imageCuts.push({ prompt: '', narrationText: '', caption: '', duration: 5, imageUrl: '' });
   renderImageCutsEditor(currentShortsProject.imageCuts);
 }
 
@@ -4281,6 +4295,13 @@ function removeShortsCut(i) {
   currentShortsProject.imageCuts = readImageCutsFromDom();
   currentShortsProject.imageCuts.splice(i, 1);
   renderImageCutsEditor(currentShortsProject.imageCuts);
+}
+
+// "편집" -- regenerates this cut's narration audio from whatever's
+// currently in its 대본 box (after any edits), rather than requiring a
+// separate manual "generate narration" step.
+async function editCutNarration(i) {
+  await regenerateCutNarration(i);
 }
 
 async function approveShortsScript() {
@@ -4295,6 +4316,11 @@ async function approveShortsScript() {
   }
 
   currentShortsProject.status = 'script_approved';
+
+  // Narration is just the 대본 read aloud -- generate it automatically here
+  // instead of requiring a separate manual step.
+  await generateShortsNarration();
+
   await persistCurrentShortsProject();
 
   const mediaSection = document.getElementById("shorts-media-section");
@@ -4630,13 +4656,13 @@ async function generateCutNarration(cutObj, text, voiceName, draftId) {
 }
 
 // Generates narration for the hook and every image cut in one pass --
-// reads the actual caption text shown on screen, not the raw scriptMd
+// reads each segment's 대본 (narrationText) directly, not the raw scriptMd
 // (which used to leak structural labels like "[상단 고정 타이틀: ...]"
-// into the audio).
+// into the audio) and not the separate, shorter on-screen 자막. Runs
+// automatically when the script is approved -- no manual "generate
+// narration" step needed.
 async function generateShortsNarration() {
   const statusEl = document.getElementById("shorts-narration-status");
-  const btn = document.getElementById("shorts-narration-btn");
-  if (btn) btn.disabled = true;
 
   try {
     currentShortsProject.imageCuts = readImageCutsFromDom();
@@ -4645,31 +4671,29 @@ async function generateShortsNarration() {
     const draftId = ensureShortsLocalDraftId();
 
     if (currentShortsProject.hookText) {
-      statusEl.textContent = "나레이션 생성 중... (후킹 문구)";
+      if (statusEl) statusEl.textContent = "나레이션 생성 중... (후킹 문구)";
       await generateCutNarration(null, currentShortsProject.hookText, voiceName, draftId);
     }
 
     const cuts = currentShortsProject.imageCuts || [];
     for (let i = 0; i < cuts.length; i++) {
-      statusEl.textContent = `나레이션 생성 중... (컷 ${i + 1}/${cuts.length})`;
-      await generateCutNarration(cuts[i], cuts[i].caption, voiceName, draftId);
+      if (statusEl) statusEl.textContent = `나레이션 생성 중... (컷 ${i + 1}/${cuts.length})`;
+      await generateCutNarration(cuts[i], cuts[i].narrationText || cuts[i].caption, voiceName, draftId);
     }
 
     renderImageCutsEditor(currentShortsProject.imageCuts);
     saveShortsDraftLocally();
     shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
-    statusEl.textContent = "나레이션 생성 완료. 각 컷 재생 시간이 나레이션 길이에 맞춰 자동 조정되었습니다.";
+    if (statusEl) statusEl.textContent = "나레이션 생성 완료. 각 컷 재생 시간이 나레이션 길이에 맞춰 자동 조정되었습니다.";
   } catch (err) {
     console.error("나레이션 생성 실패:", err);
-    statusEl.textContent = "나레이션 생성 실패: " + err.message;
+    if (statusEl) statusEl.textContent = "나레이션 생성 실패: " + err.message;
     alert("나레이션 생성 실패: " + err.message);
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
 
-// Regenerates just one cut's narration (e.g. after editing its caption),
-// without touching the others.
+// Regenerates just one cut's narration from its current 대본 text (e.g.
+// after editing it), without touching the others.
 async function regenerateCutNarration(i) {
   currentShortsProject.imageCuts = readImageCutsFromDom();
   const cut = currentShortsProject.imageCuts[i];
@@ -4678,7 +4702,7 @@ async function regenerateCutNarration(i) {
   const voiceName = voiceSelect ? voiceSelect.value : "Kore";
 
   try {
-    await generateCutNarration(cut, cut.caption, voiceName, ensureShortsLocalDraftId());
+    await generateCutNarration(cut, cut.narrationText || cut.caption, voiceName, ensureShortsLocalDraftId());
     renderImageCutsEditor(currentShortsProject.imageCuts);
     saveShortsDraftLocally();
     shortsAssets = null;

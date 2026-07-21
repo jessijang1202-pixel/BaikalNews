@@ -310,14 +310,18 @@ body {
   gap: 8px;
 }
 
-/* Unified big step headers for the 숏폼 자동 생성 wizard (1~4) */
+/* Unified big step headers for the 숏폼 자동 생성 wizard (1~4) -- each step
+   number/title is its own white card, with spacing between them. */
 .shorts-step-title {
   font-size: 1.2rem;
   font-weight: 700;
-  color: var(--admin-accent-cyan);
-  margin: 28px 0 14px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--admin-accent-cyan);
+  color: var(--admin-text-primary);
+  background-color: var(--admin-bg-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 28px 0 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 .shorts-step-title:first-child {
   margin-top: 0;
