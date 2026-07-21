@@ -949,7 +949,7 @@
                 <div class="form-group-admin">
                   <label for="shorts-hook-text">0:00~0:03 후킹 문구</label>
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장">
+                    <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장" oninput="syncShortsHookEdit()">
                     <button type="button" class="shorts-ghost-btn" onclick="regenerateHookNarration()">나레이션 재생성</button>
                   </div>
                   <audio id="shorts-hook-narration-preview" controls style="display:none; margin-top:8px; height:32px;"></audio>

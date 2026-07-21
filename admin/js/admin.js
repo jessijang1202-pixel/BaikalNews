@@ -3345,7 +3345,11 @@ function getShortsLocalDrafts() {
 }
 
 function setShortsLocalDrafts(drafts) {
-  localStorage.setItem(SHORTS_LOCAL_DRAFTS_KEY, JSON.stringify(drafts));
+  try {
+    localStorage.setItem(SHORTS_LOCAL_DRAFTS_KEY, JSON.stringify(drafts));
+  } catch (err) {
+    console.error("로컬 임시 숏폼 저장 실패:", err);
+  }
 }
 
 function ensureShortsLocalDraftId() {
@@ -4269,14 +4273,14 @@ function renderImageCutsEditor(cuts) {
       <textarea class="shorts-cut-prompt" style="display:none;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
 
       <label class="shorts-field-label">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
-      <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
+      <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장" oninput="syncShortsCutEdits()">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
 
       <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
-      <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}">
+      <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}" oninput="syncShortsCutEdits()">
 
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
         <label style="font-size:0.75rem; color:var(--sf-text-muted, var(--admin-text-secondary)); white-space:nowrap;">길이(초)
-          <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}">
+          <input type="number" class="form-control-admin shorts-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}" oninput="syncShortsCutEdits()">
         </label>
         ${cut.narrationUrl
           ? `<audio controls src="${cut.narrationUrl}" style="height:32px; max-width:220px;"></audio>`
@@ -4303,6 +4307,29 @@ function readImageCutsFromDom() {
       narrationKey: (existing && existing.narrationKey) || null
     };
   });
+}
+
+// Same immediate-save reasoning as syncShortsCutEdits(), for the hook text
+// field.
+function syncShortsHookEdit() {
+  if (!currentShortsProject) return;
+  currentShortsProject.hookText = document.getElementById("shorts-hook-text").value.trim();
+  shortsAssets = null;
+  saveShortsDraftLocally();
+}
+
+// Fires on every keystroke in a cut's 대본/자막/길이 fields -- without this,
+// typed edits only ever made it into currentShortsProject (and therefore
+// localStorage) when some other action happened to call
+// readImageCutsFromDom() first (approving the script, adding/removing a
+// cut, editing narration). A reload in between silently lost whatever was
+// only sitting in the DOM. Cheap and immediate: no debounce, since losing
+// the latest keystroke on a crash/close is exactly what must not happen.
+function syncShortsCutEdits() {
+  if (!currentShortsProject) return;
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  shortsAssets = null;
+  saveShortsDraftLocally();
 }
 
 function addShortsCut() {
