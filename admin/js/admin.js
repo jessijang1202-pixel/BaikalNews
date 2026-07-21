@@ -986,7 +986,9 @@ async function renderArticlesList() {
 
   const shortsEligibleStatuses = ['published', 'approved', 'scheduled'];
 
-  tbody.innerHTML = articles.map(art => {
+  const sortedArticles = articles.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
+
+  tbody.innerHTML = sortedArticles.map((art, i) => {
     const statusInfo = getArticleStatusDisplay(art);
 
     let shortsButton = '';
@@ -1000,7 +1002,7 @@ async function renderArticlesList() {
     return `
     <tr>
       <td class="article-select-col"><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
-      <td>${art.id}</td>
+      <td>${i + 1}</td>
       <td style="font-weight: 500; color: var(--admin-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</td>
       <td>
         <select class="form-control-admin" style="font-size: 0.78rem; padding: 4px 8px; width: auto;" onchange="changeArticleApprover(${art.id}, this.value)">
