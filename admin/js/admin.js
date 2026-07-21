@@ -3325,11 +3325,16 @@ const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
 const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
 
 // Storage-minimization: while a shorts project is being drafted, its script
-// text lives only in localStorage (cheap, tiny) and its media (images/Veo
-// clip/final render) lives only as in-browser object URLs -- neither ever
-// touches Supabase. Only 보관(archive) writes anything to Supabase, and even
-// then just {id, articleId, hookText, scriptMd} -- never the media.
+// text lives in localStorage (cheap, tiny) and its media (images/Veo clip/
+// final render/narration) lives in IndexedDB (large Blobs, browser-only) --
+// neither ever touches Supabase. Only 보관(archive) writes anything to
+// Supabase, and even then just {id, articleId, hookText, scriptMd} -- never
+// the media. Reopening a project (same browser) rehydrates fresh object
+// URLs from the stored Blobs, so the actual images/video/audio are still
+// there, not just the script text.
 const SHORTS_LOCAL_DRAFTS_KEY = "baikal_shorts_local_drafts";
+const SHORTS_IDB_NAME = "baikal_shorts_media";
+const SHORTS_IDB_STORE = "blobs";
 
 function getShortsLocalDrafts() {
   try {
@@ -3343,11 +3348,67 @@ function setShortsLocalDrafts(drafts) {
   localStorage.setItem(SHORTS_LOCAL_DRAFTS_KEY, JSON.stringify(drafts));
 }
 
-function saveShortsDraftLocally() {
-  if (!currentShortsProject) return;
+function ensureShortsLocalDraftId() {
   if (!currentShortsProject.localDraftId) {
     currentShortsProject.localDraftId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
+  return currentShortsProject.localDraftId;
+}
+
+function openShortsMediaDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(SHORTS_IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(SHORTS_IDB_STORE)) {
+        req.result.createObjectStore(SHORTS_IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbPutBlob(key, blob) {
+  const db = await openShortsMediaDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHORTS_IDB_STORE, 'readwrite');
+    tx.objectStore(SHORTS_IDB_STORE).put(blob, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGetBlob(key) {
+  const db = await openShortsMediaDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHORTS_IDB_STORE, 'readonly');
+    const req = tx.objectStore(SHORTS_IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbDeleteByPrefix(prefix) {
+  const db = await openShortsMediaDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHORTS_IDB_STORE, 'readwrite');
+    const store = tx.objectStore(SHORTS_IDB_STORE);
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        if (String(cursor.key).startsWith(prefix)) cursor.delete();
+        cursor.continue();
+      }
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function saveShortsDraftLocally() {
+  if (!currentShortsProject) return;
+  ensureShortsLocalDraftId();
   const snapshot = {
     localDraftId: currentShortsProject.localDraftId,
     articleId: currentShortsProject.articleId || null,
@@ -3356,7 +3417,24 @@ function saveShortsDraftLocally() {
     veoPrompt: currentShortsProject.veoPrompt || '',
     scriptMd: currentShortsProject.scriptMd || '',
     styleGuide: currentShortsProject.styleGuide || '',
-    imageCuts: (currentShortsProject.imageCuts || []).map(c => ({ prompt: c.prompt, caption: c.caption, duration: c.duration })),
+    frontIsImage: !!currentShortsProject.frontIsImage,
+    hasFront: !!currentShortsProject.veoVideoUrl,
+    hasFinal: !!currentShortsProject.finalVideoUrl,
+    hasNarration: !!currentShortsProject.narrationUrl,
+    imageCuts: (currentShortsProject.imageCuts || []).map(c => ({
+      prompt: c.prompt, caption: c.caption, duration: c.duration,
+      uploaded: !!c.uploaded, imageKey: c.imageKey || null
+    })),
+    topBarColor: currentShortsProject.topBarColor,
+    topBarHeight: currentShortsProject.topBarHeight,
+    topBarTitleColor: currentShortsProject.topBarTitleColor,
+    topBarTitleColorLine2: currentShortsProject.topBarTitleColorLine2,
+    topBarTitle: currentShortsProject.topBarTitle,
+    topBarTitleLine2: currentShortsProject.topBarTitleLine2,
+    topBarTitleFontSize: currentShortsProject.topBarTitleFontSize,
+    captionFontSize: currentShortsProject.captionFontSize,
+    captionColor: currentShortsProject.captionColor,
+    captionPosition: currentShortsProject.captionPosition,
     createdBy: currentShortsProject.createdBy || '',
     updatedAt: new Date().toISOString()
   };
@@ -3366,26 +3444,40 @@ function saveShortsDraftLocally() {
   setShortsLocalDrafts(drafts);
 }
 
-function deleteShortsDraftLocally(localDraftId) {
+async function deleteShortsDraftLocally(localDraftId) {
   setShortsLocalDrafts(getShortsLocalDrafts().filter(d => d.localDraftId !== localDraftId));
+  try {
+    await idbDeleteByPrefix(`${localDraftId}:`);
+  } catch (err) {
+    console.warn("로컬 미디어 정리 실패:", err);
+  }
 }
 
 // Turns a generated/uploaded Blob into an in-browser object URL instead of
-// uploading it to Supabase Storage -- valid only for this tab/session, but
-// costs zero server storage. Download or 보관 before closing the tab if the
-// result needs to survive.
-function keepShortsBlobLocal(blob) {
+// uploading it to Supabase Storage -- costs zero server storage. When
+// mediaKey is given, the Blob is also durably kept in IndexedDB under that
+// key so reopening the project later (openLocalShortsDraft) can regenerate
+// a fresh, working object URL instead of the old one (which dies with the
+// page). Download or 보관 if the result needs to leave this browser.
+async function keepShortsBlobLocal(blob, mediaKey) {
+  if (mediaKey) {
+    try {
+      await idbPutBlob(mediaKey, blob);
+    } catch (err) {
+      console.warn("로컬 미디어 저장 실패:", err);
+    }
+  }
   return URL.createObjectURL(blob);
 }
 
-async function keepShortsImageLocal(fileOrBlob) {
+async function keepShortsImageLocal(fileOrBlob, mediaKey) {
   let blob = fileOrBlob;
   try {
     blob = await resizeAndCompressImage(fileOrBlob);
   } catch (err) {
     console.warn("이미지 압축 실패, 원본을 사용합니다:", err);
   }
-  return URL.createObjectURL(blob);
+  return keepShortsBlobLocal(blob, mediaKey);
 }
 
 function getShortsStyleTemplates() {
@@ -3532,9 +3624,9 @@ async function deleteShortsProject(id) {
   await renderShortsList();
 }
 
-function deleteShortsLocalDraft(localDraftId) {
+async function deleteShortsLocalDraft(localDraftId) {
   if (!confirm("이 로컬 임시 숏폼을 삭제하시겠습니까? (Supabase에는 저장된 적이 없어 복구할 수 없습니다)")) return;
-  deleteShortsDraftLocally(localDraftId);
+  await deleteShortsDraftLocally(localDraftId);
   renderShortsList();
 }
 
@@ -3612,20 +3704,28 @@ async function assignShortsUpload(tempId, placement) {
   renderShortsPendingUploads();
 
   const isVideo = pending.file.type.startsWith('video');
+  const draftId = ensureShortsLocalDraftId();
 
   try {
     let url;
-    if (isVideo) {
-      url = keepShortsBlobLocal(pending.file);
+    let mediaKey;
+    if (placement === 'front') {
+      mediaKey = `${draftId}:front`;
     } else {
-      url = await keepShortsImageLocal(pending.file);
+      mediaKey = `${draftId}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    if (isVideo) {
+      url = await keepShortsBlobLocal(pending.file, mediaKey);
+    } else {
+      url = await keepShortsImageLocal(pending.file, mediaKey);
     }
 
     if (placement === 'front') {
       currentShortsProject.frontUpload = { url, type: isVideo ? 'video' : 'image', name: pending.file.name };
     } else {
       currentShortsProject.backUploads = currentShortsProject.backUploads || [];
-      currentShortsProject.backUploads.push({ url, type: isVideo ? 'video' : 'image', name: pending.file.name });
+      currentShortsProject.backUploads.push({ url, type: isVideo ? 'video' : 'image', name: pending.file.name, imageKey: mediaKey });
     }
     renderShortsAssignedUploads();
   } catch (err) {
@@ -3739,6 +3839,10 @@ async function openShortsProject(id) {
 // Media never survives a reload since it's only ever an in-browser object
 // URL, so this always reopens at most at the 대본 승인 stage -- media/조립
 // sections stay hidden and must be regenerated if needed.
+// Resumes a local-only draft: script/style text comes straight from the
+// localStorage snapshot, and any media (Veo clip/images/final render/
+// narration) is rehydrated from IndexedDB into fresh object URLs -- the
+// ones from the previous session are already dead by the time this runs.
 async function openLocalShortsDraft(localDraftId) {
   const draft = getShortsLocalDrafts().find(d => d.localDraftId === localDraftId);
   if (!draft) {
@@ -3749,17 +3853,51 @@ async function openLocalShortsDraft(localDraftId) {
     id: null,
     localDraftId: draft.localDraftId,
     articleId: draft.articleId,
-    status: ['media_ready', 'video_ready'].includes(draft.status) ? 'script_approved' : draft.status,
+    status: draft.status,
     hookText: draft.hookText,
     veoPrompt: draft.veoPrompt,
     scriptMd: draft.scriptMd,
     styleGuide: draft.styleGuide,
-    imageCuts: (draft.imageCuts || []).map(c => ({ ...c, imageUrl: '', uploaded: false })),
+    frontIsImage: !!draft.frontIsImage,
+    imageCuts: (draft.imageCuts || []).map(c => ({ ...c, imageUrl: '' })),
     createdBy: draft.createdBy,
     frontUpload: null,
-    backUploads: []
+    backUploads: [],
+    topBarColor: draft.topBarColor,
+    topBarHeight: draft.topBarHeight,
+    topBarTitleColor: draft.topBarTitleColor,
+    topBarTitleColorLine2: draft.topBarTitleColorLine2,
+    topBarTitle: draft.topBarTitle,
+    topBarTitleLine2: draft.topBarTitleLine2,
+    topBarTitleFontSize: draft.topBarTitleFontSize,
+    captionFontSize: draft.captionFontSize,
+    captionColor: draft.captionColor,
+    captionPosition: draft.captionPosition
   };
   shortsAssets = null;
+
+  try {
+    if (draft.hasFront) {
+      const blob = await idbGetBlob(`${localDraftId}:front`);
+      if (blob) currentShortsProject.veoVideoUrl = URL.createObjectURL(blob);
+    }
+    if (draft.hasFinal) {
+      const blob = await idbGetBlob(`${localDraftId}:final`);
+      if (blob) currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
+    }
+    if (draft.hasNarration) {
+      const blob = await idbGetBlob(`${localDraftId}:narration`);
+      if (blob) currentShortsProject.narrationUrl = URL.createObjectURL(blob);
+    }
+    for (const cut of currentShortsProject.imageCuts) {
+      if (cut.imageKey) {
+        const blob = await idbGetBlob(cut.imageKey);
+        if (blob) cut.imageUrl = URL.createObjectURL(blob);
+      }
+    }
+  } catch (err) {
+    console.warn("로컬 미디어 복원 중 일부 실패:", err);
+  }
 
   document.getElementById("shorts-wizard-title").textContent = "로컬 임시 숏폼 편집";
   await populateShortsArticleSelect();
@@ -3774,8 +3912,28 @@ async function openLocalShortsDraft(localDraftId) {
   }
   if (currentShortsProject.status !== 'script_draft') {
     document.getElementById("shorts-media-section").style.display = "block";
-    if (draft.status !== 'script_draft' && draft.status !== 'script_approved') {
-      document.getElementById("shorts-media-status").textContent = "이미지/영상은 로컬 세션에만 있어 새로고침 후 사라졌습니다. \"미디어 생성\"을 다시 눌러주세요.";
+    renderShortsMediaPreview();
+  }
+  if (currentShortsProject.veoVideoUrl || (currentShortsProject.imageCuts || []).some(c => c.imageUrl)) {
+    document.getElementById("shorts-assembly-section").style.display = "block";
+    populateShortsStyleSettingsUI();
+  }
+  if (currentShortsProject.finalVideoUrl) {
+    const previewEl = document.getElementById("shorts-final-preview");
+    previewEl.src = currentShortsProject.finalVideoUrl;
+    previewEl.style.display = "block";
+    const downloadEl = document.getElementById("shorts-final-download");
+    if (downloadEl) {
+      downloadEl.href = currentShortsProject.finalVideoUrl;
+      downloadEl.download = `shorts-${localDraftId}.webm`;
+      downloadEl.style.display = "inline-block";
+    }
+  }
+  if (currentShortsProject.narrationUrl) {
+    const narrationPreviewEl = document.getElementById("shorts-narration-preview");
+    if (narrationPreviewEl) {
+      narrationPreviewEl.src = currentShortsProject.narrationUrl;
+      narrationPreviewEl.style.display = "block";
     }
   }
 
@@ -3822,7 +3980,7 @@ async function archiveShortsProject() {
   if (saved && saved.id) currentShortsProject.id = saved.id;
   currentShortsProject.status = 'archived';
   if (currentShortsProject.localDraftId) {
-    deleteShortsDraftLocally(currentShortsProject.localDraftId);
+    await deleteShortsDraftLocally(currentShortsProject.localDraftId);
   }
   await renderShortsList();
   alert("숏폼 번호·기사·대본만 Supabase에 보관했습니다. 이미지·영상은 저장공간 절약을 위해 서버에 올리지 않으니, 필요하면 지금 다운로드해 두세요.");
@@ -4029,7 +4187,7 @@ ${backInstruction}
       prompt: c.prompt || '', caption: c.caption || '', duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
-      prompt: '', caption: '', duration: perCutDuration, imageUrl: u.url, uploaded: true
+      prompt: '', caption: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
     }));
 
     currentShortsProject.articleId = articleId;
@@ -4079,12 +4237,17 @@ function renderImageCutsEditor(cuts) {
 
 function readImageCutsFromDom() {
   const rows = document.querySelectorAll("#shorts-image-cuts-editor .shorts-cut-row");
-  return Array.from(rows).map((row, i) => ({
-    prompt: row.querySelector(".shorts-cut-prompt").value.trim(),
-    caption: row.querySelector(".shorts-cut-caption").value.trim(),
-    duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
-    imageUrl: (currentShortsProject.imageCuts[i] && currentShortsProject.imageCuts[i].imageUrl) || ''
-  }));
+  return Array.from(rows).map((row, i) => {
+    const existing = currentShortsProject.imageCuts[i];
+    return {
+      prompt: row.querySelector(".shorts-cut-prompt").value.trim(),
+      caption: row.querySelector(".shorts-cut-caption").value.trim(),
+      duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
+      imageUrl: (existing && existing.imageUrl) || '',
+      uploaded: !!(existing && existing.uploaded),
+      imageKey: (existing && existing.imageKey) || null
+    };
+  });
 }
 
 function addShortsCut() {
@@ -4443,7 +4606,8 @@ async function generateShortsNarration() {
 
     statusEl.textContent = "나레이션 음성 생성 중...";
     const wavBlob = await generateGeminiSpeech(narrationText, voiceName);
-    currentShortsProject.narrationUrl = keepShortsBlobLocal(wavBlob);
+    currentShortsProject.narrationUrl = await keepShortsBlobLocal(wavBlob, `${ensureShortsLocalDraftId()}:narration`);
+    saveShortsDraftLocally();
     shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
 
     const previewEl = document.getElementById("shorts-narration-preview");
@@ -4474,7 +4638,7 @@ async function generateShortsMedia() {
     } else {
       statusEl.textContent = "Veo 영상 생성 중... (몇 분 소요될 수 있습니다)";
       const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { statusEl.textContent = msg; });
-      currentShortsProject.veoVideoUrl = keepShortsBlobLocal(veoBlob);
+      currentShortsProject.veoVideoUrl = await keepShortsBlobLocal(veoBlob, `${ensureShortsLocalDraftId()}:front`);
       currentShortsProject.frontIsImage = false;
     }
     await persistCurrentShortsProject();
@@ -4487,7 +4651,8 @@ async function generateShortsMedia() {
       const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
       const dataUrl = await generateGeminiImage(verticalPrompt);
       const blob = await (await fetch(dataUrl)).blob();
-      cut.imageUrl = await keepShortsImageLocal(blob);
+      if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);
       renderShortsMediaPreview();
     }
 
@@ -4556,6 +4721,7 @@ function updateShortsStyleSettings() {
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 72) : 72;
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
   currentShortsProject.captionPosition = positionInput ? positionInput.value : 'bottom';
+  saveShortsDraftLocally();
 }
 
 // Media previews link to their own object URL with `download` so the admin
@@ -4845,7 +5011,7 @@ async function recordShortsVideo() {
     statusEl.textContent = "녹화 중... (약 30초 소요)";
     const videoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
 
-    const publicUrl = keepShortsBlobLocal(videoBlob);
+    const publicUrl = await keepShortsBlobLocal(videoBlob, `${ensureShortsLocalDraftId()}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
     currentShortsProject.status = 'video_ready';
     await persistCurrentShortsProject();
