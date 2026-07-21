@@ -973,7 +973,11 @@
                   <div id="shorts-image-cuts-editor"></div>
                 </div>
 
-                <button type="button" class="btn-admin btn-admin-success" onclick="approveShortsScript()">대본 승인하고 다음 단계로</button>
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                  <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsScriptManually()">대본 저장</button>
+                  <button type="button" class="btn-admin btn-admin-success" onclick="approveShortsScript()">대본 승인하고 다음 단계로</button>
+                  <span class="help-text" id="shorts-script-save-status"></span>
+                </div>
               </div>
             </div>
           </div>

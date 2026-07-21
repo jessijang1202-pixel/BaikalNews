@@ -4309,6 +4309,24 @@ function readImageCutsFromDom() {
   });
 }
 
+// Explicit "대본 저장" button -- on top of the oninput auto-save, this gives
+// the admin a deliberate action with visible confirmation that the current
+// hook text + every cut's 대본/자막/길이 is in localStorage right now.
+function saveShortsScriptManually() {
+  if (!currentShortsProject) return;
+  currentShortsProject.hookText = document.getElementById("shorts-hook-text").value.trim();
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  shortsAssets = null;
+  saveShortsDraftLocally();
+
+  const statusEl = document.getElementById("shorts-script-save-status");
+  if (statusEl) {
+    statusEl.textContent = "저장되었습니다 (" + new Date().toLocaleTimeString("ko-KR") + ")";
+    clearTimeout(saveShortsScriptManually._clearTimer);
+    saveShortsScriptManually._clearTimer = setTimeout(() => { statusEl.textContent = ""; }, 4000);
+  }
+}
+
 // Same immediate-save reasoning as syncShortsCutEdits(), for the hook text
 // field.
 function syncShortsHookEdit() {
