@@ -3324,15 +3324,15 @@ const SHORTS_MAX_BACK_UPLOADS = 5;
 const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
 const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
 
-// Dual persistence: while a shorts project is being drafted, everything --
-// script text, style settings, and media (images/Veo clip/final render/
-// narration) -- lives in this browser (localStorage for text, IndexedDB for
-// the Blobs) so it survives instantly and offline. The same script text and
-// media are ALSO synced to Supabase (as base64) on every save checkpoint via
-// syncShortsScriptToSupabase(), so a different browser/device or a cleared
-// profile doesn't lose the work. Reopening a project in the SAME browser
-// still rehydrates fresh object URLs from the local Blobs (openLocalShortsDraft);
-// opening it elsewhere reconstructs everything from the Supabase copy instead
+// Storage-minimization: while a shorts project is being drafted, its script
+// text/narration lives in localStorage+IndexedDB AND is synced to Supabase
+// (as base64, via syncShortsScriptToSupabase()) so it survives a different
+// browser/device or a cleared profile. Its bulkier media (images/Veo clip/
+// final render) lives ONLY in IndexedDB (large Blobs, browser-only) -- too
+// big to justify a DB column at scale, and regenerable if lost. Reopening a
+// project in the SAME browser rehydrates fresh object URLs from the local
+// Blobs (openLocalShortsDraft); opening it elsewhere restores the script/
+// narration from Supabase but leaves media blank, needing regeneration
 // (openShortsProject).
 const SHORTS_LOCAL_DRAFTS_KEY = "baikal_shorts_local_drafts";
 const SHORTS_IDB_NAME = "baikal_shorts_media";
@@ -3477,9 +3477,6 @@ async function keepShortsBlobLocal(blob, mediaKey) {
   return URL.createObjectURL(blob);
 }
 
-// Returns both a local object URL (for this browser) and a base64 copy (for
-// the Supabase backup) of the same compressed blob, so callers don't need to
-// re-read/re-compress the file twice.
 async function keepShortsImageLocal(fileOrBlob, mediaKey) {
   let blob = fileOrBlob;
   try {
@@ -3487,9 +3484,7 @@ async function keepShortsImageLocal(fileOrBlob, mediaKey) {
   } catch (err) {
     console.warn("이미지 압축 실패, 원본을 사용합니다:", err);
   }
-  const url = await keepShortsBlobLocal(blob, mediaKey);
-  const base64 = await blobToBase64DataUrl(blob);
-  return { url, base64 };
+  return keepShortsBlobLocal(blob, mediaKey);
 }
 
 function getShortsStyleTemplates() {
@@ -3735,7 +3730,7 @@ async function assignShortsUpload(tempId, placement) {
   const draftId = ensureShortsLocalDraftId();
 
   try {
-    let url, base64;
+    let url;
     let mediaKey;
     if (placement === 'front') {
       mediaKey = `${draftId}:front`;
@@ -3745,16 +3740,15 @@ async function assignShortsUpload(tempId, placement) {
 
     if (isVideo) {
       url = await keepShortsBlobLocal(pending.file, mediaKey);
-      base64 = await blobToBase64DataUrl(pending.file);
     } else {
-      ({ url, base64 } = await keepShortsImageLocal(pending.file, mediaKey));
+      url = await keepShortsImageLocal(pending.file, mediaKey);
     }
 
     if (placement === 'front') {
-      currentShortsProject.frontUpload = { url, base64, type: isVideo ? 'video' : 'image', name: pending.file.name };
+      currentShortsProject.frontUpload = { url, type: isVideo ? 'video' : 'image', name: pending.file.name };
     } else {
       currentShortsProject.backUploads = currentShortsProject.backUploads || [];
-      currentShortsProject.backUploads.push({ url, base64, type: isVideo ? 'video' : 'image', name: pending.file.name, imageKey: mediaKey });
+      currentShortsProject.backUploads.push({ url, type: isVideo ? 'video' : 'image', name: pending.file.name, imageKey: mediaKey });
     }
     renderShortsAssignedUploads();
   } catch (err) {
@@ -3827,22 +3821,20 @@ async function openShortsProject(id) {
   }
   currentShortsProject = project;
   const scriptJson = project.scriptJson || {};
-  // 대본/자막/나레이션/이미지/영상 all came back from Supabase (each is a
-  // base64 data: URL, directly usable as an <img>/<video>/<audio> src) --
-  // the *Base64 fields are re-cached from them too, so a later
-  // syncShortsScriptToSupabase() call re-sends the same media instead of
-  // overwriting it with blank. If a field wasn't backed up (e.g. it was too
-  // large -- see SHORTS_MAX_INLINE_MEDIA_BYTES), it just comes back empty
-  // and needs regenerating in step 3, same as before this existed.
+  // 대본/자막/나레이션 all came back from Supabase (narrationAudio is a
+  // base64 data: URL, directly usable as an <audio>/playback src) --
+  // narrationBase64 is re-cached from it too, so a later
+  // syncShortsScriptToSupabase() call re-sends the same audio instead of
+  // overwriting it with blank. Images/영상 were never sent to Supabase in
+  // the first place (kept local-only), so they simply aren't here -- media
+  // needs regenerating in step 3 if this browser doesn't already have it
+  // as a local draft (openLocalShortsDraft covers that case instead).
   currentShortsProject.imageCuts = (currentShortsProject.imageCuts || []).map(cut => ({
     ...cut,
-    imageUrl: cut.image || '',
-    imageBase64: cut.image || '',
+    imageUrl: '',
     narrationUrl: cut.narrationAudio || '',
     narrationBase64: cut.narrationAudio || ''
   }));
-  currentShortsProject.veoVideoBase64 = project.veoVideoUrl || '';
-  currentShortsProject.finalVideoBase64 = project.finalVideoUrl || '';
   currentShortsProject.hookNarrationUrl = scriptJson.hookNarrationAudio || '';
   currentShortsProject.hookNarrationBase64 = scriptJson.hookNarrationAudio || '';
   currentShortsProject.topBarTitle = scriptJson.topBarTitle || '';
@@ -3936,20 +3928,11 @@ async function openLocalShortsDraft(localDraftId) {
   try {
     if (draft.hasFront) {
       const blob = await idbGetBlob(`${localDraftId}:front`);
-      if (blob) {
-        currentShortsProject.veoVideoUrl = URL.createObjectURL(blob);
-        // Re-cache base64 too -- otherwise the next syncShortsScriptToSupabase()
-        // call would see an empty veoVideoBase64 and overwrite the already-saved
-        // video on Supabase with blank.
-        currentShortsProject.veoVideoBase64 = await blobToBase64DataUrl(blob);
-      }
+      if (blob) currentShortsProject.veoVideoUrl = URL.createObjectURL(blob);
     }
     if (draft.hasFinal) {
       const blob = await idbGetBlob(`${localDraftId}:final`);
-      if (blob) {
-        currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
-        currentShortsProject.finalVideoBase64 = await blobToBase64DataUrl(blob);
-      }
+      if (blob) currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
     }
     if (draft.hasHookNarration) {
       const blob = await idbGetBlob(`${localDraftId}:narration:hook`);
@@ -3966,10 +3949,7 @@ async function openLocalShortsDraft(localDraftId) {
     for (const cut of currentShortsProject.imageCuts) {
       if (cut.imageKey) {
         const blob = await idbGetBlob(cut.imageKey);
-        if (blob) {
-          cut.imageUrl = URL.createObjectURL(blob);
-          cut.imageBase64 = await blobToBase64DataUrl(blob);
-        }
+        if (blob) cut.imageUrl = URL.createObjectURL(blob);
       }
       if (cut.narrationKey) {
         const blob = await idbGetBlob(cut.narrationKey);
@@ -4036,10 +4016,12 @@ function toggleShortsStep(n, headerEl) {
   if (headerEl) headerEl.classList.toggle("is-collapsed");
 }
 
-// Saves during drafting: everything (대본/자막/나레이션/이미지/영상) goes to
-// localStorage+IndexedDB AND to Supabase, so the project survives a
-// different browser, a cleared local profile, or just time -- not just this
-// tab.
+// Saves during drafting: text fields go to localStorage AND to Supabase
+// (대본/자막/나레이션 -- everything except the generated images/영상, which
+// stay local-only object URLs/IndexedDB, per the storage-minimization
+// approach). This is what makes the script/narration survive a different
+// browser, a cleared localStorage, or just time -- unlike media, losing it
+// isn't something the admin can just regenerate identically.
 async function persistCurrentShortsProject() {
   const session = getAdminSession();
   currentShortsProject.createdBy = currentShortsProject.createdBy || (session ? session.name : '');
@@ -4048,26 +4030,17 @@ async function persistCurrentShortsProject() {
   await renderShortsList();
 }
 
-// Videos/images are embedded as base64 too, but a bulky one shouldn't be
-// able to block the whole upsert (script/narration must still get through).
-// Anything past this raw-byte size is simply left out of this sync pass --
-// the local browser copy is untouched, only the Supabase backup of that one
-// field is skipped.
-const SHORTS_MAX_INLINE_MEDIA_BYTES = 20 * 1024 * 1024;
-function shortsBase64FitsInline(base64) {
-  return !!base64 && base64.length < SHORTS_MAX_INLINE_MEDIA_BYTES * 1.4; // base64 runs ~33% larger than raw bytes
-}
-
-// Upserts the current project's text + narration audio + images/영상 to
-// Supabase's `shorts` table. image_cuts and script_json are already generic
-// JSON columns, and veo_video_url/final_video_url already exist as plain
-// text columns, so this rides entirely on the existing schema -- no
-// migration needed. Media is embedded as a base64 data: URL, matching how
-// this project already stores article images (a plain DB column, no
-// Storage bucket configured). Silently logs and continues on failure -- the
-// localStorage/IndexedDB copy from saveShortsDraftLocally() already covers
-// this browser; Supabase is the cross-device/cross-session safety net, not
-// the only copy.
+// Upserts the current project's text + narration audio to Supabase's
+// `shorts` table. image_cuts and script_json are already generic JSON
+// columns, so this rides on the existing schema -- no migration needed.
+// Narration audio is embedded as a base64 data: URL in the same column,
+// matching how this project already stores article images (a plain DB
+// column, no Storage bucket configured). Images/영상 are deliberately left
+// out -- they're too large for a DB column at scale and stay local-only
+// (IndexedDB/object URLs), regenerable if lost. Silently logs and continues
+// on failure -- the localStorage/IndexedDB copy from saveShortsDraftLocally()
+// already covers this browser; Supabase is the cross-device/cross-session
+// safety net, not the only copy.
 async function syncShortsScriptToSupabase() {
   if (!currentShortsProject) return;
   if (!currentShortsProject.hookText && !currentShortsProject.scriptMd) return; // nothing to back up yet
@@ -4079,8 +4052,7 @@ async function syncShortsScriptToSupabase() {
       narrationText: cut.narrationText || '',
       duration: cut.duration || 5,
       uploaded: !!cut.uploaded,
-      narrationAudio: cut.narrationBase64 || '',
-      image: shortsBase64FitsInline(cut.imageBase64) ? cut.imageBase64 : ''
+      narrationAudio: cut.narrationBase64 || ''
     }));
 
     const payload = {
@@ -4092,8 +4064,6 @@ async function syncShortsScriptToSupabase() {
       styleGuide: currentShortsProject.styleGuide || '',
       veoPrompt: currentShortsProject.veoPrompt || '',
       frontIsImage: !!currentShortsProject.frontIsImage,
-      veoVideoUrl: shortsBase64FitsInline(currentShortsProject.veoVideoBase64) ? currentShortsProject.veoVideoBase64 : '',
-      finalVideoUrl: shortsBase64FitsInline(currentShortsProject.finalVideoBase64) ? currentShortsProject.finalVideoBase64 : '',
       imageCuts,
       scriptJson: {
         hookNarrationAudio: currentShortsProject.hookNarrationBase64 || '',
@@ -4340,7 +4310,7 @@ ${backInstruction}
       duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
-      prompt: '', caption: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, imageBase64: u.base64 || '', uploaded: true, imageKey: u.imageKey || null
+      prompt: '', caption: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
     }));
 
     currentShortsProject.articleId = articleId;
@@ -4433,7 +4403,6 @@ function readImageCutsFromDom() {
       caption: row.querySelector(".shorts-cut-caption").value.trim(),
       duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
       imageUrl: (existing && existing.imageUrl) || '',
-      imageBase64: (existing && existing.imageBase64) || '',
       uploaded: !!(existing && existing.uploaded),
       imageKey: (existing && existing.imageKey) || null,
       narrationUrl: (existing && existing.narrationUrl) || '',
@@ -4970,13 +4939,11 @@ async function generateShortsMedia() {
     if (currentShortsProject.frontUpload) {
       statusEl.textContent = "업로드된 자료를 전반(0:00~0:08)에 적용 중...";
       currentShortsProject.veoVideoUrl = currentShortsProject.frontUpload.url;
-      currentShortsProject.veoVideoBase64 = currentShortsProject.frontUpload.base64 || '';
       currentShortsProject.frontIsImage = currentShortsProject.frontUpload.type === 'image';
     } else {
       statusEl.textContent = "Veo 영상 생성 중... (몇 분 소요될 수 있습니다)";
       const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { statusEl.textContent = msg; });
       currentShortsProject.veoVideoUrl = await keepShortsBlobLocal(veoBlob, `${ensureShortsLocalDraftId()}:front`);
-      currentShortsProject.veoVideoBase64 = await blobToBase64DataUrl(veoBlob);
       currentShortsProject.frontIsImage = false;
     }
     await persistCurrentShortsProject();
@@ -4990,9 +4957,7 @@ async function generateShortsMedia() {
       const dataUrl = await generateGeminiImage(verticalPrompt);
       const blob = await (await fetch(dataUrl)).blob();
       if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const kept = await keepShortsImageLocal(blob, cut.imageKey);
-      cut.imageUrl = kept.url;
-      cut.imageBase64 = kept.base64;
+      cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);
       renderShortsMediaPreview();
     }
 
@@ -5445,7 +5410,6 @@ async function recordShortsVideo() {
 
     const publicUrl = await keepShortsBlobLocal(videoBlob, `${ensureShortsLocalDraftId()}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
-    currentShortsProject.finalVideoBase64 = await blobToBase64DataUrl(videoBlob);
     currentShortsProject.status = 'video_ready';
     await persistCurrentShortsProject();
 
