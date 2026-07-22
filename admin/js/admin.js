@@ -3629,7 +3629,7 @@ async function renderShortsList() {
     script_approved: "대본 승인됨 (로컬)",
     media_ready: "미디어 생성 완료 (로컬)",
     video_ready: "영상 완성 (로컬)",
-    archived: "보관됨 (대본만)"
+    archived: "보관됨"
   };
 
   // A draft that's been synced to Supabase (has an id) shows up twice
@@ -4132,6 +4132,13 @@ async function syncShortsScriptToSupabase() {
 // text/narration is already backed up continuously by
 // syncShortsScriptToSupabase() above; this just changes its status and
 // stops treating it as an in-progress local draft.
+// "보관" only marks the project done and backs the script text/narration up
+// to Supabase -- it must NOT touch the local draft. Media (Veo clip, image
+// cuts, final render) plus the script itself all keep living in this
+// browser's localStorage/IndexedDB exactly as before, so reopening the
+// local draft afterward still loads everything. (This used to also delete
+// the local draft here, which silently wiped the very media the admin
+// expected to still be able to reload -- fixed.)
 async function archiveShortsProject() {
   if (!currentShortsProject) return;
   if (!currentShortsProject.scriptMd && !currentShortsProject.hookText) {
@@ -4139,12 +4146,8 @@ async function archiveShortsProject() {
     return;
   }
   currentShortsProject.status = 'archived';
-  await syncShortsScriptToSupabase();
-  if (currentShortsProject.localDraftId) {
-    await deleteShortsDraftLocally(currentShortsProject.localDraftId);
-  }
-  await renderShortsList();
-  alert("숏폼을 보관 완료로 표시했습니다. 대본·자막·나레이션은 Supabase에 저장되어 있고, 이미지·영상은 저장공간 절약을 위해 서버에 올리지 않으니 필요하면 지금 다운로드해 두세요.");
+  await persistCurrentShortsProject();
+  alert("숏폼을 보관 완료로 표시했습니다. 대본·자막·나레이션은 Supabase에도 백업되었고, 대본·자막·나레이션·이미지·영상 모두 이 브라우저에 그대로 저장되어 있어 목록에서 다시 열면 이어서 작업할 수 있습니다.");
 }
 
 // Uploads a file to Gemini's Files API (supports up to 2GB per file, unlike
