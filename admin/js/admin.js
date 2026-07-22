@@ -3134,27 +3134,51 @@ async function autoGenerateImagePrompt() {
   try {
     // Two admin-selectable dimensions (mood/tone + subject focus), each falling
     // back to a random pick from the same option pool when left on "자동" so
-    // repeated generations still don't converge on one look.
-    const moodOptions = ["밝고 역동적인", "평범한 기록사진", "흑백 이미지", "레트로 느낌", "사실적인", "다큐멘터리 느낌"];
-    const focusOptions = ["인물 중심", "풍경 중심", "컨셉 이미지"];
-    const selectedMood = document.getElementById("ai-image-mood").value || moodOptions[Math.floor(Math.random() * moodOptions.length)];
-    const selectedFocus = document.getElementById("ai-image-focus").value || focusOptions[Math.floor(Math.random() * focusOptions.length)];
+    // repeated generations still don't converge on one look. Each option maps
+    // to a concrete visual descriptor that gets injected into the prompt --
+    // a bare label like "밝고 역동적인" was too vague for the model to obey
+    // (it kept producing rainy/foggy scenes regardless), so the descriptor
+    // spells out exactly what the label means in weather/light/color terms.
+    const moodOptions = {
+      "밝고 역동적인": "맑고 화창한 날씨, 쨍한 자연광과 파란 하늘, 생생하고 선명한 색감, 움직임과 에너지가 느껴지는 역동적인 순간",
+      "따뜻하고 정감 있는": "맑은 날 오후의 부드럽고 따뜻한 햇살, 온화한 색감, 사람 사는 냄새가 나는 편안하고 훈훈한 분위기",
+      "활기찬 현장 분위기": "밝은 자연광 아래 사람들이 활발히 움직이는 현장의 생동감, 웃음소리가 들릴 것 같은 자연스러운 순간 포착",
+      "차분하고 정돈된": "맑은 날의 깨끗하고 균형 잡힌 구도, 절제된 색감, 안정감과 신뢰감이 느껴지는 분위기",
+      "시네마틱한": "영화의 한 장면처럼 깊이감 있는 구도와 인상적인 빛, 또렷한 주제 강조, 맑은 날씨의 선명한 화면",
+      "흑백 이미지": "대비가 선명한 흑백 사진, 뚜렷한 빛과 그림자, 또렷한 디테일과 표정",
+      "레트로 필름 느낌": "맑은 날 촬영한 빈티지 필름 사진 질감, 따뜻하게 바랜 색감, 부드러운 그레인 (단, 초점은 또렷하게)"
+    };
+    const focusOptions = {
+      "인물 클로즈업 (얼굴·표정)": "한 인물의 얼굴과 생생한 표정이 또렷하게 살아있는 클로즈업 또는 상반신 구도 -- 자연스러운 미소, 집중한 눈빛, 대화하는 모습 등 감정이 그대로 드러나게",
+      "여러 사람이 함께": "두 명 이상의 사람들이 함께 등장해 대화하거나 협력하거나 웃는 장면 -- 얼굴과 표정이 자연스럽게 보이는 구도",
+      "인물과 배경 함께": "인물의 얼굴과 표정이 보이면서도 기사 배경이 되는 장소가 함께 담긴 중간 거리 구도",
+      "풍경/장소 중심": "기사 소재가 되는 장소나 풍경을 넓게 담은 와이드샷 -- 인물은 작게 배치하거나 생략",
+      "사물·디테일 중심": "기사 소재를 상징하는 사물, 손동작, 질감을 가까이에서 또렷하게 담은 디테일 샷"
+    };
+    const moodKeys = Object.keys(moodOptions);
+    const focusKeys = Object.keys(focusOptions);
+    const selectedMood = document.getElementById("ai-image-mood").value || moodKeys[Math.floor(Math.random() * moodKeys.length)];
+    const selectedFocus = document.getElementById("ai-image-focus").value || focusKeys[Math.floor(Math.random() * focusKeys.length)];
+    const moodDetail = moodOptions[selectedMood] || selectedMood;
+    const focusDetail = focusOptions[selectedFocus] || selectedFocus;
 
     // Randomized per-generation on top of the two dimensions above, so repeated
     // prompts for similar articles (or the same mood/focus combo) don't all
     // converge on the same shot -- the model still adapts it to the article,
-    // but starts from a different visual anchor each time.
+    // but starts from a different visual anchor each time. All hints assume
+    // clear weather and sharp focus; variety comes from angle/light/lens, not
+    // from gloomy weather (which used to sneak in here and override the mood).
     const shootingStyleHints = [
-      "이른 아침 역광 실루엣 구도",
-      "흐린 날 차분한 자연광, 다큐멘터리 스트리트 포토 느낌",
-      "클로즈업 디테일 샷 (손, 도구, 질감 위주)",
-      "넓은 풍경 와이드샷, 인물은 작게 배치",
-      "저녁 노을빛이 스며드는 실내 또는 실외 장면",
-      "창문 너머로 바라본 구도, 은은한 배경 흐림",
-      "흑백 필름 사진 같은 다큐멘터리 질감",
-      "계절감이 뚜렷한 자연 풍경 (가을 낙엽, 겨울 눈, 초여름 신록 등)",
-      "안개 낀 새벽 풍경, 낮은 채도",
-      "한낮의 강한 직사광과 짙은 그림자 대비"
+      "한낮의 맑은 하늘 아래 또렷한 직사광과 선명한 그림자",
+      "골든아워(늦은 오후)의 따뜻하고 밝은 햇살",
+      "얕은 심도로 주제만 또렷하게 살리고 배경은 은은하게 흐린 구도",
+      "낮은 앵글에서 올려다보아 역동성을 살린 구도",
+      "넓은 와이드샷으로 시원한 공간감을 살린 구도",
+      "클로즈업으로 디테일과 질감을 또렷하게 살린 구도",
+      "계절감이 뚜렷한 맑은 날 풍경 (초여름 신록, 파란 가을 하늘과 단풍, 눈 쌓인 맑은 겨울 아침 등)",
+      "45도 측면에서 자연스럽게 포착한 스냅 구도",
+      "창으로 들어오는 밝은 자연광이 실내를 환하게 채우는 장면",
+      "높은 곳에서 내려다본 시원한 부감 구도"
     ];
     const randomHint = shootingStyleHints[Math.floor(Math.random() * shootingStyleHints.length)];
 
@@ -3171,25 +3195,26 @@ ${lead}
 ${bodyText.substring(0, 1000)}
 
 [이번 이미지에 적용할 톤/분위기]
-${selectedMood}
+${selectedMood}: ${moodDetail}
 
 [이번 이미지에 적용할 구도/중심 대상]
-${selectedFocus}
+${selectedFocus}: ${focusDetail}
 
 [추가 촬영 디테일 힌트]
 ${randomHint}
-(위 톤/분위기와 구도 지정을 최우선으로 따르고, 이 촬영 디테일 힌트는 그 안에서 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 같은 톤/구도를 골라도 결과 이미지가 서로 겹치지 않고 다양해집니다.)
+(위 톤/분위기와 구도 지정을 최우선으로 따르고, 이 촬영 디테일 힌트는 그 안에서 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 같은 톤/구도를 골라도 결과 이미지가 서로 겹치지 않고 다양해집니다. 톤/분위기와 구도의 설명 문구를 프롬프트 본문에 구체적인 시각 묘사로 정확하게 녹여 넣으십시오.)
 
 [작성 지침]
-- 반드시 실제 다큐멘터리 사진(photojournalism) 또는 자연스러운 풍경/기록 사진 스타일로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등)은 절대 사용하지 마십시오.
-- 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·날씨·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
-- 인물이 등장한다면 얼굴이 뚜렷하게 보이지 않는 뒷모습, 실루엣, 손이나 작업 동작 위주의 구도로 묘사하십시오.
-- "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적이며 채도가 높은 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도, 그레인을 지향하십시오.
-- 비, 빗방울, 젖은 표면, 물방울 맺힌 유리창 등 비/물기 관련 묘사는 기사 내용과 직접 관련이 없다면 넣지 마십시오. 최근 이미지들에 이런 요소가 과도하게 반복되고 있으니 특별한 이유가 없는 한 피하십시오. (은은한 아웃포커스/블러 정도는 괜찮습니다.)
+- 실제 카메라로 촬영한 보도사진(photojournalism) 스타일로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등)은 절대 사용하지 마십시오.
+- 날씨와 조명: 기사 내용이 비·폭설·재해 등 특정 날씨를 직접 다루는 경우가 아니라면, 반드시 맑고 화창한 날씨와 밝은 빛으로 묘사하십시오. 비, 빗방울, 젖은 표면, 안개, 흐린 하늘, 우중충한 분위기, 어두운 새벽·심야 장면은 기사와 직접 관련이 없는 한 절대 넣지 마십시오.
+- 선명도: 이미지 전체가 흐릿하거나 뿌옇게 보이면 안 됩니다. 주제는 항상 초점이 또렷하고 선명해야 하며, 배경 흐림(아웃포커스)은 주제를 돋보이게 하는 용도로만 은은하게 사용하십시오.
+- 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
+- 인물이 등장한다면 얼굴과 표정이 자연스럽게 살아있는 모습을 우선하십시오. 생기 있는 표정(미소, 집중한 눈빛, 대화하는 모습 등)이 담긴 얼굴이 뒷모습이나 실루엣보다 좋습니다. 단, 실존 인물이나 유명인과 닮지 않은 가상의 인물로 묘사하고, 어색하게 카메라를 정면으로 응시하기보다 장면 속에서 자연스럽게 행동하는 모습으로 묘사하십시오.
+- "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적인 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도를 지향하십시오. (질감을 위해 이미지를 어둡거나 탁하게 만들지는 마십시오.)
 - 텍스트가 등장하는 요소는 최대한 배제하십시오. AI가 생성하는 한글 텍스트는 대부분 알아볼 수 없는 깨진 글자로 나오기 때문입니다. 특히 문서, 종이, 서류, 손글씨, 화면, 클로즈업된 글자는 절대로 장면에 등장시키지 마십시오. 거리의 간판이나 상점 간판 정도는 장면에 자연스럽게 어울린다면 포함해도 괜찮지만, 작게·흐릿하게·초점 밖에 배치하여 읽기 어렵게 묘사하십시오. 혹시라도 텍스트가 뚜렷하게 등장해야 하는 상황이라면 반드시 한글로만 묘사하고 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 한글로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 사실적이고 간결한 사진 묘사 프롬프트를 작성하는 다큐멘터리 사진 편집자입니다. 일러스트나 디지털 아트 스타일은 절대 사용하지 마십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 비/빗방울/젖은 표면 등 물기 관련 묘사는 기사 내용과 무관하면 넣지 마십시오 (은은한 블러는 괜찮습니다). 프롬프트 본문은 반드시 한글로만 작성하십시오.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 사실적이고 간결한 사진 묘사 프롬프트를 작성하는 신문사 사진부 편집자입니다. 일러스트나 디지털 아트 스타일은 절대 사용하지 마십시오. 기사 내용이 특정 날씨를 직접 다루지 않는 한 항상 맑고 화창한 날씨와 밝은 빛으로 묘사하고, 비/안개/흐린 하늘/우중충한 분위기는 절대 넣지 마십시오. 주제의 초점은 항상 또렷하고 선명해야 합니다. 인물은 얼굴과 표정이 살아있는 모습을 우선하되 실존 인물과 닮지 않게 하십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -3233,7 +3258,7 @@ async function resolveGeminiImageModel(apiKey) {
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
 const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
-const IMAGE_NO_RAIN_RULE = "\n\nAVOID: rain, raindrops, wet surfaces, water droplets on glass, or other rain/moisture imagery, unless the article content specifically calls for it. These have been overused in recent generations. A subtle out-of-focus/blur background is fine.";
+const IMAGE_NO_RAIN_RULE = "\n\nWEATHER & CLARITY: Default to clear, sunny weather with bright natural light. AVOID rain, raindrops, wet surfaces, fog, mist, haze, overcast/gray skies, and gloomy or murky moods unless the subject matter specifically calls for them -- these have been overused in recent generations. The main subject must always be in sharp, crisp focus; a subtle out-of-focus/blur background used to emphasize the subject is fine, but the overall image must never look hazy or washed out.";
 // Only appended for the article representative image (triggerAiImageGeneration) --
 // that slot is always displayed in a 16:9 box (object-fit:cover), and Gemini's
 // image model otherwise defaults to a square 1:1 output, which forces a harsh
