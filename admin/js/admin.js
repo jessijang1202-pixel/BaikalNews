@@ -3210,10 +3210,10 @@ ${randomHint}
 - 선명도: 이미지 전체가 흐릿하거나 뿌옇게 보이면 안 됩니다. 주제는 항상 초점이 또렷하고 선명해야 하며, 배경 흐림(아웃포커스)은 주제를 돋보이게 하는 용도로만 은은하게 사용하십시오.
 - 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
 - 인물이 등장한다면 얼굴과 표정이 자연스럽게 살아있는 모습을 우선하십시오. 생기 있는 표정(미소, 집중한 눈빛, 대화하는 모습 등)이 담긴 얼굴이 뒷모습이나 실루엣보다 좋습니다. 단, 실존 인물이나 유명인과 닮지 않은 가상의 인물로 묘사하고, 어색하게 카메라를 정면으로 응시하기보다 장면 속에서 자연스럽게 행동하는 모습으로 묘사하십시오. 완벽하게 대칭적이거나 정면을 향한 포즈보다는 실제 스냅 사진처럼 약간 비대칭적인 자연스러운 구도를 지향하십시오. (질감을 위해 이미지를 어둡거나 탁하게 만들지는 마십시오.)
-- 텍스트가 등장하는 요소는 최대한 배제하십시오. AI가 생성하는 한글 텍스트는 대부분 알아볼 수 없는 깨진 글자로 나오기 때문입니다. 특히 문서, 종이, 서류, 손글씨, 화면, 클로즈업된 글자는 절대로 장면에 등장시키지 마십시오. 거리의 간판이나 상점 간판 정도는 장면에 자연스럽게 어울린다면 포함해도 괜찮지만, 작게·흐릿하게·초점 밖에 배치하여 읽기 어렵게 묘사하십시오. 혹시라도 텍스트가 뚜렷하게 등장해야 하는 상황이라면 반드시 한글로만 묘사하고 영어나 다른 외국어는 절대 사용하지 마십시오.
+- 텍스트가 등장하는 요소는 완전히 배제하십시오. AI가 생성하는 한글 텍스트는 작고 흐릿하게 넣어도 철자가 틀린 채로 나오는 경우가 많아, "일부만 보이는 정도"조차 안전하지 않습니다. 문서, 종이, 서류, 손글씨, 화면, 간판, 상점 간판, 현수막, 라벨 등 글자가 보이는 요소는 어떤 형태로든(작게, 흐릿하게, 부분적으로) 절대 등장시키지 마십시오. 간판이 있는 장소라면 간판이 안 보이는 각도·거리로 구도를 잡거나 아예 프레임 밖으로 빼십시오. 정말 불가피하게 텍스트가 필요하다면 반드시 한글로만, 글자로 알아볼 수 없을 만큼 작고 흐릿하게 묘사하고, 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 한글로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 신문사 사진부 편집자입니다. 이 이미지는 실제 보도 사진을 대신하므로, 무엇보다 사실적인 묘사가 최우선입니다 -- 실제 카메라로 찍은 것처럼 실제 인체 비율, 자연스러운 피부 질감, 현실적인 조명을 갖춘 다큐멘터리 사진 스타일로만 작성하고, 일러스트나 디지털 아트, 매끈한 'AI 그림체' 스타일은 절대 사용하지 마십시오. 기사 내용이 특정 날씨를 직접 다루지 않는 한 항상 맑고 화창한 날씨와 밝은 빛으로 묘사하고, 비/안개/흐린 하늘/우중충한 분위기는 절대 넣지 마십시오. 주제의 초점은 항상 또렷하고 선명해야 합니다. 인물은 얼굴과 표정이 살아있는 모습을 우선하되 실존 인물과 닮지 않게 하십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 신문사 사진부 편집자입니다. 이 이미지는 실제 보도 사진을 대신하므로, 무엇보다 사실적인 묘사가 최우선입니다 -- 실제 카메라로 찍은 것처럼 실제 인체 비율, 자연스러운 피부 질감, 현실적인 조명을 갖춘 다큐멘터리 사진 스타일로만 작성하고, 일러스트나 디지털 아트, 매끈한 'AI 그림체' 스타일은 절대 사용하지 마십시오. 기사 내용이 특정 날씨를 직접 다루지 않는 한 항상 맑고 화창한 날씨와 밝은 빛으로 묘사하고, 비/안개/흐린 하늘/우중충한 분위기는 절대 넣지 마십시오. 주제의 초점은 항상 또렷하고 선명해야 합니다. 인물은 얼굴과 표정이 살아있는 모습을 우선하되 실존 인물과 닮지 않게 하십시오. 장면 안의 텍스트는 완전히 배제하십시오 (AI가 그리는 한글 텍스트는 작고 흐릿해도 철자가 틀리게 나옵니다). 문서, 종이, 간판, 현수막 등 글자가 보이는 요소는 어떤 형태로도 넣지 말고, 간판이 있는 곳이라면 안 보이는 구도로 묘사하십시오. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -3256,7 +3256,11 @@ async function resolveGeminiImageModel(apiKey) {
 // Calls Gemini's image-capable model and returns a data: URI
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
-const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
+// Gemini's image model reliably misspells/garbles Hangul it renders, even
+// small/blurry signage -- there is no reliable way to prompt around this, so
+// the only real fix is to eliminate on-screen text entirely rather than try
+// to make it "acceptable" in some blurred form.
+const IMAGE_TEXT_LANGUAGE_RULE = "\n\nSTRICT NO-TEXT RULE: AI image models reliably render Korean (Hangul) text as garbled, misspelled gibberish -- there is no safe amount of visible text. Do NOT include ANY readable or legible text anywhere in the image, under any circumstances: no documents, papers, forms, handwriting, screens, signage, storefronts, street signs, banners, or labels of any kind, even small, distant, or partially obscured ones. Compose the scene so no text needs to appear at all (e.g. a shopfront shown from an angle/distance where any signage is not legible, or simply excluded from frame). If text is truly unavoidable for the scene to make sense, it must be Korean (Hangul) only and kept so small/out-of-focus that it reads as an abstract texture rather than actual letters -- never English or any other script.";
 // Hard backstop applied to BOTH image and Veo video generation -- a Korean
 // news outlet's people must read as Korean, and this has been violated
 // (a Western-looking person, an English-text phone screen in a Veo clip)
@@ -5370,9 +5374,18 @@ async function deleteShortsFrontMedia() {
 
 async function regenerateShortsCutImage(i) {
   if (!currentShortsProject) return;
-  currentShortsProject.imageCuts = readImageCutsFromDom();
-  const cut = currentShortsProject.imageCuts[i];
-  if (!cut) return;
+  // Deliberately NOT readImageCutsFromDom() here -- this button lives in the
+  // Step 3 media grid, not the Step 2 cut editor, and that editor's DOM
+  // isn't guaranteed to be rendered/in sync at this point (e.g. a reopened
+  // project that jumped straight past Step 2). Re-reading from it silently
+  // replaced imageCuts with whatever that DOM had (often empty), so `cut`
+  // came back undefined and this returned with zero feedback -- looked like
+  // the button did nothing. Operate on the in-memory array directly instead.
+  const cut = (currentShortsProject.imageCuts || [])[i];
+  if (!cut) {
+    alert("해당 컷을 찾을 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
+    return;
+  }
   if (!cut.prompt) {
     alert("이 컷은 이미지 생성 프롬프트가 없습니다 (업로드된 자료일 수 있습니다). Step 1에서 새 자료를 다시 배정해 주세요.");
     return;
@@ -5399,9 +5412,13 @@ async function regenerateShortsCutImage(i) {
 
 async function deleteShortsCutImage(i) {
   if (!currentShortsProject) return;
-  currentShortsProject.imageCuts = readImageCutsFromDom();
-  const cut = currentShortsProject.imageCuts[i];
-  if (!cut) return;
+  // Same reasoning as regenerateShortsCutImage() -- operate on the
+  // in-memory array, not a re-read of Step 2's DOM.
+  const cut = (currentShortsProject.imageCuts || [])[i];
+  if (!cut) {
+    alert("해당 컷을 찾을 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
+    return;
+  }
   if (!confirm(`컷 ${i + 1}의 이미지를 삭제하시겠습니까? (대본/자막은 그대로 유지됩니다)`)) return;
   if (cut.imageKey) {
     try { await idbDeleteByPrefix(cut.imageKey); } catch (err) { console.warn("컷 이미지 정리 실패:", err); }
