@@ -800,7 +800,7 @@ function renderArticlePage() {
       revisionHistoryContainer.innerHTML = `
         <li class="revision-item">
           <span class="revision-date">${article.date}</span>
-          <span class="revision-action">최초 보도 게재 (승인자: ${article.approver || '편집국'})</span>
+          <span class="revision-action">최초 보도 게재</span>
         </li>
       `;
     }
