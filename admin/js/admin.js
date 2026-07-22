@@ -3257,6 +3257,13 @@ async function resolveGeminiImageModel(apiKey) {
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
 const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
+// Hard backstop applied to BOTH image and Veo video generation -- a Korean
+// news outlet's people must read as Korean, and this has been violated
+// (a Western-looking person, an English-text phone screen in a Veo clip)
+// even when the upstream script-writing prompt already asked for Korean
+// people/text. Appended at the actual generation call so it can't be
+// skipped or forgotten upstream, same as the other MEDIA_/IMAGE_ rules.
+const MEDIA_KOREAN_PEOPLE_RULE = "\n\nPEOPLE & LANGUAGE (STRICT): Every person shown must have an East Asian/Korean appearance -- absolutely NO Western, non-Korean, or mixed/ambiguous-ethnicity people, under any circumstances. Any incidental on-screen text, signage, or phone/device screen content must be Korean (Hangul) only -- English text or lettering of any kind must NEVER appear anywhere in the scene, including on phones, screens, clothing, or signage. If such text can't be rendered clearly in Korean, keep it out of focus/illegible or omit it entirely rather than showing English.";
 // This is a news outlet -- every generated image stands in for a real news
 // photo, so photorealism is the single most important property, above mood/
 // composition/style choices. Applies regardless of prompt source (auto-written,
@@ -3281,7 +3288,7 @@ async function generateGeminiImage(promptText) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE }] }] })
+    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + MEDIA_KOREAN_PEOPLE_RULE }] }] })
   });
 
   if (!response.ok) {
@@ -4317,6 +4324,7 @@ ${frontInstruction}
 ${backInstruction}
 
 - 영상 상단에 항상 떠 있는 배너에 들어갈 짧은 후킹 제목도 추천하십시오. 자막(hookText)과는 별개로, 영상 내내 노출되는 타이틀입니다. 1줄로 충분하면 2번째 줄은 빈 문자열로 두십시오.
+- (중요) veoPrompt와 각 imageCuts의 prompt에 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하십시오. 외국인, 서양인, 혼혈로 보이는 인물은 절대 등장시키지 마십시오. 화면에 텍스트(휴대폰 화면, 간판, 문서, 자막 등)가 나온다면 반드시 한글만 사용하고 영어 등 다른 언어는 절대 등장시키지 마십시오.
 
 반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오.
 {
@@ -4650,7 +4658,7 @@ async function generateVeoVideo(promptText, onStatus) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      instances: [{ prompt: promptText }],
+      instances: [{ prompt: promptText + MEDIA_KOREAN_PEOPLE_RULE }],
       parameters: { aspectRatio: "9:16", durationSeconds: 8 }
     })
   });
@@ -5161,16 +5169,126 @@ function updateShortsStyleSettings() {
 
 // Media previews link to their own object URL with `download` so the admin
 // can grab a local copy -- none of this is uploaded anywhere (see 보관).
+// Each thumb carries its own download/재생성/삭제 controls so a single bad
+// shot doesn't force regenerating everything -- delete clears just that
+// slot's media (keeping its prompt/자막/나레이션 intact) and 재생성
+// re-runs generation for that slot alone from its existing prompt.
 function renderShortsMediaPreview() {
   const container = document.getElementById("shorts-media-preview");
   const items = [];
   if (currentShortsProject.veoVideoUrl) {
-    items.push(`<a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4" class="shorts-media-thumb"><video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline></video></a>`);
+    items.push(`
+      <div class="shorts-media-thumb">
+        <video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline></video>
+        <div class="shorts-media-thumb-actions">
+          <a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4" title="다운로드">⬇</a>
+          <button type="button" onclick="regenerateShortsFrontMedia()" title="다시 생성">⟳</button>
+          <button type="button" class="shorts-media-thumb-delete" onclick="deleteShortsFrontMedia()" title="삭제">✕</button>
+        </div>
+      </div>
+    `);
   }
   (currentShortsProject.imageCuts || []).forEach((cut, i) => {
-    if (cut.imageUrl) items.push(`<a href="${cut.imageUrl}" download="shorts-cut-${i + 1}.jpg" class="shorts-media-thumb"><img src="${cut.imageUrl}"></a>`);
+    if (cut.imageUrl) {
+      items.push(`
+        <div class="shorts-media-thumb">
+          <img src="${cut.imageUrl}">
+          <div class="shorts-media-thumb-actions">
+            <a href="${cut.imageUrl}" download="shorts-cut-${i + 1}.jpg" title="다운로드">⬇</a>
+            <button type="button" onclick="regenerateShortsCutImage(${i})" title="다시 생성">⟳</button>
+            <button type="button" class="shorts-media-thumb-delete" onclick="deleteShortsCutImage(${i})" title="삭제">✕</button>
+          </div>
+        </div>
+      `);
+    }
   });
   container.innerHTML = items.join('') || `<span class="help-text">아직 생성된 미디어가 없습니다.</span>`;
+}
+
+async function regenerateShortsFrontMedia() {
+  if (!currentShortsProject) return;
+  if (currentShortsProject.frontUpload) {
+    alert("전반(0:00~0:08)은 업로드한 자료를 사용 중입니다. 먼저 삭제한 뒤 Step 3에서 새 자료를 업로드하거나 Veo 프롬프트로 다시 생성해 주세요.");
+    return;
+  }
+  if (!currentShortsProject.veoPrompt) {
+    alert("Veo 프롬프트가 없습니다. 대본(Step 2)을 다시 확인해 주세요.");
+    return;
+  }
+  const statusEl = document.getElementById("shorts-media-status");
+  try {
+    if (statusEl) statusEl.textContent = "전반 영상 재생성 중... (몇 분 소요될 수 있습니다)";
+    const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { if (statusEl) statusEl.textContent = msg; });
+    currentShortsProject.veoVideoUrl = await keepShortsBlobLocal(veoBlob, `${ensureShortsLocalDraftId()}:front`);
+    currentShortsProject.frontIsImage = false;
+    shortsAssets = null;
+    renderShortsMediaPreview();
+    await persistCurrentShortsProject();
+    if (statusEl) statusEl.textContent = "전반 영상 재생성 완료.";
+  } catch (err) {
+    console.error("전반 영상 재생성 실패:", err);
+    alert("재생성 실패: " + err.message);
+    if (statusEl) statusEl.textContent = "재생성 실패: " + err.message;
+  }
+}
+
+async function deleteShortsFrontMedia() {
+  if (!currentShortsProject) return;
+  if (!confirm("전반(0:00~0:08) 영상/이미지를 삭제하시겠습니까?")) return;
+  if (currentShortsProject.localDraftId) {
+    try { await idbDeleteByPrefix(`${currentShortsProject.localDraftId}:front`); } catch (err) { console.warn("전반 미디어 정리 실패:", err); }
+  }
+  currentShortsProject.veoVideoUrl = '';
+  currentShortsProject.frontUpload = null;
+  shortsAssets = null;
+  renderShortsMediaPreview();
+  await persistCurrentShortsProject();
+}
+
+async function regenerateShortsCutImage(i) {
+  if (!currentShortsProject) return;
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  const cut = currentShortsProject.imageCuts[i];
+  if (!cut) return;
+  if (!cut.prompt) {
+    alert("이 컷은 이미지 생성 프롬프트가 없습니다 (업로드된 자료일 수 있습니다). Step 1에서 새 자료를 다시 배정해 주세요.");
+    return;
+  }
+  const statusEl = document.getElementById("shorts-media-status");
+  try {
+    if (statusEl) statusEl.textContent = `컷 ${i + 1} 이미지 재생성 중...`;
+    const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
+    const dataUrl = await generateGeminiImage(verticalPrompt);
+    const blob = await (await fetch(dataUrl)).blob();
+    if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);
+    cut.uploaded = false;
+    shortsAssets = null;
+    renderShortsMediaPreview();
+    await persistCurrentShortsProject();
+    if (statusEl) statusEl.textContent = `컷 ${i + 1} 이미지 재생성 완료.`;
+  } catch (err) {
+    console.error("컷 이미지 재생성 실패:", err);
+    alert("재생성 실패: " + err.message);
+    if (statusEl) statusEl.textContent = "재생성 실패: " + err.message;
+  }
+}
+
+async function deleteShortsCutImage(i) {
+  if (!currentShortsProject) return;
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  const cut = currentShortsProject.imageCuts[i];
+  if (!cut) return;
+  if (!confirm(`컷 ${i + 1}의 이미지를 삭제하시겠습니까? (대본/자막은 그대로 유지됩니다)`)) return;
+  if (cut.imageKey) {
+    try { await idbDeleteByPrefix(cut.imageKey); } catch (err) { console.warn("컷 이미지 정리 실패:", err); }
+  }
+  cut.imageUrl = '';
+  cut.imageKey = null;
+  cut.uploaded = false;
+  shortsAssets = null;
+  renderShortsMediaPreview();
+  await persistCurrentShortsProject();
 }
 
 // The 전반(0:00~0:08) slot is a <video> for AI/Veo-generated or uploaded video
