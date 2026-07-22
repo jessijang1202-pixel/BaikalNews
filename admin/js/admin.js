@@ -3968,7 +3968,10 @@ async function openLocalShortsDraft(localDraftId) {
     }
     if (draft.hasFinal) {
       const blob = await idbGetBlob(`${localDraftId}:final`);
-      if (blob) currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
+      if (blob) {
+        currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
+        currentShortsProject.finalVideoMimeType = blob.type;
+      }
     }
     if (draft.hasHookNarration) {
       const blob = await idbGetBlob(`${localDraftId}:narration:hook`);
@@ -4025,7 +4028,7 @@ async function openLocalShortsDraft(localDraftId) {
     const downloadEl = document.getElementById("shorts-final-download");
     if (downloadEl) {
       downloadEl.href = currentShortsProject.finalVideoUrl;
-      downloadEl.download = `shorts-${localDraftId}.webm`;
+      downloadEl.download = `shorts-${localDraftId}.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
       downloadEl.style.display = "inline-block";
     }
   }
@@ -5471,14 +5474,24 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
 
   let recorder = null;
   let chunks = [];
+  let recordedMimeType = 'video/webm';
   if (record) {
     const stream = canvas.captureStream(30);
     if (assets.mixDestination) {
       assets.mixDestination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
     }
-    const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-    const mimeType = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || 'video/webm';
-    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4000000 });
+    // Safari (macOS/iOS) supports MediaRecorder but never any video/webm
+    // mimeType -- only Chromium-based browsers do. Since every browser on
+    // iOS is required to use WebKit under the hood, without the mp4/h264
+    // fallback below, recording silently fails on every browser on iPhone,
+    // not just Safari specifically.
+    const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=h264', 'video/mp4'];
+    const supported = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+    if (!supported) {
+      throw new Error("이 브라우저는 영상 녹화(MediaRecorder)를 지원하지 않습니다. 다른 브라우저로 시도해 주세요.");
+    }
+    recordedMimeType = supported;
+    recorder = new MediaRecorder(stream, { mimeType: recordedMimeType, videoBitsPerSecond: 4000000 });
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.start();
   }
@@ -5560,10 +5573,14 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
 
   if (record && recorder) {
     return new Promise((resolve) => {
-      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+      recorder.onstop = () => resolve(new Blob(chunks, { type: recordedMimeType }));
       recorder.stop();
     });
   }
+}
+
+function shortsVideoExtFromMime(mimeType) {
+  return (mimeType || '').includes('mp4') ? 'mp4' : 'webm';
 }
 
 async function previewShortsAssembly() {
@@ -5586,6 +5603,17 @@ async function recordShortsVideo() {
   const btn = document.getElementById("shorts-record-btn");
   if (btn) btn.disabled = true;
 
+  // Best-effort: stops the screen from auto-locking mid-recording on mobile
+  // -- a locked/dimmed screen can throttle JS timers and corrupt the ~30s
+  // capture. Not supported everywhere (notably iOS Safari as of writing), so
+  // recording still proceeds normally without it if the API is missing.
+  let wakeLock = null;
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (err) {
+    console.warn("화면 잠금 방지 실패 (녹화는 계속 진행됩니다):", err);
+  }
+
   try {
     statusEl.textContent = "녹화 준비 중... (완료될 때까지 이 탭을 벗어나지 마세요)";
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
@@ -5595,6 +5623,7 @@ async function recordShortsVideo() {
 
     const publicUrl = await keepShortsBlobLocal(videoBlob, `${ensureShortsLocalDraftId()}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
+    currentShortsProject.finalVideoMimeType = videoBlob.type;
     currentShortsProject.status = 'video_ready';
     await persistCurrentShortsProject();
 
@@ -5605,7 +5634,7 @@ async function recordShortsVideo() {
     const downloadEl = document.getElementById("shorts-final-download");
     if (downloadEl) {
       downloadEl.href = publicUrl;
-      downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.webm`;
+      downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.${shortsVideoExtFromMime(videoBlob.type)}`;
       downloadEl.style.display = "inline-block";
     }
 
@@ -5616,6 +5645,7 @@ async function recordShortsVideo() {
     alert("녹화 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
+    if (wakeLock) { try { await wakeLock.release(); } catch (err) { /* already released, ignore */ } }
   }
 }
 
