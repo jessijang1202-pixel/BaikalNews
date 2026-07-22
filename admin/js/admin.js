@@ -3415,6 +3415,7 @@ function saveShortsDraftLocally() {
   ensureShortsLocalDraftId();
   const snapshot = {
     localDraftId: currentShortsProject.localDraftId,
+    id: currentShortsProject.id || null, // links back to the Supabase row synced by syncShortsScriptToSupabase()
     articleId: currentShortsProject.articleId || null,
     status: currentShortsProject.status,
     hookText: currentShortsProject.hookText || '',
@@ -3593,8 +3594,15 @@ async function renderShortsList() {
     archived: "보관됨 (대본만)"
   };
 
+  // A draft that's been synced to Supabase (has an id) shows up twice
+  // otherwise: once as its own "로컬" row, once as the Supabase-backed row.
+  // Keep only the Supabase row for those -- but have it open the local
+  // draft instead (openLocalShortsDraft), since that copy also has the
+  // actual images/영상 this browser generated, which the Supabase row never
+  // received.
+  const localDraftsById = new Map(localDrafts.filter(d => d.id).map(d => [d.id, d]));
   const combined = [
-    ...localDrafts.map(d => ({ ...d, __local: true })),
+    ...localDrafts.filter(d => !d.id).map(d => ({ ...d, __local: true })),
     ...archivedList.map(s => ({ ...s, __local: false }))
   ].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
@@ -3605,7 +3613,10 @@ async function renderShortsList() {
 
   tbody.innerHTML = combined.map(s => {
     const art = articles.find(a => a.id === s.articleId);
-    const openCall = s.__local ? `openLocalShortsDraft('${s.localDraftId}')` : `openShortsProject(${s.id})`;
+    const matchingLocalDraft = s.__local ? null : localDraftsById.get(s.id);
+    const openCall = s.__local
+      ? `openLocalShortsDraft('${s.localDraftId}')`
+      : (matchingLocalDraft ? `openLocalShortsDraft('${matchingLocalDraft.localDraftId}')` : `openShortsProject(${s.id})`);
     const deleteCall = s.__local ? `deleteShortsLocalDraft('${s.localDraftId}')` : `deleteShortsProject(${s.id})`;
     return `
       <tr>
@@ -3807,7 +3818,33 @@ async function openShortsProject(id) {
     return;
   }
   currentShortsProject = project;
-  currentShortsProject.imageCuts = currentShortsProject.imageCuts || [];
+  const scriptJson = project.scriptJson || {};
+  // 대본/자막/나레이션 all came back from Supabase (narrationAudio is a
+  // base64 data: URL, directly usable as an <audio>/playback src) --
+  // narrationBase64 is re-cached from it too, so a later
+  // syncShortsScriptToSupabase() call re-sends the same audio instead of
+  // overwriting it with blank. Images/영상 were never sent to Supabase in
+  // the first place (kept local-only), so they simply aren't here -- media
+  // needs regenerating in step 3 if this browser doesn't already have it
+  // as a local draft (openLocalShortsDraft covers that case instead).
+  currentShortsProject.imageCuts = (currentShortsProject.imageCuts || []).map(cut => ({
+    ...cut,
+    imageUrl: '',
+    narrationUrl: cut.narrationAudio || '',
+    narrationBase64: cut.narrationAudio || ''
+  }));
+  currentShortsProject.hookNarrationUrl = scriptJson.hookNarrationAudio || '';
+  currentShortsProject.hookNarrationBase64 = scriptJson.hookNarrationAudio || '';
+  currentShortsProject.topBarTitle = scriptJson.topBarTitle || '';
+  currentShortsProject.topBarTitleLine2 = scriptJson.topBarTitleLine2 || '';
+  currentShortsProject.topBarColor = scriptJson.topBarColor;
+  currentShortsProject.topBarHeight = scriptJson.topBarHeight;
+  currentShortsProject.topBarTitleFontSize = scriptJson.topBarTitleFontSize;
+  currentShortsProject.topBarTitleColor = scriptJson.topBarTitleColor;
+  currentShortsProject.topBarTitleColorLine2 = scriptJson.topBarTitleColorLine2;
+  currentShortsProject.captionFontSize = scriptJson.captionFontSize;
+  currentShortsProject.captionColor = scriptJson.captionColor;
+  currentShortsProject.captionPosition = scriptJson.captionPosition;
   // frontUpload/backUploads are transient staging state (not persisted --
   // once media generation runs they're baked into veoVideoUrl/imageCuts),
   // so reopening a saved project always starts with an empty upload queue.
@@ -3860,7 +3897,7 @@ async function openLocalShortsDraft(localDraftId) {
     return;
   }
   currentShortsProject = {
-    id: null,
+    id: draft.id || null,
     localDraftId: draft.localDraftId,
     articleId: draft.articleId,
     status: draft.status,
@@ -3900,6 +3937,11 @@ async function openLocalShortsDraft(localDraftId) {
       if (blob) {
         currentShortsProject.hookNarrationKey = `${localDraftId}:narration:hook`;
         currentShortsProject.hookNarrationUrl = URL.createObjectURL(blob);
+        // Re-cache the base64 copy too -- without it, the next
+        // syncShortsScriptToSupabase() call would see an empty
+        // hookNarrationBase64 and overwrite the already-saved audio with
+        // blank on Supabase.
+        currentShortsProject.hookNarrationBase64 = await blobToBase64DataUrl(blob);
       }
     }
     for (const cut of currentShortsProject.imageCuts) {
@@ -3909,7 +3951,10 @@ async function openLocalShortsDraft(localDraftId) {
       }
       if (cut.narrationKey) {
         const blob = await idbGetBlob(cut.narrationKey);
-        if (blob) cut.narrationUrl = URL.createObjectURL(blob);
+        if (blob) {
+          cut.narrationUrl = URL.createObjectURL(blob);
+          cut.narrationBase64 = await blobToBase64DataUrl(blob);
+        }
       }
     }
   } catch (err) {
@@ -3969,41 +4014,94 @@ function toggleShortsStep(n, headerEl) {
   if (headerEl) headerEl.classList.toggle("is-collapsed");
 }
 
-// Local-only save during drafting -- text fields go to localStorage, media
-// stays as in-browser object URLs. Nothing reaches Supabase here.
+// Saves during drafting: text fields go to localStorage AND to Supabase
+// (대본/자막/나레이션 -- everything except the generated images/영상, which
+// stay local-only object URLs/IndexedDB, per the storage-minimization
+// approach). This is what makes the script/narration survive a different
+// browser, a cleared localStorage, or just time -- unlike media, losing it
+// isn't something the admin can just regenerate identically.
 async function persistCurrentShortsProject() {
   const session = getAdminSession();
   currentShortsProject.createdBy = currentShortsProject.createdBy || (session ? session.name : '');
   saveShortsDraftLocally();
+  await syncShortsScriptToSupabase();
   await renderShortsList();
 }
 
-// 보관: the only point in the shorts flow that writes to Supabase, and only
-// {articleId, hookText, scriptMd} -- never the generated images/영상/음성.
-// Those stay local only; download them first if they need to be kept.
+// Upserts the current project's text + narration audio to Supabase's
+// `shorts` table. image_cuts and script_json are already generic JSON
+// columns, so this rides on the existing schema -- no migration needed.
+// Narration audio is embedded as a base64 data: URL in the same column,
+// matching how this project already stores article images (a plain DB
+// column, no Storage bucket configured). Silently logs and continues on
+// failure -- the localStorage/IndexedDB copy from saveShortsDraftLocally()
+// already covers this browser; Supabase is the cross-device/cross-session
+// safety net, not the only copy.
+async function syncShortsScriptToSupabase() {
+  if (!currentShortsProject) return;
+  if (!currentShortsProject.hookText && !currentShortsProject.scriptMd) return; // nothing to back up yet
+  try {
+    const session = getAdminSession();
+    const imageCuts = (currentShortsProject.imageCuts || []).map(cut => ({
+      prompt: cut.prompt || '',
+      caption: cut.caption || '',
+      narrationText: cut.narrationText || '',
+      duration: cut.duration || 5,
+      uploaded: !!cut.uploaded,
+      narrationAudio: cut.narrationBase64 || ''
+    }));
+
+    const payload = {
+      id: currentShortsProject.id || null,
+      articleId: currentShortsProject.articleId,
+      status: currentShortsProject.status,
+      hookText: currentShortsProject.hookText || '',
+      scriptMd: currentShortsProject.scriptMd || '',
+      styleGuide: currentShortsProject.styleGuide || '',
+      veoPrompt: currentShortsProject.veoPrompt || '',
+      frontIsImage: !!currentShortsProject.frontIsImage,
+      imageCuts,
+      scriptJson: {
+        hookNarrationAudio: currentShortsProject.hookNarrationBase64 || '',
+        topBarTitle: currentShortsProject.topBarTitle || '',
+        topBarTitleLine2: currentShortsProject.topBarTitleLine2 || '',
+        topBarColor: currentShortsProject.topBarColor,
+        topBarHeight: currentShortsProject.topBarHeight,
+        topBarTitleFontSize: currentShortsProject.topBarTitleFontSize,
+        topBarTitleColor: currentShortsProject.topBarTitleColor,
+        topBarTitleColorLine2: currentShortsProject.topBarTitleColorLine2,
+        captionFontSize: currentShortsProject.captionFontSize,
+        captionColor: currentShortsProject.captionColor,
+        captionPosition: currentShortsProject.captionPosition
+      },
+      createdBy: currentShortsProject.createdBy || (session ? session.name : '')
+    };
+
+    const saved = await window.SupabaseAdapter.saveShorts(payload);
+    if (saved && saved.id) currentShortsProject.id = saved.id;
+  } catch (err) {
+    console.error("대본/나레이션 Supabase 저장 실패 (로컬에는 저장됨):", err);
+  }
+}
+
+// 보관: marks the project as done and clears its local draft (media stays
+// local-only regardless -- download it first if it needs to be kept). The
+// text/narration is already backed up continuously by
+// syncShortsScriptToSupabase() above; this just changes its status and
+// stops treating it as an in-progress local draft.
 async function archiveShortsProject() {
   if (!currentShortsProject) return;
   if (!currentShortsProject.scriptMd && !currentShortsProject.hookText) {
     alert("보관할 대본이 없습니다. 먼저 대본을 생성해 주세요.");
     return;
   }
-  const session = getAdminSession();
-  const minimal = {
-    id: currentShortsProject.id || null,
-    articleId: currentShortsProject.articleId,
-    status: 'archived',
-    hookText: currentShortsProject.hookText || '',
-    scriptMd: currentShortsProject.scriptMd || '',
-    createdBy: currentShortsProject.createdBy || (session ? session.name : '')
-  };
-  const saved = await window.SupabaseAdapter.saveShorts(minimal);
-  if (saved && saved.id) currentShortsProject.id = saved.id;
   currentShortsProject.status = 'archived';
+  await syncShortsScriptToSupabase();
   if (currentShortsProject.localDraftId) {
     await deleteShortsDraftLocally(currentShortsProject.localDraftId);
   }
   await renderShortsList();
-  alert("숏폼 번호·기사·대본만 Supabase에 보관했습니다. 이미지·영상은 저장공간 절약을 위해 서버에 올리지 않으니, 필요하면 지금 다운로드해 두세요.");
+  alert("숏폼을 보관 완료로 표시했습니다. 대본·자막·나레이션은 Supabase에 저장되어 있고, 이미지·영상은 저장공간 절약을 위해 서버에 올리지 않으니 필요하면 지금 다운로드해 두세요.");
 }
 
 // Uploads a file to Gemini's Files API (supports up to 2GB per file, unlike
@@ -4309,10 +4407,11 @@ function readImageCutsFromDom() {
   });
 }
 
-// Explicit "대본 저장" button -- on top of the oninput auto-save, this gives
-// the admin a deliberate action with visible confirmation that the current
-// hook text + every cut's 대본/자막/길이 is in localStorage right now.
-function saveShortsScriptManually() {
+// Explicit "대본 저장" button -- on top of the oninput auto-save to
+// localStorage, this gives the admin a deliberate action that ALSO pushes
+// to Supabase (a real network round-trip, so it belongs on a manual click
+// rather than every keystroke) with visible confirmation once both are done.
+async function saveShortsScriptManually() {
   if (!currentShortsProject) return;
   currentShortsProject.hookText = document.getElementById("shorts-hook-text").value.trim();
   currentShortsProject.imageCuts = readImageCutsFromDom();
@@ -4320,6 +4419,9 @@ function saveShortsScriptManually() {
   saveShortsDraftLocally();
 
   const statusEl = document.getElementById("shorts-script-save-status");
+  if (statusEl) statusEl.textContent = "저장 중...";
+  await syncShortsScriptToSupabase();
+
   if (statusEl) {
     statusEl.textContent = "저장되었습니다 (" + new Date().toLocaleTimeString("ko-KR") + ")";
     clearTimeout(saveShortsScriptManually._clearTimer);
@@ -4699,24 +4801,43 @@ function getAudioBlobDuration(blob) {
   });
 }
 
+// Reads a Blob into a base64 data: URL -- used only to hand narration audio
+// to Supabase (which has no Storage bucket set up in this project; every
+// other binary asset here -- article images included -- already goes into
+// a plain DB column as a data URL, so narration follows the same
+// convention rather than introducing a new one).
+function blobToBase64DataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("오디오를 base64로 변환하지 못했습니다."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 // Generates one narration clip for either the hook (cutObj=null) or a
 // specific image cut, storing it in IndexedDB and -- for a cut -- updating
 // its duration to match the clip's actual length. This is what keeps audio
 // and visuals in sync: each segment's on-screen time comes directly from
-// its own narration length instead of a stretched/guessed estimate.
+// its own narration length instead of a stretched/guessed estimate. Also
+// caches a base64 copy (narrationBase64/hookNarrationBase64) so syncing to
+// Supabase later doesn't need to re-fetch and re-encode the local blob.
 async function generateCutNarration(cutObj, text, voiceName, draftId) {
   if (!text) return;
   const wavBlob = await generateGeminiSpeech(text, voiceName);
   const duration = await getAudioBlobDuration(wavBlob);
+  const base64 = await blobToBase64DataUrl(wavBlob);
   if (cutObj) {
     if (!cutObj.narrationKey) {
       cutObj.narrationKey = `${draftId}:narration:${Date.now()}-${Math.random().toString(36).slice(2)}`;
     }
     cutObj.narrationUrl = await keepShortsBlobLocal(wavBlob, cutObj.narrationKey);
+    cutObj.narrationBase64 = base64;
     cutObj.duration = Math.max(1, duration + 0.3);
   } else {
     currentShortsProject.hookNarrationKey = `${draftId}:narration:hook`;
     currentShortsProject.hookNarrationUrl = await keepShortsBlobLocal(wavBlob, currentShortsProject.hookNarrationKey);
+    currentShortsProject.hookNarrationBase64 = base64;
   }
 }
 
@@ -4748,6 +4869,7 @@ async function generateShortsNarration() {
 
     renderImageCutsEditor(currentShortsProject.imageCuts);
     saveShortsDraftLocally();
+    await syncShortsScriptToSupabase();
     shortsAssets = null; // force rebuild so the next preview/record picks up the new narration
     if (statusEl) statusEl.textContent = "나레이션 생성 완료. 각 컷 재생 시간이 나레이션 길이에 맞춰 자동 조정되었습니다.";
   } catch (err) {
@@ -4771,6 +4893,7 @@ async function regenerateCutNarration(i) {
     renderImageCutsEditor(currentShortsProject.imageCuts);
     renderShortsNarrationRecap();
     saveShortsDraftLocally();
+    await syncShortsScriptToSupabase();
     shortsAssets = null;
   } catch (err) {
     console.error("컷 나레이션 재생성 실패:", err);
@@ -4788,6 +4911,7 @@ async function regenerateHookNarration() {
   try {
     await generateCutNarration(null, currentShortsProject.hookText, voiceName, ensureShortsLocalDraftId());
     saveShortsDraftLocally();
+    await syncShortsScriptToSupabase();
     shortsAssets = null;
     const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
     if (hookAudioEl) {
