@@ -3205,16 +3205,15 @@ ${randomHint}
 (위 톤/분위기와 구도 지정을 최우선으로 따르고, 이 촬영 디테일 힌트는 그 안에서 기사 내용에 맞게 자연스럽게 응용하십시오. 매번 다른 힌트가 주어지므로 같은 톤/구도를 골라도 결과 이미지가 서로 겹치지 않고 다양해집니다. 톤/분위기와 구도의 설명 문구를 프롬프트 본문에 구체적인 시각 묘사로 정확하게 녹여 넣으십시오.)
 
 [작성 지침]
-- 실제 카메라로 촬영한 보도사진(photojournalism) 스타일로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등)은 절대 사용하지 마십시오.
+- (가장 중요) 이 이미지는 실제 보도 사진을 대신합니다. 다른 모든 지침보다 우선하여, 실제 카메라로 그 자리에서 찍은 것처럼 사실적으로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등), 매끈하고 대칭적인 'AI 그림체'는 절대 사용하지 마십시오. 실제 인체 비율과 손·얼굴 디테일, 자연스러운 피부 질감, 현실적인 조명과 그림자, 실제 재질감을 갖춘 다큐멘터리 사진(photojournalism) 스타일로만 묘사하십시오.
 - 날씨와 조명: 기사 내용이 비·폭설·재해 등 특정 날씨를 직접 다루는 경우가 아니라면, 반드시 맑고 화창한 날씨와 밝은 빛으로 묘사하십시오. 비, 빗방울, 젖은 표면, 안개, 흐린 하늘, 우중충한 분위기, 어두운 새벽·심야 장면은 기사와 직접 관련이 없는 한 절대 넣지 마십시오.
 - 선명도: 이미지 전체가 흐릿하거나 뿌옇게 보이면 안 됩니다. 주제는 항상 초점이 또렷하고 선명해야 하며, 배경 흐림(아웃포커스)은 주제를 돋보이게 하는 용도로만 은은하게 사용하십시오.
 - 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
-- 인물이 등장한다면 얼굴과 표정이 자연스럽게 살아있는 모습을 우선하십시오. 생기 있는 표정(미소, 집중한 눈빛, 대화하는 모습 등)이 담긴 얼굴이 뒷모습이나 실루엣보다 좋습니다. 단, 실존 인물이나 유명인과 닮지 않은 가상의 인물로 묘사하고, 어색하게 카메라를 정면으로 응시하기보다 장면 속에서 자연스럽게 행동하는 모습으로 묘사하십시오.
-- "AI가 생성한 이미지처럼 보이는" 지나치게 매끈하고 대칭적인 스타일은 피하고, 실제 카메라로 찍은 듯한 자연스러운 질감과 약간의 비대칭 구도를 지향하십시오. (질감을 위해 이미지를 어둡거나 탁하게 만들지는 마십시오.)
+- 인물이 등장한다면 얼굴과 표정이 자연스럽게 살아있는 모습을 우선하십시오. 생기 있는 표정(미소, 집중한 눈빛, 대화하는 모습 등)이 담긴 얼굴이 뒷모습이나 실루엣보다 좋습니다. 단, 실존 인물이나 유명인과 닮지 않은 가상의 인물로 묘사하고, 어색하게 카메라를 정면으로 응시하기보다 장면 속에서 자연스럽게 행동하는 모습으로 묘사하십시오. 완벽하게 대칭적이거나 정면을 향한 포즈보다는 실제 스냅 사진처럼 약간 비대칭적인 자연스러운 구도를 지향하십시오. (질감을 위해 이미지를 어둡거나 탁하게 만들지는 마십시오.)
 - 텍스트가 등장하는 요소는 최대한 배제하십시오. AI가 생성하는 한글 텍스트는 대부분 알아볼 수 없는 깨진 글자로 나오기 때문입니다. 특히 문서, 종이, 서류, 손글씨, 화면, 클로즈업된 글자는 절대로 장면에 등장시키지 마십시오. 거리의 간판이나 상점 간판 정도는 장면에 자연스럽게 어울린다면 포함해도 괜찮지만, 작게·흐릿하게·초점 밖에 배치하여 읽기 어렵게 묘사하십시오. 혹시라도 텍스트가 뚜렷하게 등장해야 하는 상황이라면 반드시 한글로만 묘사하고 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 한글로 작성한 한 문단의 프롬프트 본문만 출력하십시오.
 `;
-    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 사실적이고 간결한 사진 묘사 프롬프트를 작성하는 신문사 사진부 편집자입니다. 일러스트나 디지털 아트 스타일은 절대 사용하지 마십시오. 기사 내용이 특정 날씨를 직접 다루지 않는 한 항상 맑고 화창한 날씨와 밝은 빛으로 묘사하고, 비/안개/흐린 하늘/우중충한 분위기는 절대 넣지 마십시오. 주제의 초점은 항상 또렷하고 선명해야 합니다. 인물은 얼굴과 표정이 살아있는 모습을 우선하되 실존 인물과 닮지 않게 하십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
+    const resultText = await callGeminiTextApi(analysisPrompt, "당신은 신문사 사진부 편집자입니다. 이 이미지는 실제 보도 사진을 대신하므로, 무엇보다 사실적인 묘사가 최우선입니다 -- 실제 카메라로 찍은 것처럼 실제 인체 비율, 자연스러운 피부 질감, 현실적인 조명을 갖춘 다큐멘터리 사진 스타일로만 작성하고, 일러스트나 디지털 아트, 매끈한 'AI 그림체' 스타일은 절대 사용하지 마십시오. 기사 내용이 특정 날씨를 직접 다루지 않는 한 항상 맑고 화창한 날씨와 밝은 빛으로 묘사하고, 비/안개/흐린 하늘/우중충한 분위기는 절대 넣지 마십시오. 주제의 초점은 항상 또렷하고 선명해야 합니다. 인물은 얼굴과 표정이 살아있는 모습을 우선하되 실존 인물과 닮지 않게 하십시오. 장면 안의 텍스트는 최대한 배제하십시오 (AI가 그리는 한글 텍스트는 대부분 깨진 글자로 나옵니다). 문서, 종이, 클로즈업된 글자는 절대 넣지 말고, 작고 흐릿한 거리 간판 정도만 예외로 허용하며 혹시 텍스트가 나온다면 반드시 한글이어야 합니다. 프롬프트 본문은 반드시 한글로만 작성하십시오.");
     if (promptEl) promptEl.value = resultText.trim();
   } catch (err) {
     alert("프롬프트 자동생성 실패: " + err.message);
@@ -3258,6 +3257,11 @@ async function resolveGeminiImageModel(apiKey) {
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
 const IMAGE_TEXT_LANGUAGE_RULE = "\n\nIMPORTANT TEXT RULE: AI-generated Korean (Hangul) text tends to render as garbled, illegible gibberish, so minimize or avoid visible text in this image altogether. Do NOT include documents, papers, forms, handwriting, or any close-up readable lettering under any circumstances. A distant street sign or storefront signage is acceptable if it naturally belongs in the scene, but keep it small, out of focus, or partially obscured rather than a clear readable focal point. If any text does end up visible, it must be Korean (Hangul) only -- never English or any other language/script.";
+// This is a news outlet -- every generated image stands in for a real news
+// photo, so photorealism is the single most important property, above mood/
+// composition/style choices. Applies regardless of prompt source (auto-written,
+// hand-typed, or shorts image cuts).
+const IMAGE_REALISM_RULE = "\n\nMOST IMPORTANT RULE -- PHOTOREALISM: This image represents a real news/press photograph, so it must look exactly like an actual photo taken with a real camera at the real scene -- not an illustration, painting, 3D render, or 'AI-art' look. Prioritize photorealistic accuracy above all other style choices: realistic anatomy and proportions (especially hands and faces), natural skin texture, correct real-world lighting and shadow physics, authentic materials and textures, and a candid, unposed documentary quality. Avoid the telltale over-smooth, overly symmetrical, glossy 'AI-generated' look.";
 const IMAGE_NO_RAIN_RULE = "\n\nWEATHER & CLARITY: Default to clear, sunny weather with bright natural light. AVOID rain, raindrops, wet surfaces, fog, mist, haze, overcast/gray skies, and gloomy or murky moods unless the subject matter specifically calls for them -- these have been overused in recent generations. The main subject must always be in sharp, crisp focus; a subtle out-of-focus/blur background used to emphasize the subject is fine, but the overall image must never look hazy or washed out.";
 // Only appended for the article representative image (triggerAiImageGeneration) --
 // that slot is always displayed in a 16:9 box (object-fit:cover), and Gemini's
@@ -3277,7 +3281,7 @@ async function generateGeminiImage(promptText) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE }] }] })
+    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE }] }] })
   });
 
   if (!response.ok) {
