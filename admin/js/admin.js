@@ -3325,6 +3325,7 @@ async function triggerAiImageGeneration() {
   const loader = document.getElementById("ai-image-loader");
   loader.style.display = "flex";
 
+  beginShortsBusyOperation();
   try {
     const dataUrl = await generateGeminiImage(promptText + IMAGE_ASPECT_RATIO_RULE);
     const blob = await (await fetch(dataUrl)).blob();
@@ -3345,6 +3346,7 @@ async function triggerAiImageGeneration() {
     alert("AI 이미지 생성 실패: " + err.message);
   } finally {
     loader.style.display = "none";
+    endShortsBusyOperation();
   }
 }
 
@@ -3363,6 +3365,23 @@ const SHORTS_TARGET_CUT_COUNT = 5; // total 후반 image cuts (AI + uploaded com
 const SHORTS_MAX_BACK_UPLOADS = 5;
 const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
 const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
+
+// Refreshing/closing the tab mid-generation (Veo, images, narration,
+// recording) throws away real time and real API cost with nothing saved to
+// resume from -- unlike script/style text edits, which already autosave on
+// every keystroke and are safe to lose mid-typing. This counter tracks
+// whether any such in-flight operation is running, and the browser's native
+// "leave site?" prompt (which we can't customize the wording of, but can
+// trigger) is the one guard that actually stops an accidental refresh.
+let shortsBusyOperations = 0;
+function beginShortsBusyOperation() { shortsBusyOperations++; }
+function endShortsBusyOperation() { shortsBusyOperations = Math.max(0, shortsBusyOperations - 1); }
+window.addEventListener('beforeunload', (e) => {
+  if (shortsBusyOperations > 0) {
+    e.preventDefault();
+    e.returnValue = '숏폼 생성 작업이 진행 중입니다. 지금 나가면 진행 중이던 결과가 사라집니다.';
+  }
+});
 
 // Storage-minimization: while a shorts project is being drafted, its script
 // text/narration lives in localStorage+IndexedDB AND is synced to Supabase
@@ -4301,6 +4320,7 @@ async function generateShortsScript() {
   const btn = document.getElementById("shorts-generate-script-btn");
   if (btn) { btn.disabled = true; btn.textContent = "대본 생성 중..."; }
 
+  beginShortsBusyOperation();
   try {
     const bodyText = (article.content || "").replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -4384,6 +4404,7 @@ ${backInstruction}
     alert("대본 생성 실패: " + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "2. 대본(스크립트) 자동 생성"; }
+    endShortsBusyOperation();
   }
 }
 
@@ -5019,6 +5040,7 @@ async function generateCutNarration(cutObj, text, voiceName, draftId) {
 async function generateShortsNarration() {
   const statusEl = document.getElementById("shorts-narration-status");
 
+  beginShortsBusyOperation();
   try {
     currentShortsProject.imageCuts = readImageCutsFromDom();
     const voiceSelect = document.getElementById("shorts-narration-voice");
@@ -5045,6 +5067,8 @@ async function generateShortsNarration() {
     console.error("나레이션 생성 실패:", err);
     if (statusEl) statusEl.textContent = "나레이션 생성 실패: " + err.message;
     alert("나레이션 생성 실패: " + err.message);
+  } finally {
+    endShortsBusyOperation();
   }
 }
 
@@ -5057,6 +5081,7 @@ async function regenerateCutNarration(i) {
   const voiceSelect = document.getElementById("shorts-narration-voice");
   const voiceName = voiceSelect ? voiceSelect.value : "Kore";
 
+  beginShortsBusyOperation();
   try {
     await generateCutNarration(cut, cut.narrationText || cut.caption, voiceName, ensureShortsLocalDraftId());
     renderImageCutsEditor(currentShortsProject.imageCuts);
@@ -5067,6 +5092,8 @@ async function regenerateCutNarration(i) {
   } catch (err) {
     console.error("컷 나레이션 재생성 실패:", err);
     alert("나레이션 재생성 실패: " + err.message);
+  } finally {
+    endShortsBusyOperation();
   }
 }
 
@@ -5077,6 +5104,7 @@ async function regenerateHookNarration() {
   const voiceSelect = document.getElementById("shorts-narration-voice");
   const voiceName = voiceSelect ? voiceSelect.value : "Kore";
 
+  beginShortsBusyOperation();
   try {
     await generateCutNarration(null, currentShortsProject.hookText, voiceName, ensureShortsLocalDraftId());
     saveShortsDraftLocally();
@@ -5091,6 +5119,8 @@ async function regenerateHookNarration() {
   } catch (err) {
     console.error("후킹 나레이션 재생성 실패:", err);
     alert("나레이션 재생성 실패: " + err.message);
+  } finally {
+    endShortsBusyOperation();
   }
 }
 
@@ -5099,6 +5129,7 @@ async function generateShortsMedia() {
   const btn = document.getElementById("shorts-generate-media-btn");
   if (btn) btn.disabled = true;
 
+  beginShortsBusyOperation();
   try {
     if (currentShortsProject.frontUpload) {
       statusEl.textContent = "업로드된 자료를 전반(0:00~0:08)에 적용 중...";
@@ -5139,6 +5170,7 @@ async function generateShortsMedia() {
     alert("미디어 생성 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
+    endShortsBusyOperation();
   }
 }
 
@@ -5343,6 +5375,7 @@ async function regenerateShortsFrontMedia() {
     return;
   }
   const statusEl = document.getElementById("shorts-media-status");
+  beginShortsBusyOperation();
   try {
     if (statusEl) statusEl.textContent = "전반 영상 재생성 중... (몇 분 소요될 수 있습니다)";
     const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { if (statusEl) statusEl.textContent = msg; });
@@ -5356,6 +5389,8 @@ async function regenerateShortsFrontMedia() {
     console.error("전반 영상 재생성 실패:", err);
     alert("재생성 실패: " + err.message);
     if (statusEl) statusEl.textContent = "재생성 실패: " + err.message;
+  } finally {
+    endShortsBusyOperation();
   }
 }
 
@@ -5391,6 +5426,7 @@ async function regenerateShortsCutImage(i) {
     return;
   }
   const statusEl = document.getElementById("shorts-media-status");
+  beginShortsBusyOperation();
   try {
     if (statusEl) statusEl.textContent = `컷 ${i + 1} 이미지 재생성 중...`;
     const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
@@ -5407,6 +5443,8 @@ async function regenerateShortsCutImage(i) {
     console.error("컷 이미지 재생성 실패:", err);
     alert("재생성 실패: " + err.message);
     if (statusEl) statusEl.textContent = "재생성 실패: " + err.message;
+  } finally {
+    endShortsBusyOperation();
   }
 }
 
@@ -5751,6 +5789,7 @@ async function recordShortsVideo() {
     console.warn("화면 잠금 방지 실패 (녹화는 계속 진행됩니다):", err);
   }
 
+  beginShortsBusyOperation();
   try {
     statusEl.textContent = "녹화 준비 중... (완료될 때까지 이 탭을 벗어나지 마세요)";
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
@@ -5783,6 +5822,7 @@ async function recordShortsVideo() {
   } finally {
     if (btn) btn.disabled = false;
     if (wakeLock) { try { await wakeLock.release(); } catch (err) { /* already released, ignore */ } }
+    endShortsBusyOperation();
   }
 }
 
