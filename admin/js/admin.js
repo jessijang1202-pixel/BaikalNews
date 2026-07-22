@@ -3702,6 +3702,8 @@ function resetShortsWizardSections() {
   if (narrationStatusEl) narrationStatusEl.textContent = "각 컷 화면에 나올 자막을 그대로 읽습니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.";
   const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
   if (hookAudioEl) { hookAudioEl.style.display = "none"; hookAudioEl.src = ""; }
+  const selfCheckEl = document.getElementById("shorts-selfcheck-section");
+  if (selfCheckEl) selfCheckEl.style.display = "none";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -4369,12 +4371,127 @@ ${backInstruction}
     renderShortsScriptReview();
     await persistCurrentShortsProject();
     document.getElementById("shorts-script-review").scrollIntoView({ behavior: "smooth" });
+
+    if (btn) btn.textContent = "shorts_check.md 기준 자체 점검 중...";
+    const selfCheckResults = await runShortsSelfCheck(currentShortsProject);
+    renderShortsSelfCheckResults(selfCheckResults);
   } catch (err) {
     console.error("숏폼 대본 생성 실패:", err);
     alert("대본 생성 실패: " + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "2. 대본(스크립트) 자동 생성"; }
   }
+}
+
+// ---- Self-check: every generated shorts script is graded against
+// admin/shorts_check.md (mirrors the article self-check pattern against
+// admin/check.md) -- runs right after script generation so a weak hook or
+// a rule violation (foreign-looking people, English text) gets flagged
+// before the admin moves on to media generation.
+async function loadShortsChecklistItems() {
+  try {
+    const response = await fetch('shorts_check.md');
+    if (!response.ok) throw new Error("shorts_check.md fetch failed with status " + response.status);
+    const text = await response.text();
+
+    const items = [];
+    let currentSection = "";
+    text.split('\n').forEach(line => {
+      const sectionMatch = line.match(/^##\s+(.*)/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].trim();
+        return;
+      }
+      const itemMatch = line.match(/^-\s*\[ \]\s*(.*)/);
+      if (itemMatch) {
+        items.push({ section: currentSection, text: itemMatch[1].trim() });
+      }
+    });
+    return items;
+  } catch (err) {
+    console.error("숏폼 체크리스트(shorts_check.md)를 불러오지 못했습니다:", err);
+    return [];
+  }
+}
+
+async function runShortsSelfCheck(project) {
+  const items = await loadShortsChecklistItems();
+  if (items.length === 0) return null;
+
+  const checklistText = items.map((it, i) => `${i + 1}. [${it.section}] ${it.text}`).join('\n');
+  const cutsText = (project.imageCuts || []).map((c, i) =>
+    `컷 ${i + 1} - 이미지 프롬프트: ${c.prompt || '(없음)'} / 대본: ${c.narrationText || ''} / 자막: ${c.caption || ''}`
+  ).join('\n');
+
+  const prompt = `
+당신은 바이칼 뉴스의 깐깐한 숏폼 데스크 편집자입니다. 아래 체크리스트 각 항목에 대해 주어진 숏폼 대본이 통과하는지 냉정하게 평가하십시오. 애매하면 통과(true)가 아니라 실패(false)로 판단하십시오.
+
+[체크리스트]
+${checklistText}
+
+[숏폼 대본]
+후킹 문구(hookText): ${project.hookText || '(없음)'}
+상단 배너 제목: ${project.topBarTitle || ''} ${project.topBarTitleLine2 || ''}
+Veo 프롬프트(전반 0:00~0:08): ${project.veoPrompt || '(업로드 자료 사용)'}
+후반부 컷:
+${cutsText || '(없음)'}
+전체 대본 문서(scriptMd):
+${project.scriptMd || '(없음)'}
+
+반드시 다음 구조의 JSON 배열로만 답변하십시오. 백틱이나 'json' 마킹 없이, 배열의 순서와 개수를 체크리스트와 정확히 동일하게 맞춰야 합니다.
+[
+  { "pass": true, "note": "판단 근거를 1문장으로" }
+]
+`;
+
+  try {
+    const resultText = await callClaudeApi(prompt, "당신은 엄격한 숏폼 데스크 편집자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    const results = parseAiJsonResponse(resultText);
+    return items.map((it, i) => ({
+      section: it.section,
+      text: it.text,
+      pass: results[i] ? !!results[i].pass : false,
+      note: results[i] ? (results[i].note || '') : ''
+    }));
+  } catch (err) {
+    console.error("숏폼 대본 AI 자체 점검 실패:", err);
+    return null;
+  }
+}
+
+function renderShortsSelfCheckResults(results) {
+  const wrapper = document.getElementById("shorts-selfcheck-section");
+  const container = document.getElementById("shorts-selfcheck-body");
+  if (!wrapper || !container) return;
+
+  if (!results || results.length === 0) {
+    wrapper.style.display = "none";
+    return;
+  }
+
+  wrapper.style.display = "block";
+  const passCount = results.filter(r => r.pass).length;
+
+  const bySection = {};
+  results.forEach(r => {
+    if (!bySection[r.section]) bySection[r.section] = [];
+    bySection[r.section].push(r);
+  });
+
+  let html = `<div style="font-weight:600; margin-bottom:12px;">${passCount} / ${results.length}개 항목 통과 (shorts_check.md 기준, 참고용 자체 점검)</div>`;
+  Object.keys(bySection).forEach(section => {
+    html += `<div style="margin-bottom:14px;"><div style="font-weight:600; font-size:0.85rem; margin-bottom:6px; color:var(--sf-text-muted, var(--admin-text-secondary));">${section}</div>`;
+    bySection[section].forEach(r => {
+      html += `
+        <div class="checklist-item ${r.pass ? 'pass' : 'fail'}">
+          <span class="checklist-icon">${r.pass ? '✓' : '✗'}</span>
+          <span>${r.text}${r.note ? ` <span class="help-text">— ${r.note}</span>` : ''}</span>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+  container.innerHTML = html;
 }
 
 function renderShortsScriptReview() {
