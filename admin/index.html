@@ -1035,7 +1035,8 @@
                   <div class="shorts-card-kicker" style="margin-bottom:10px;">나레이션</div>
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <button type="button" class="btn-admin btn-admin-secondary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
-                    <button type="button" class="btn-admin btn-admin-secondary" onclick="playShortsNarrationSequence()">▶ 재생</button>
+                    <button type="button" class="btn-admin btn-admin-secondary" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()" style="min-width:38px;">▶</button>
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="stopShortsNarrationPlayback()" style="min-width:38px;">⏹</button>
                     <span class="help-text" id="shorts-narration-recap-status"></span>
                   </div>
                   <audio id="shorts-narration-playback" style="display:none;"></audio>

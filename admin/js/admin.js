@@ -5068,32 +5068,70 @@ async function generateShortsNarrationFromAssembly() {
 // "▶ 재생" -- plays the hook narration then every cut's narration back to
 // back in one continuous <audio>, so the admin can hear the whole thing
 // without opening each cut individually.
-function playShortsNarrationSequence() {
-  if (!currentShortsProject) return;
-  const player = document.getElementById("shorts-narration-playback");
-  if (!player) return;
+// 재생/일시정지 토글 + 정지 버튼 -- hook과 각 컷의 나레이션을 이어서 재생하며,
+// 일시정지 후 같은 버튼을 다시 누르면 멈춘 지점부터 이어서 재생된다. 정지는
+// 큐 전체를 초기화해 다음 재생이 처음(후킹)부터 다시 시작하게 한다.
+let shortsNarrationQueue = [];
+let shortsNarrationIdx = 0;
 
+function buildShortsNarrationQueue() {
   const queue = [];
   if (currentShortsProject.hookNarrationUrl) queue.push(currentShortsProject.hookNarrationUrl);
   (currentShortsProject.imageCuts || []).forEach(cut => {
     if (cut.narrationUrl) queue.push(cut.narrationUrl);
   });
+  return queue;
+}
 
-  if (queue.length === 0) {
-    alert("재생할 나레이션이 없습니다. 먼저 나레이션을 생성해 주세요.");
+function toggleShortsNarrationPlayback() {
+  if (!currentShortsProject) return;
+  const player = document.getElementById("shorts-narration-playback");
+  const playBtn = document.getElementById("shorts-narration-play-btn");
+  if (!player) return;
+
+  if (!player.paused) {
+    player.pause();
+    if (playBtn) playBtn.textContent = "▶";
     return;
   }
 
-  let idx = 0;
+  if (player.src && !player.ended) {
+    player.play();
+    if (playBtn) playBtn.textContent = "⏸";
+    return;
+  }
+
+  shortsNarrationQueue = buildShortsNarrationQueue();
+  shortsNarrationIdx = 0;
+  if (shortsNarrationQueue.length === 0) {
+    alert("재생할 나레이션이 없습니다. 먼저 나레이션을 생성해 주세요.");
+    return;
+  }
   player.onended = () => {
-    idx += 1;
-    if (idx < queue.length) {
-      player.src = queue[idx];
+    shortsNarrationIdx += 1;
+    if (shortsNarrationIdx < shortsNarrationQueue.length) {
+      player.src = shortsNarrationQueue[shortsNarrationIdx];
       player.play();
+    } else if (playBtn) {
+      playBtn.textContent = "▶";
     }
   };
-  player.src = queue[0];
+  player.src = shortsNarrationQueue[0];
   player.play();
+  if (playBtn) playBtn.textContent = "⏸";
+}
+
+function stopShortsNarrationPlayback() {
+  const player = document.getElementById("shorts-narration-playback");
+  const playBtn = document.getElementById("shorts-narration-play-btn");
+  if (!player) return;
+  player.onended = null;
+  player.pause();
+  player.currentTime = 0;
+  player.removeAttribute("src");
+  shortsNarrationQueue = [];
+  shortsNarrationIdx = 0;
+  if (playBtn) playBtn.textContent = "▶";
 }
 
 function updateShortsStyleSettings() {
