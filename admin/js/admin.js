@@ -3812,6 +3812,8 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-final-preview").style.display = "none";
   const downloadEl = document.getElementById("shorts-final-download");
   if (downloadEl) downloadEl.style.display = "none";
+  const convertMp4Btn = document.getElementById("shorts-convert-mp4-btn");
+  if (convertMp4Btn) convertMp4Btn.style.display = "none";
   const narrationStatusEl = document.getElementById("shorts-narration-status");
   if (narrationStatusEl) narrationStatusEl.textContent = "각 컷 화면에 나올 자막을 그대로 읽습니다. 생성하지 않으면 무음(또는 Veo 클립 자체 소리)만 남습니다.";
   const hookAudioEl = document.getElementById("shorts-hook-narration-preview");
@@ -4047,6 +4049,7 @@ async function openShortsProject(id) {
     const previewEl = document.getElementById("shorts-final-preview");
     previewEl.src = project.finalVideoUrl;
     previewEl.style.display = "block";
+    updateShortsConvertMp4ButtonVisibility();
     renderShortsYoutubeMetadata();
   }
 
@@ -4167,6 +4170,7 @@ async function openLocalShortsDraft(localDraftId) {
       downloadEl.download = `shorts-${localDraftId}.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
       downloadEl.style.display = "inline-block";
     }
+    updateShortsConvertMp4ButtonVisibility();
     renderShortsYoutubeMetadata();
   }
   document.getElementById("shorts-wizard-panel").style.display = "block";
@@ -6043,6 +6047,64 @@ async function convertShortsWebmToMp4(webmBlob, onStatus) {
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
+// mp4 conversion is a separate, admin-triggered step from recording itself --
+// recording already takes ~30s, and tacking on another 1-3 minutes of
+// conversion before the admin even gets to see/approve the result was more
+// waiting than wanted. This button only shows once a final video exists and
+// isn't mp4 already (Safari's recordings are already mp4 -- nothing to do).
+function updateShortsConvertMp4ButtonVisibility() {
+  const btn = document.getElementById("shorts-convert-mp4-btn");
+  if (!btn) return;
+  const hasNonMp4Video = !!(currentShortsProject && currentShortsProject.finalVideoUrl &&
+    !(currentShortsProject.finalVideoMimeType || '').includes('mp4'));
+  btn.style.display = hasNonMp4Video ? "inline-flex" : "none";
+}
+
+async function convertShortsFinalVideoToMp4() {
+  if (!currentShortsProject || !currentShortsProject.finalVideoUrl) return;
+  if ((currentShortsProject.finalVideoMimeType || '').includes('mp4')) {
+    alert("이미 mp4 형식입니다.");
+    return;
+  }
+  const draftId = currentShortsProject.localDraftId;
+  if (!draftId) {
+    alert("이 브라우저에 저장된 원본 영상을 찾을 수 없습니다. 먼저 이 프로젝트를 로컬 초안으로 저장해 주세요.");
+    return;
+  }
+
+  const statusEl = document.getElementById("shorts-assembly-status");
+  const btn = document.getElementById("shorts-convert-mp4-btn");
+  if (btn) btn.disabled = true;
+  beginShortsBusyOperation();
+  try {
+    const webmBlob = await idbGetBlob(`${draftId}:final`);
+    if (!webmBlob) throw new Error("이 브라우저에 저장된 원본 영상을 찾을 수 없습니다. 다시 녹화해 주세요.");
+
+    const mp4Blob = await convertShortsWebmToMp4(webmBlob, (msg) => { if (statusEl) statusEl.textContent = msg; });
+    const publicUrl = await keepShortsBlobLocal(mp4Blob, `${draftId}:final`);
+    currentShortsProject.finalVideoUrl = publicUrl;
+    currentShortsProject.finalVideoMimeType = mp4Blob.type;
+    await persistCurrentShortsProject();
+
+    const previewEl = document.getElementById("shorts-final-preview");
+    if (previewEl) previewEl.src = publicUrl;
+    const downloadEl = document.getElementById("shorts-final-download");
+    if (downloadEl) {
+      downloadEl.href = publicUrl;
+      downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.mp4`;
+    }
+    updateShortsConvertMp4ButtonVisibility();
+    if (statusEl) statusEl.textContent = "mp4 변환 완료! 다운로드 버튼을 다시 눌러 받아주세요.";
+  } catch (err) {
+    console.error("mp4 변환 실패:", err);
+    alert("mp4 변환 실패: " + err.message);
+    if (statusEl) statusEl.textContent = "mp4 변환 실패: " + err.message;
+  } finally {
+    if (btn) btn.disabled = false;
+    endShortsBusyOperation();
+  }
+}
+
 async function recordShortsVideo() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const btn = document.getElementById("shorts-record-btn");
@@ -6065,23 +6127,13 @@ async function recordShortsVideo() {
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
     const canvas = document.getElementById("shorts-canvas");
     statusEl.textContent = "녹화 중... (약 30초 소요)";
-    const rawVideoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
-
-    // Convert to mp4 for upload compatibility (YouTube Shorts, Instagram,
-    // KakaoTalk, etc. often reject or mishandle webm) unless the browser
-    // already recorded straight to mp4 (Safari's fallback path). If the
-    // conversion fails for any reason, fall back to the original recording
-    // rather than losing the whole 30-second capture over it.
-    let videoBlob = rawVideoBlob;
-    if (!rawVideoBlob.type.includes('mp4')) {
-      try {
-        videoBlob = await convertShortsWebmToMp4(rawVideoBlob, (msg) => { statusEl.textContent = msg; });
-      } catch (err) {
-        console.error("mp4 변환 실패, 원본 형식으로 저장합니다:", err);
-        alert("mp4 변환에 실패했습니다. 원본 형식(webm)으로 저장합니다: " + err.message);
-        videoBlob = rawVideoBlob;
-      }
-    }
+    // Recording produces whatever the browser's MediaRecorder actually
+    // supports (webm on most desktop browsers, mp4 on Safari's fallback
+    // path) -- mp4 conversion is now a separate, admin-triggered step
+    // (convertShortsFinalVideoToMp4()) rather than automatic, so checking
+    // the recording itself doesn't also mean waiting 1-3 minutes for a
+    // conversion before you even get to see it.
+    const videoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
 
     const publicUrl = await keepShortsBlobLocal(videoBlob, `${ensureShortsLocalDraftId()}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
@@ -6099,6 +6151,7 @@ async function recordShortsVideo() {
       downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.${shortsVideoExtFromMime(videoBlob.type)}`;
       downloadEl.style.display = "inline-block";
     }
+    updateShortsConvertMp4ButtonVisibility();
     await renderShortsYoutubeMetadata();
 
     statusEl.textContent = "완료! 아래에서 재생/다운로드할 수 있습니다. (서버에는 저장되지 않으니 필요하면 지금 다운로드하거나 보관 버튼으로 대본을 남겨두세요.)";
