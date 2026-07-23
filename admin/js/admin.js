@@ -5940,6 +5940,53 @@ async function previewShortsAssembly() {
   }
 }
 
+// Most browsers (Chrome/Edge/Firefox on desktop) can only MediaRecorder to
+// webm -- fine to play back, but rejected or awkward on upload targets that
+// expect mp4 (YouTube Shorts, Instagram, KakaoTalk, etc). This converts the
+// recorded webm to mp4 entirely client-side via ffmpeg.wasm's legacy
+// SINGLE-THREADED build (@ffmpeg/ffmpeg 0.11.x) -- deliberately not the
+// faster multi-threaded build, which requires serving the whole site with
+// cross-origin-isolation headers (COOP/COEP) that would very likely break
+// AdSense and other third-party embeds already on this site. Slower (~1-3
+// minutes for a 30s clip) but safe. The ~25MB core is only fetched the
+// first time a conversion actually runs, not on every admin page load.
+let shortsFfmpegInstance = null;
+function loadFFmpegLib() {
+  if (window.FFmpeg) return Promise.resolve(window.FFmpeg);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+    script.onload = () => resolve(window.FFmpeg);
+    script.onerror = () => reject(new Error("mp4 변환 엔진(ffmpeg.wasm)을 불러오지 못했습니다."));
+    document.head.appendChild(script);
+  });
+}
+
+async function getShortsFFmpeg(onProgress) {
+  if (shortsFfmpegInstance && shortsFfmpegInstance.isLoaded()) return shortsFfmpegInstance;
+  const FFmpegLib = await loadFFmpegLib();
+  shortsFfmpegInstance = FFmpegLib.createFFmpeg({
+    log: false,
+    corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+  });
+  if (onProgress) shortsFfmpegInstance.setProgress(({ ratio }) => onProgress(ratio));
+  await shortsFfmpegInstance.load();
+  return shortsFfmpegInstance;
+}
+
+async function convertShortsWebmToMp4(webmBlob, onStatus) {
+  if (onStatus) onStatus("mp4 변환 엔진 준비 중... (처음 한 번은 다운로드 때문에 다소 걸릴 수 있습니다)");
+  const ffmpeg = await getShortsFFmpeg((ratio) => {
+    if (onStatus) onStatus(`mp4로 변환 중... (${Math.round(ratio * 100)}%, 최대 몇 분 소요될 수 있습니다)`);
+  });
+  const { fetchFile } = window.FFmpeg;
+  ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+  await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', 'output.mp4');
+  const data = ffmpeg.FS('readFile', 'output.mp4');
+  try { ffmpeg.FS('unlink', 'input.webm'); ffmpeg.FS('unlink', 'output.mp4'); } catch (err) { /* best-effort cleanup */ }
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
 async function recordShortsVideo() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const btn = document.getElementById("shorts-record-btn");
@@ -5962,7 +6009,23 @@ async function recordShortsVideo() {
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
     const canvas = document.getElementById("shorts-canvas");
     statusEl.textContent = "녹화 중... (약 30초 소요)";
-    const videoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
+    const rawVideoBlob = await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: true });
+
+    // Convert to mp4 for upload compatibility (YouTube Shorts, Instagram,
+    // KakaoTalk, etc. often reject or mishandle webm) unless the browser
+    // already recorded straight to mp4 (Safari's fallback path). If the
+    // conversion fails for any reason, fall back to the original recording
+    // rather than losing the whole 30-second capture over it.
+    let videoBlob = rawVideoBlob;
+    if (!rawVideoBlob.type.includes('mp4')) {
+      try {
+        videoBlob = await convertShortsWebmToMp4(rawVideoBlob, (msg) => { statusEl.textContent = msg; });
+      } catch (err) {
+        console.error("mp4 변환 실패, 원본 형식으로 저장합니다:", err);
+        alert("mp4 변환에 실패했습니다. 원본 형식(webm)으로 저장합니다: " + err.message);
+        videoBlob = rawVideoBlob;
+      }
+    }
 
     const publicUrl = await keepShortsBlobLocal(videoBlob, `${ensureShortsLocalDraftId()}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
