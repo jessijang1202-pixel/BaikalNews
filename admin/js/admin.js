@@ -4429,6 +4429,26 @@ async function handleShortsStyleUpload(event) {
   }
 }
 
+// Hard-enforced narration length cap -- the script-generation prompt asks
+// the model to stay within a character budget, but "asked nicely" isn't a
+// limit; the model still regularly returned narration long enough that
+// every cut ended up needing the 30s-cap compression, and long enough past
+// its compressed slot to audibly cut off mid-sentence. This truncates for
+// real, preferring to cut at the last sentence-ending punctuation (or word
+// boundary) within range rather than chopping mid-word.
+function truncateShortsNarrationText(text, maxChars) {
+  if (!text || text.length <= maxChars) return text;
+  const truncated = text.slice(0, maxChars);
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf('다.'), truncated.lastIndexOf('요.'),
+    truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?')
+  );
+  if (lastSentenceEnd > maxChars * 0.5) return truncated.slice(0, lastSentenceEnd + 1);
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > maxChars * 0.5) return truncated.slice(0, lastSpace);
+  return truncated;
+}
+
 async function generateShortsScript() {
   const articleId = parseInt(document.getElementById("shorts-article-select").value, 10);
   if (!articleId) {
@@ -4509,7 +4529,8 @@ ${backInstruction}
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
-      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.narration || c.caption || '',
+      prompt: c.prompt || '', caption: c.caption || '',
+      narrationText: truncateShortsNarrationText(c.narration || c.caption || '', maxNarrationChars),
       duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
@@ -5253,6 +5274,63 @@ async function regenerateHookNarration() {
   } catch (err) {
     console.error("후킹 나레이션 재생성 실패:", err);
     alert("나레이션 재생성 실패: " + err.message);
+  } finally {
+    endShortsBusyOperation();
+  }
+}
+
+// One-click fix for "every cut's narration is long" (as opposed to just one
+// or two, where trimming/regenerating a single cut by hand is easier).
+// Rewrites each cut's 대본 to fit its share of the 30s budget via a cheap
+// Gemini TEXT call -- no Veo/image cost involved -- then regenerates that
+// cut's narration audio. truncateShortsNarrationText() is a hard backstop
+// in case the rewrite still comes back too long.
+async function condenseAllShortsNarration() {
+  if (!currentShortsProject) return;
+  currentShortsProject.imageCuts = readImageCutsFromDom();
+  const cuts = currentShortsProject.imageCuts || [];
+  if (cuts.length === 0) return;
+  if (!confirm(`${cuts.length}개 컷의 대본을 모두 더 짧게 다시 써서 나레이션을 재생성합니다.\n\n(텍스트 축약 + 나레이션 음성 생성만 사용 -- Veo/이미지 재생성 비용은 들지 않습니다.)\n\n계속할까요?`)) return;
+
+  const statusEl = document.getElementById("shorts-narration-status");
+  const voiceSelect = document.getElementById("shorts-narration-voice");
+  const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+  const draftId = ensureShortsLocalDraftId();
+
+  // Front duration isn't stored on the project itself (only computed at
+  // asset-build time) -- 8s is the cap every front segment is built toward,
+  // so it's a reasonable approximation for sizing this budget.
+  const APPROX_FRONT_DURATION = 8;
+  const perCutBudget = Math.max(2, (30 - APPROX_FRONT_DURATION) / cuts.length);
+  const maxChars = Math.round(perCutBudget * 4.5);
+
+  beginShortsBusyOperation();
+  try {
+    for (let i = 0; i < cuts.length; i++) {
+      const cut = cuts[i];
+      if (!cut.narrationText) continue;
+      if (statusEl) statusEl.textContent = `컷 ${i + 1} 대본 줄이는 중... (${i + 1}/${cuts.length})`;
+      const prompt = `다음 문장을 같은 의미와 어조를 유지하면서 반드시 ${maxChars}자 이내의 자연스러운 한글 문장으로 줄이십시오. 다른 설명이나 따옴표 없이 줄인 문장만 출력하십시오.\n\n[원문]\n${cut.narrationText}`;
+      try {
+        const shortened = await callGeminiTextApi(prompt, "당신은 방송용 나레이션 대본을 압축하는 편집자입니다. 의미를 유지하면서 정확한 글자 수 제한 안에서 자연스러운 문장을 만듭니다.");
+        cut.narrationText = truncateShortsNarrationText(shortened.trim().replace(/^["']|["']$/g, ''), maxChars);
+      } catch (err) {
+        console.error(`컷 ${i + 1} 대본 축약 실패, 강제로 자릅니다:`, err);
+        cut.narrationText = truncateShortsNarrationText(cut.narrationText, maxChars);
+      }
+      if (statusEl) statusEl.textContent = `컷 ${i + 1} 나레이션 재생성 중... (${i + 1}/${cuts.length})`;
+      await generateCutNarration(cut, cut.narrationText, voiceName, draftId);
+    }
+    renderImageCutsEditor(currentShortsProject.imageCuts);
+    renderShortsNarrationRecap();
+    shortsAssets = null;
+    saveShortsDraftLocally();
+    await syncShortsScriptToSupabase();
+    if (statusEl) statusEl.textContent = "모든 컷의 대본을 줄이고 나레이션을 다시 생성했습니다.";
+  } catch (err) {
+    console.error("나레이션 일괄 축약 실패:", err);
+    alert("나레이션 일괄 축약 실패: " + err.message);
+    if (statusEl) statusEl.textContent = "나레이션 일괄 축약 실패: " + err.message;
   } finally {
     endShortsBusyOperation();
   }

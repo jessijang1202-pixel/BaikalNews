@@ -1062,8 +1062,12 @@
                     <button type="button" class="btn-admin btn-admin-secondary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
                     <button type="button" class="btn-admin btn-admin-secondary" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()" style="min-width:38px;">▶</button>
                     <button type="button" class="btn-admin btn-admin-secondary" onclick="stopShortsNarrationPlayback()" style="min-width:38px;">⏹</button>
-                    <span class="help-text" id="shorts-narration-recap-status"></span>
                   </div>
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="condenseAllShortsNarration()">전체 대본 줄이고 재생성</button>
+                    <span class="help-text">영상이 30초를 넘어가거나 나레이션이 중간에 잘릴 때 사용 -- 모든 컷의 대본을 짧게 다시 쓰고 나레이션만 다시 만듭니다 (Veo/이미지 비용 없음)</span>
+                  </div>
+                  <div style="margin-top:8px;"><span class="help-text" id="shorts-narration-recap-status"></span></div>
                   <audio id="shorts-narration-playback" style="display:none;"></audio>
                 </div>
 
