@@ -5850,6 +5850,14 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
     // Schedule every narration clip up front, each starting exactly when its
     // matching visual segment starts -- sample-accurate via the shared audio
     // clock, so there's nothing left to drift out of sync.
+    //
+    // Each source is ALSO explicitly stopped at the next segment's start
+    // time. Without this, a narration clip longer than its own (possibly
+    // duration-scaled, see the 30s cap above) visual slot kept playing right
+    // through the next segment's narration starting -- two clips audibly
+    // overlapping instead of one cutting off before the other begins. A
+    // clip that runs long still gets truncated rather than playing in full,
+    // but that's the lesser problem versus garbled simultaneous audio.
     const scheduledSources = [];
     if (assets.audioCtx && assets.mixDestination) {
       const base = assets.audioCtx.currentTime + 0.05;
@@ -5859,19 +5867,22 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
         src.connect(assets.mixDestination);
         src.connect(assets.audioCtx.destination);
         src.start(base);
+        try { src.stop(base + frontDuration); } catch (err) { /* already stopped */ }
         scheduledSources.push(src);
       }
       let cursor = frontDuration;
       assets.images.forEach((imgAsset, i) => {
+        const segmentStart = cursor;
+        cursor += cutDurations[i] || 0;
         if (imgAsset.narrationBuffer) {
           const src = assets.audioCtx.createBufferSource();
           src.buffer = imgAsset.narrationBuffer;
           src.connect(assets.mixDestination);
           src.connect(assets.audioCtx.destination);
-          src.start(base + cursor);
+          src.start(base + segmentStart);
+          try { src.stop(base + cursor); } catch (err) { /* already stopped */ }
           scheduledSources.push(src);
         }
-        cursor += cutDurations[i] || 0;
       });
     }
 
