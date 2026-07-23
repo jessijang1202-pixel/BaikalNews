@@ -3820,6 +3820,8 @@ function resetShortsWizardSections() {
   if (selfCheckEl) selfCheckEl.style.display = "none";
   const veoPromptEditorEl = document.getElementById("shorts-veo-prompt-editor");
   if (veoPromptEditorEl) veoPromptEditorEl.style.display = "none";
+  const youtubeMetaEl = document.getElementById("shorts-youtube-meta");
+  if (youtubeMetaEl) youtubeMetaEl.style.display = "none";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -4045,6 +4047,7 @@ async function openShortsProject(id) {
     const previewEl = document.getElementById("shorts-final-preview");
     previewEl.src = project.finalVideoUrl;
     previewEl.style.display = "block";
+    renderShortsYoutubeMetadata();
   }
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
@@ -4164,6 +4167,7 @@ async function openLocalShortsDraft(localDraftId) {
       downloadEl.download = `shorts-${localDraftId}.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
       downloadEl.style.display = "inline-block";
     }
+    renderShortsYoutubeMetadata();
   }
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
@@ -5925,6 +5929,58 @@ function shortsVideoExtFromMime(mimeType) {
   return (mimeType || '').includes('mp4') ? 'mp4' : 'webm';
 }
 
+// Fills in a draft 유튜브 title/description/hashtags from data the project
+// already has (topBarTitle, hookText, the linked article) -- no extra
+// Gemini call, so it costs nothing and never fails on an API/billing
+// problem. Purely a starting point: all three fields stay freely editable,
+// with a 복사 button next to each for pasting straight into YouTube's
+// upload dialog.
+const SHORTS_YOUTUBE_CATEGORY_TAGS = {
+  culture: '문화생활', economy: '경제산업', tech: '기술미디어', local: '지역평택', opinion: '오피니언'
+};
+async function renderShortsYoutubeMetadata() {
+  if (!currentShortsProject || !currentShortsProject.finalVideoUrl) return;
+  const wrapper = document.getElementById("shorts-youtube-meta");
+  if (!wrapper) return;
+
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  const article = articles.find(a => a.id === currentShortsProject.articleId);
+
+  const bannerTitle = [currentShortsProject.topBarTitle, currentShortsProject.topBarTitleLine2]
+    .filter(Boolean).join(' ').trim();
+  const title = bannerTitle || currentShortsProject.hookText || (article ? article.title : '') || '바이칼뉴스 숏폼';
+
+  const articleUrl = article ? (article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`) : '';
+  const descriptionLines = [
+    currentShortsProject.hookText || '',
+    article ? article.lead || '' : '',
+    articleUrl ? `자세히 보기: ${articleUrl}` : '',
+    '바이칼뉴스 | 깊고 투명한 시선으로 세상을 비추다'
+  ].filter(Boolean);
+
+  const catTag = article ? (SHORTS_YOUTUBE_CATEGORY_TAGS[article.category] || '') : '';
+  const hashtags = ['#Shorts', '#바이칼뉴스', catTag ? `#${catTag}` : '', '#평택', '#뉴스'].filter(Boolean).join(' ');
+
+  document.getElementById("shorts-yt-title").value = title;
+  document.getElementById("shorts-yt-description").value = descriptionLines.join('\n\n');
+  document.getElementById("shorts-yt-hashtags").value = hashtags;
+  wrapper.style.display = "block";
+}
+
+function copyShortsYoutubeField(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => {
+    el.blur();
+  }).catch(() => {
+    // Clipboard API can be blocked (permissions, non-HTTPS, etc.) -- the
+    // field is already selected, so a manual Ctrl+C still works as a
+    // fallback instead of silently doing nothing.
+    alert("자동 복사에 실패했습니다. 텍스트가 선택되어 있으니 Ctrl+C(또는 Cmd+C)로 복사해 주세요.");
+  });
+}
+
 async function previewShortsAssembly() {
   const statusEl = document.getElementById("shorts-assembly-status");
   try {
@@ -6043,6 +6099,7 @@ async function recordShortsVideo() {
       downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.${shortsVideoExtFromMime(videoBlob.type)}`;
       downloadEl.style.display = "inline-block";
     }
+    await renderShortsYoutubeMetadata();
 
     statusEl.textContent = "완료! 아래에서 재생/다운로드할 수 있습니다. (서버에는 저장되지 않으니 필요하면 지금 다운로드하거나 보관 버튼으로 대본을 남겨두세요.)";
   } catch (err) {

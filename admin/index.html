@@ -1095,6 +1095,31 @@
               <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
               <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
               <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none; margin-top:8px;" download>⬇ 영상 다운로드</a>
+
+              <div class="shorts-card" id="shorts-youtube-meta" style="display:none; margin-top:16px; max-width:480px;">
+                <div class="shorts-card-kicker">유튜브 업로드용 정보 (자동 생성 · 자유롭게 수정 가능)</div>
+                <div class="form-group-admin" style="margin-top:10px;">
+                  <label for="shorts-yt-title">제목</label>
+                  <div style="display:flex; gap:8px;">
+                    <input type="text" id="shorts-yt-title" class="form-control-admin" style="flex:1;">
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsYoutubeField('shorts-yt-title')">복사</button>
+                  </div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="shorts-yt-description">설명</label>
+                  <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <textarea id="shorts-yt-description" class="form-control-admin" rows="5" style="flex:1;"></textarea>
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsYoutubeField('shorts-yt-description')">복사</button>
+                  </div>
+                </div>
+                <div class="form-group-admin" style="margin-bottom:0;">
+                  <label for="shorts-yt-hashtags">해시태그</label>
+                  <div style="display:flex; gap:8px;">
+                    <input type="text" id="shorts-yt-hashtags" class="form-control-admin" style="flex:1;">
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsYoutubeField('shorts-yt-hashtags')">복사</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
