@@ -1360,7 +1360,8 @@ async function editArticle(id) {
   document.getElementById("form-seo-title").value = art.seoTitle || "";
   document.getElementById("form-seo-meta").value = art.seoMeta || "";
   document.getElementById("form-slug").value = art.slug || "";
-  
+  document.getElementById("form-image-caption").value = art.imageCaption || "";
+
   document.getElementById("form-status").value = art.status;
   document.getElementById("form-approver").value = art.approver || "";
   document.getElementById("form-scheduled-at").value = toDatetimeLocalValue(art.scheduledAt);
@@ -1452,6 +1453,7 @@ async function saveArticle() {
   const seoTitle = document.getElementById("form-seo-title").value || `${title} - 바이칼 뉴스`;
   const seoMeta = document.getElementById("form-seo-meta").value || lead;
   const slug = document.getElementById("form-slug").value || `article-${Date.now()}`;
+  const imageCaption = document.getElementById("form-image-caption").value.trim();
   
   const status = document.getElementById("form-status").value;
   const approver = document.getElementById("form-approver").value;
@@ -1525,6 +1527,7 @@ async function saveArticle() {
     art.seoTitle = seoTitle;
     art.seoMeta = seoMeta;
     art.slug = slug;
+    art.imageCaption = imageCaption;
 
     // Workflow updates
     if (status !== art.status) {
@@ -1591,6 +1594,7 @@ async function saveArticle() {
       seoTitle,
       seoMeta,
       slug,
+      imageCaption,
       isYMYL
     };
   }
@@ -3313,6 +3317,19 @@ async function generateGeminiImage(promptText) {
 
   const mimeType = imagePart.inlineData.mimeType || "image/png";
   return `data:${mimeType};base64,${imagePart.inlineData.data}`;
+}
+
+// Fills in only the descriptive middle part of the photo caption -- the
+// "사진/보도:" prefix and "(ⓒ 승인인 기자)" credit are always assembled at
+// render time (js/main.js) from the article's live byline, never typed here,
+// so an admin editing this can't accidentally make the credit stale or wrong.
+// Matches the exact wording main.js already used as its hardcoded fallback,
+// so leaving this blank keeps today's behavior unchanged.
+function autoGenerateImageCaption() {
+  const title = document.getElementById("form-title").value.trim();
+  const captionEl = document.getElementById("form-image-caption");
+  if (!captionEl) return;
+  captionEl.value = title ? `${title} 관련 현장 취재 자료.` : "현장 취재 자료.";
 }
 
 async function triggerAiImageGeneration() {

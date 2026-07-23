@@ -738,7 +738,8 @@ function renderArticlePage() {
     featuredImg.alt = article.title;
   }
   if (featuredImgCaption) {
-    featuredImgCaption.innerHTML = `<strong>사진/보도:</strong> ${article.title} 관련 현장 취재 자료. (ⓒ ${bylineText})`;
+    const captionText = article.imageCaption || `${article.title} 관련 현장 취재 자료.`;
+    featuredImgCaption.innerHTML = `<strong>사진/보도:</strong> ${captionText} (ⓒ ${bylineText})`;
   }
 
   // Inject Article Content

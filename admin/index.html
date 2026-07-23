@@ -431,6 +431,14 @@
                   <button type="button" class="btn-admin btn-admin-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="openMediaLibraryModal()">
                     미디어 선택 / AI 제작
                   </button>
+                  <div class="form-group-admin" style="margin-top: 14px;">
+                    <label for="form-image-caption">사진 설명 (캡션)</label>
+                    <textarea id="form-image-caption" class="form-control-admin" rows="2" placeholder="비워두면 제목 기반으로 자동 생성됩니다"></textarea>
+                    <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                      <button type="button" class="btn-admin btn-admin-secondary" onclick="autoGenerateImageCaption()">자동 생성</button>
+                    </div>
+                    <div class="help-text">기사 상단 대표 이미지 아래 "사진/보도: (설명) (ⓒ 승인인 기자)" 형태로 표시됩니다. 여기엔 (설명) 부분만 입력하세요 -- 승인인·기자 표기는 항상 자동으로 붙습니다.</div>
+                  </div>
                 </div>
 
                 <!-- SEO Widget -->
