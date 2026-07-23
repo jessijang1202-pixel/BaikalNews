@@ -3427,6 +3427,7 @@ function setShortsLocalDrafts(drafts) {
     localStorage.setItem(SHORTS_LOCAL_DRAFTS_KEY, JSON.stringify(drafts));
   } catch (err) {
     console.error("로컬 임시 숏폼 저장 실패:", err);
+    alert("⚠ 대본/설정을 이 브라우저에 저장하지 못했습니다 (저장 공간 부족일 수 있습니다). 대본 저장 버튼으로 Supabase에도 백업해 두는 것을 권장합니다.");
   }
 }
 
@@ -3435,6 +3436,29 @@ function ensureShortsLocalDraftId() {
     currentShortsProject.localDraftId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
   return currentShortsProject.localDraftId;
+}
+
+// Best-effort: asks the browser to treat this origin's storage as
+// "persistent" (exempt from automatic eviction under storage pressure)
+// instead of the default "best-effort" bucket some browsers silently clear
+// over time. Doesn't guarantee anything -- the browser's own heuristics
+// decide, and this API isn't supported everywhere -- but costs nothing to
+// ask. Also warns immediately if this browser is already low on free space,
+// since that's exactly the condition under which a media save can fail.
+async function ensureShortsStoragePersisted() {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      await navigator.storage.persist();
+    }
+    if (navigator.storage && navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      if (quota && usage / quota > 0.85) {
+        alert(`⚠ 이 브라우저의 저장 공간이 거의 다 찼습니다 (${Math.round(usage / quota * 100)}% 사용 중). 숏폼 영상/이미지 저장에 실패할 수 있으니, 완성된 영상을 다운로드하거나 필요 없는 임시 숏폼을 정리해 공간을 확보해 주세요.`);
+      }
+    }
+  } catch (err) {
+    console.warn("저장 공간 확인/영구 저장 요청 실패:", err);
+  }
 }
 
 function openShortsMediaDb() {
@@ -3542,12 +3566,22 @@ async function deleteShortsDraftLocally(localDraftId) {
 // key so reopening the project later (openLocalShortsDraft) can regenerate
 // a fresh, working object URL instead of the old one (which dies with the
 // page). Download or 보관 if the result needs to leave this browser.
+//
+// idbPutBlob() failing (e.g. IndexedDB quota exceeded) used to be swallowed
+// with just a console.warn -- the object URL below still worked for the
+// rest of THIS session, so nothing looked wrong, but the media was never
+// actually written to IndexedDB and was gone the moment the tab closed or
+// reloaded. That silent gap is exactly what caused Veo clips/image cuts/
+// narration to "disappear overnight" with no error ever shown. Now it's a
+// loud, immediate alert instead, so the admin knows to download right away
+// rather than trusting a save that didn't happen.
 async function keepShortsBlobLocal(blob, mediaKey) {
   if (mediaKey) {
     try {
       await idbPutBlob(mediaKey, blob);
     } catch (err) {
-      console.warn("로컬 미디어 저장 실패:", err);
+      console.error("로컬 미디어(IndexedDB) 저장 실패:", err);
+      alert("⚠ 이 파일을 브라우저에 저장하지 못했습니다 (저장 공간 부족일 수 있습니다).\n\n지금 화면에는 정상적으로 보이지만, 새로고침하거나 나중에 다시 열면 사라집니다. 지금 바로 다운로드해 두세요.");
     }
   }
   return URL.createObjectURL(blob);
@@ -3887,6 +3921,7 @@ async function startNewShortsProject() {
   resetShortsWizardSections();
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
+  ensureShortsStoragePersisted();
   loadGeminiApiKey();
   loadClaudeApiKey();
 }
@@ -3958,6 +3993,7 @@ async function openShortsProject(id) {
   }
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
+  ensureShortsStoragePersisted();
   loadGeminiApiKey();
   loadClaudeApiKey();
 }
@@ -4075,6 +4111,7 @@ async function openLocalShortsDraft(localDraftId) {
     }
   }
   document.getElementById("shorts-wizard-panel").style.display = "block";
+  ensureShortsStoragePersisted();
   loadGeminiApiKey();
   loadClaudeApiKey();
 }
