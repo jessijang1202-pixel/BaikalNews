@@ -3706,16 +3706,22 @@ async function renderShortsList() {
     archived: "보관됨"
   };
 
-  // A draft that's been synced to Supabase (has an id) shows up twice
-  // otherwise: once as its own "로컬" row, once as the Supabase-backed row.
-  // Keep only the Supabase row for those -- but have it open the local
-  // draft instead (openLocalShortsDraft), since that copy also has the
-  // actual images/영상 this browser generated, which the Supabase row never
-  // received.
-  const localDraftsById = new Map(localDrafts.filter(d => d.id).map(d => [d.id, d]));
+  // Every local draft is ALWAYS shown as its own row, synced-to-Supabase or
+  // not -- this must never depend on fetchShorts() succeeding. It used to:
+  // a synced draft (has an id) was deliberately left OUT of this list and
+  // only shown via its matching Supabase row instead. If that Supabase
+  // fetch came back empty or incomplete for any reason (a network blip, a
+  // slow response, Supabase briefly unreachable), every already-synced
+  // local draft would vanish from the list entirely -- even though its
+  // script AND media were still completely intact in localStorage/
+  // IndexedDB. That's indistinguishable from real data loss to whoever's
+  // looking at an empty list. Now local drafts are the source of truth for
+  // "is it in this list," period; Supabase rows only fill in projects that
+  // don't already have a local copy in this browser.
+  const localDraftIds = new Set(localDrafts.filter(d => d.id).map(d => d.id));
   const combined = [
-    ...localDrafts.filter(d => !d.id).map(d => ({ ...d, __local: true })),
-    ...archivedList.map(s => ({ ...s, __local: false }))
+    ...localDrafts.map(d => ({ ...d, __local: true })),
+    ...archivedList.filter(s => !localDraftIds.has(s.id)).map(s => ({ ...s, __local: false }))
   ].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
   if (combined.length === 0) {
@@ -3725,14 +3731,16 @@ async function renderShortsList() {
 
   tbody.innerHTML = combined.map(s => {
     const art = articles.find(a => a.id === s.articleId);
-    const matchingLocalDraft = s.__local ? null : localDraftsById.get(s.id);
+    // Every row with __local:false came from archivedList already filtered
+    // to exclude anything with a matching local draft (see above), so it
+    // genuinely has no local copy in this browser -- no need to re-check.
     const openCall = s.__local
       ? `openLocalShortsDraft('${s.localDraftId}')`
-      : (matchingLocalDraft ? `openLocalShortsDraft('${matchingLocalDraft.localDraftId}')` : `openShortsProject(${s.id})`);
+      : `openShortsProject(${s.id})`;
     const deleteCall = s.__local ? `deleteShortsLocalDraft('${s.localDraftId}')` : `deleteShortsProject(${s.id})`;
     return `
       <tr>
-        <td>${s.__local ? '로컬' : s.id}</td>
+        <td>${s.id || '로컬'}</td>
         <td>${art ? art.title : '(삭제된 기사)'}</td>
         <td>${statusLabels[s.status] || s.status}</td>
         <td>${s.updatedAt ? new Date(s.updatedAt).toLocaleString('ko-KR') : ''}</td>
@@ -3752,7 +3760,21 @@ async function deleteShortsProject(id) {
 }
 
 async function deleteShortsLocalDraft(localDraftId) {
-  if (!confirm("이 로컬 임시 숏폼을 삭제하시겠습니까? (Supabase에는 저장된 적이 없어 복구할 수 없습니다)")) return;
+  // A local draft can already have a linked Supabase row (draft.id) once
+  // 대본/나레이션 has synced at least once. Deleting only the local copy in
+  // that case left the Supabase row orphaned -- it would then reappear in
+  // this list on the next load as a separate, media-less "deleted" project,
+  // looking exactly like data resurrecting itself. Delete both sides so
+  // deleting a project actually deletes it.
+  const draft = getShortsLocalDrafts().find(d => d.localDraftId === localDraftId);
+  const hasSupabaseCopy = !!(draft && draft.id);
+  const confirmMsg = hasSupabaseCopy
+    ? "이 숏폼을 삭제하시겠습니까? 이 브라우저의 대본/미디어와 Supabase에 백업된 대본이 모두 삭제되며, 복구할 수 없습니다."
+    : "이 로컬 임시 숏폼을 삭제하시겠습니까? (Supabase에는 저장된 적이 없어 복구할 수 없습니다)";
+  if (!confirm(confirmMsg)) return;
+  if (hasSupabaseCopy) {
+    await window.SupabaseAdapter.deleteShorts(draft.id);
+  }
   await deleteShortsDraftLocally(localDraftId);
   renderShortsList();
 }
@@ -3927,6 +3949,19 @@ async function startNewShortsProject() {
 }
 
 async function openShortsProject(id) {
+  // If this browser has a local draft linked to this Supabase row, ALWAYS
+  // open that instead -- it's the copy that actually has the Veo clip/image
+  // cuts/narration blobs. Opening the Supabase row directly gives a
+  // media-less copy of the same project, which reads as "my media is all
+  // gone" even though everything is sitting in IndexedDB behind the local
+  // draft. (The list's 열기 button already prefers the local draft, but this
+  // guards every other path to make the split impossible.)
+  const linkedDraft = getShortsLocalDrafts().find(d => d.id === id);
+  if (linkedDraft) {
+    await openLocalShortsDraft(linkedDraft.localDraftId);
+    return;
+  }
+
   const project = await window.SupabaseAdapter.fetchShortsById(id);
   if (!project) {
     alert("프로젝트를 찾을 수 없습니다.");
@@ -4199,8 +4234,18 @@ async function syncShortsScriptToSupabase() {
       createdBy: currentShortsProject.createdBy || (session ? session.name : '')
     };
 
+    const hadId = !!currentShortsProject.id;
     const saved = await window.SupabaseAdapter.saveShorts(payload);
-    if (saved && saved.id) currentShortsProject.id = saved.id;
+    if (saved && saved.id) {
+      currentShortsProject.id = saved.id;
+      // The local snapshot was typically written BEFORE this sync ran, so on
+      // the very first successful sync it still says id:null on disk. Left
+      // that way, the list can't link the Supabase row to this local draft
+      // and shows them as two separate projects -- clicking the Supabase one
+      // opens a media-less copy that looks like everything was lost. Re-save
+      // immediately so the id is recorded the moment it exists.
+      if (!hadId) saveShortsDraftLocally();
+    }
   } catch (err) {
     console.error("대본/나레이션 Supabase 저장 실패 (로컬에는 저장됨):", err);
   }
