@@ -3398,8 +3398,19 @@ const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
 // "leave site?" prompt (which we can't customize the wording of, but can
 // trigger) is the one guard that actually stops an accidental refresh.
 let shortsBusyOperations = 0;
-function beginShortsBusyOperation() { shortsBusyOperations++; }
-function endShortsBusyOperation() { shortsBusyOperations = Math.max(0, shortsBusyOperations - 1); }
+function beginShortsBusyOperation() { shortsBusyOperations++; updateShortsBusyBanner(); }
+function endShortsBusyOperation() { shortsBusyOperations = Math.max(0, shortsBusyOperations - 1); updateShortsBusyBanner(); }
+// Shows/hides the fixed, animated "작업 진행 중" banner -- an easy-to-miss
+// tiny status line was exactly what led to clicking an expensive Veo/image
+// generation button again while it was already running, thinking nothing
+// had happened. This is impossible to miss: fixed position, large, and
+// visibly animated regardless of scroll position or which status text
+// element the in-progress function happens to update.
+function updateShortsBusyBanner() {
+  const banner = document.getElementById("shorts-busy-banner");
+  if (!banner) return;
+  banner.classList.toggle("is-active", shortsBusyOperations > 0);
+}
 window.addEventListener('beforeunload', (e) => {
   if (shortsBusyOperations > 0) {
     e.preventDefault();

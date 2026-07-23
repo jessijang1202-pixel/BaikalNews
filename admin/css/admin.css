@@ -531,6 +531,54 @@ body {
   background: rgba(220,53,69,0.8);
 }
 
+/* Generation/recording status text was the same tiny .help-text size as
+   every other hint on the page, easy to miss -- exactly the kind of miss
+   that led to repeat clicks on a paid Veo generation. Bigger and bolder,
+   in the accent color, so "아직 진행 중" reads as a warning, not a footnote. */
+#shorts-media-status,
+#shorts-assembly-status {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: var(--sf-accent, var(--admin-accent-cyan)) !important;
+}
+
+/* Impossible-to-miss indicator while ANY shorts generation/recording is
+   running (Veo, images, narration, recording) -- fixed to the viewport so
+   it stays visible no matter where the admin has scrolled to, tied
+   directly to the shortsBusyOperations counter that already guards
+   against an accidental refresh mid-generation. */
+.shorts-busy-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  background: #0b1a30;
+  color: #fff;
+  padding: 14px 24px;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.4);
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.shorts-busy-banner.is-active {
+  display: flex;
+}
+.shorts-busy-banner-arrow {
+  display: inline-block;
+  font-size: 1.3rem;
+  animation: shortsBusyArrowMove 1s ease-in-out infinite;
+}
+@keyframes shortsBusyArrowMove {
+  0%   { transform: translateX(0); opacity: 0.6; }
+  50%  { transform: translateX(10px); opacity: 1; }
+  100% { transform: translateX(0); opacity: 0.6; }
+}
+
 /* Bottom action bar */
 .shorts-editorial .shorts-actions-bar {
   border-top: 1px solid var(--sf-divider) !important;
