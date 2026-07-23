@@ -5793,7 +5793,29 @@ function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH) {
 // Plays the full 30s timeline onto the canvas (Veo clip, then each image cut
 // with Ken Burns motion + caption). When record=true, simultaneously captures
 // the canvas via MediaRecorder and resolves with the recorded video Blob.
+//
+// Guarded against overlapping calls: 미리보기 재생 and 영상으로 녹화 share the
+// same cached AudioContext (shortsAssets), and neither button ever disabled
+// the other or itself against a second click. Clicking either while one was
+// already running scheduled a SECOND full set of narration sources on that
+// same audio clock -- two independent playthroughs audibly overlapping,
+// which no amount of fixing when a single run stops its OWN sources could
+// prevent. This flag makes a second call fail fast with a clear message
+// instead of quietly doubling up.
+let shortsTimelineRunning = false;
 async function runShortsTimeline(canvas, assets, project, { record } = {}) {
+  if (shortsTimelineRunning) {
+    throw new Error("이미 미리보기 또는 녹화가 진행 중입니다. 끝날 때까지 기다린 후 다시 시도해 주세요.");
+  }
+  shortsTimelineRunning = true;
+  try {
+    return await runShortsTimelineInner(canvas, assets, project, { record });
+  } finally {
+    shortsTimelineRunning = false;
+  }
+}
+
+async function runShortsTimelineInner(canvas, assets, project, { record } = {}) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const frontDuration = assets.front.duration;
@@ -5998,6 +6020,16 @@ function copyShortsYoutubeField(fieldId) {
 
 async function previewShortsAssembly() {
   const statusEl = document.getElementById("shorts-assembly-status");
+  const previewBtn = document.getElementById("shorts-preview-btn");
+  const recordBtn = document.getElementById("shorts-record-btn");
+  // Preview and recording share the same AudioContext (cached shortsAssets)
+  // -- disabling both while either runs, not just the one that was clicked,
+  // stops a second click from scheduling a second, overlapping set of
+  // narration sources on that shared clock (runShortsTimeline's own
+  // shortsTimelineRunning guard is the hard backstop; this is just so the
+  // buttons themselves don't invite the double-click in the first place).
+  if (previewBtn) previewBtn.disabled = true;
+  if (recordBtn) recordBtn.disabled = true;
   try {
     statusEl.textContent = "미리보기 준비 중...";
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
@@ -6008,6 +6040,9 @@ async function previewShortsAssembly() {
   } catch (err) {
     console.error("숏폼 미리보기 실패:", err);
     statusEl.textContent = "미리보기 실패: " + err.message;
+  } finally {
+    if (previewBtn) previewBtn.disabled = false;
+    if (recordBtn) recordBtn.disabled = false;
   }
 }
 
@@ -6119,7 +6154,9 @@ async function convertShortsFinalVideoToMp4() {
 async function recordShortsVideo() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const btn = document.getElementById("shorts-record-btn");
+  const previewBtn = document.getElementById("shorts-preview-btn");
   if (btn) btn.disabled = true;
+  if (previewBtn) previewBtn.disabled = true;
 
   // Best-effort: stops the screen from auto-locking mid-recording on mobile
   // -- a locked/dimmed screen can throttle JS timers and corrupt the ~30s
@@ -6172,6 +6209,7 @@ async function recordShortsVideo() {
     alert("녹화 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
+    if (previewBtn) previewBtn.disabled = false;
     if (wakeLock) { try { await wakeLock.release(); } catch (err) { /* already released, ignore */ } }
     endShortsBusyOperation();
   }
