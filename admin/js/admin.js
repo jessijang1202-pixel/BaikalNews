@@ -3271,7 +3271,14 @@ const IMAGE_TEXT_LANGUAGE_RULE = "\n\nSTRICT NO-TEXT RULE: AI image models relia
 // even when the upstream script-writing prompt already asked for Korean
 // people/text. Appended at the actual generation call so it can't be
 // skipped or forgotten upstream, same as the other MEDIA_/IMAGE_ rules.
-const MEDIA_KOREAN_PEOPLE_RULE = "\n\nPEOPLE & LANGUAGE (STRICT): Every person shown must have an East Asian/Korean appearance -- absolutely NO Western, non-Korean, or mixed/ambiguous-ethnicity people, under any circumstances. Any incidental on-screen text, signage, or phone/device screen content must be Korean (Hangul) only -- English text or lettering of any kind must NEVER appear anywhere in the scene, including on phones, screens, clothing, or signage. If such text can't be rendered clearly in Korean, keep it out of focus/illegible or omit it entirely rather than showing English.";
+// This is shared by BOTH image generation and Veo video generation. It used
+// to allow Korean on-screen text as a fallback (only banning English) --
+// but Gemini/Veo garble Hangul just as badly as any other script, so a Veo
+// clip still came back with broken Korean text on a phone screen even with
+// this rule applied. There's no language for which on-screen text is safe;
+// removed the "must be Korean" exception so this now matches the
+// image-generation no-text policy (IMAGE_TEXT_LANGUAGE_RULE) exactly.
+const MEDIA_KOREAN_PEOPLE_RULE = "\n\nPEOPLE & TEXT (STRICT): Every person shown must have an East Asian/Korean appearance -- absolutely NO Western, non-Korean, or mixed/ambiguous-ethnicity people, under any circumstances. Do NOT include ANY readable or legible text anywhere in the scene, in ANY language -- no signage, storefronts, street signs, banners, labels, phone/device screens, documents, or handwriting, even small, distant, or briefly-glimpsed ones. AI models reliably render on-screen text (Korean included) as garbled, misspelled gibberish, so there is no safe amount of visible text -- compose and frame the scene so none needs to appear at all.";
 // This is a news outlet -- every generated image stands in for a real news
 // photo, so photorealism is the single most important property, above mood/
 // composition/style choices. Applies regardless of prompt source (auto-written,
@@ -4455,7 +4462,7 @@ ${frontInstruction}
 ${backInstruction}
 
 - 영상 상단에 항상 떠 있는 배너에 들어갈 짧은 후킹 제목도 추천하십시오. 자막(hookText)과는 별개로, 영상 내내 노출되는 타이틀입니다. 1줄로 충분하면 2번째 줄은 빈 문자열로 두십시오.
-- (중요) veoPrompt와 각 imageCuts의 prompt에 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하십시오. 외국인, 서양인, 혼혈로 보이는 인물은 절대 등장시키지 마십시오. 화면에 텍스트(휴대폰 화면, 간판, 문서, 자막 등)가 나온다면 반드시 한글만 사용하고 영어 등 다른 언어는 절대 등장시키지 마십시오.
+- (중요) veoPrompt와 각 imageCuts의 prompt에 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하십시오. 외국인, 서양인, 혼혈로 보이는 인물은 절대 등장시키지 마십시오. AI는 한글 텍스트도 철자가 틀리게 그리므로, 화면에 텍스트(휴대폰 화면, 간판, 문서, 자막 등)가 등장하는 장면은 언어와 상관없이 절대 만들지 마십시오. 간판이 있는 장소라면 안 보이는 구도로 묘사하십시오.
 
 반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오.
 {
