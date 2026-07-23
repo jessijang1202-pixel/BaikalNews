@@ -3807,6 +3807,8 @@ function resetShortsWizardSections() {
   if (hookAudioEl) { hookAudioEl.style.display = "none"; hookAudioEl.src = ""; }
   const selfCheckEl = document.getElementById("shorts-selfcheck-section");
   if (selfCheckEl) selfCheckEl.style.display = "none";
+  const veoPromptEditorEl = document.getElementById("shorts-veo-prompt-editor");
+  if (veoPromptEditorEl) veoPromptEditorEl.style.display = "none";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -5447,6 +5449,7 @@ function renderShortsMediaPreview() {
         <video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline></video>
         <div class="shorts-media-thumb-actions">
           <a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4" title="다운로드">⬇</a>
+          <button type="button" onclick="toggleShortsVeoPromptEditor()" title="프롬프트 수정">✎</button>
           <button type="button" onclick="regenerateShortsFrontMedia()" title="다시 생성">⟳</button>
           <button type="button" class="shorts-media-thumb-delete" onclick="deleteShortsFrontMedia()" title="삭제">✕</button>
         </div>
@@ -5468,6 +5471,31 @@ function renderShortsMediaPreview() {
     }
   });
   container.innerHTML = items.join('') || `<span class="help-text">아직 생성된 미디어가 없습니다.</span>`;
+}
+
+// The raw Veo prompt is hidden by default (Step 2) to keep the review screen
+// uncluttered, but the admin needs to be able to tweak it (e.g. remove
+// whatever triggered garbled on-screen text) without regenerating the whole
+// script. This just toggles that field open/closed, refreshing it from
+// currentShortsProject each time it's shown so it's never stale.
+function toggleShortsVeoPromptEditor() {
+  if (!currentShortsProject) return;
+  const wrapper = document.getElementById("shorts-veo-prompt-editor");
+  if (!wrapper) return;
+  if (wrapper.style.display !== "none") {
+    wrapper.style.display = "none";
+    return;
+  }
+  document.getElementById("shorts-veo-prompt").value = currentShortsProject.veoPrompt || '';
+  wrapper.style.display = "block";
+  wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function syncShortsVeoPromptEdit() {
+  if (!currentShortsProject) return;
+  currentShortsProject.veoPrompt = document.getElementById("shorts-veo-prompt").value.trim();
+  shortsAssets = null;
+  saveShortsDraftLocally();
 }
 
 async function regenerateShortsFrontMedia() {

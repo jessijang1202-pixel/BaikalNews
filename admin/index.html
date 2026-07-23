@@ -969,8 +969,15 @@
                   <div id="shorts-selfcheck-body" style="margin-top:10px;"></div>
                 </div>
 
-                <!-- Hidden: kept for image/Veo generation, no longer shown to the admin -->
-                <textarea id="shorts-veo-prompt" style="display:none;"></textarea>
+                <!-- Hidden by default -- toggled open via the front-media thumbnail's
+                     ✎ button (Step 3) so the admin can tweak the Veo prompt (e.g. remove
+                     whatever triggered garbled on-screen text) and regenerate without
+                     starting the whole script over. -->
+                <div class="shorts-card" id="shorts-veo-prompt-editor" style="display:none;">
+                  <div class="shorts-card-kicker">Veo 영상 프롬프트 (한글, 직접 수정 가능)</div>
+                  <textarea id="shorts-veo-prompt" class="form-control-admin" rows="4" style="margin-top:8px;" oninput="syncShortsVeoPromptEdit()"></textarea>
+                  <div class="help-text" style="margin-top:6px;">수정 후 아래 전반(0:00~0:08) 영상의 ⟳ 다시 생성 버튼을 누르면 이 프롬프트로 다시 생성됩니다.</div>
+                </div>
                 <textarea id="shorts-script-md" style="display:none;"></textarea>
 
                 <div class="form-group-admin">
