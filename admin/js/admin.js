@@ -4451,8 +4451,15 @@ async function generateShortsScript() {
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
+    // Roughly 4~5 Hangul characters per second at natural TTS speaking speed --
+    // gives the model a concrete length ceiling instead of the open-ended "longer
+    // than the caption, descriptive" instruction that used to let narration run
+    // arbitrarily long. Actual TTS duration still drives each cut's final display
+    // time (generateCutNarration), but a runaway total is now also hard-capped
+    // at render/record time (see SHORTS_TARGET_TOTAL_DURATION in runShortsTimeline).
+    const maxNarrationChars = Math.round(perCutDuration * 4.5);
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로, 반드시 ${maxNarrationChars}자 이내 -- 소리 내어 읽었을 때 ${perCutDuration}초 안팎에 끝나야 전체 영상이 30초를 넘지 않습니다), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -4482,7 +4489,7 @@ ${backInstruction}
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로, ${maxNarrationChars}자 이내)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
@@ -5783,10 +5790,25 @@ async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   const W = canvas.width, H = canvas.height;
   const frontDuration = assets.front.duration;
 
-  // Each cut's duration already comes from its own narration clip's actual
-  // length (set when the narration was generated) -- no stretching/guessing
-  // needed, since visuals and audio are timed from the same source.
+  // Each cut's duration comes from its own narration clip's actual length
+  // (set when the narration was generated), with nothing capping the sum --
+  // if the AI wrote long narration sentences (or a couple ran long), the
+  // final video could end up well over a minute instead of the intended
+  // 30s. generateShortsScript() now asks for shorter narration up front,
+  // but that's not a guarantee (TTS speed/model compliance both vary), so
+  // this is the hard backstop: if the cuts' natural total would blow the
+  // 30s budget, scale all of them down proportionally to fit exactly.
+  // Narration audio itself isn't cut short -- only how long each image is
+  // DISPLAYED before advancing -- so a still-long clip may bleed slightly
+  // into the next cut's visual rather than being cut off abruptly.
+  const SHORTS_TARGET_TOTAL_DURATION = 30;
   const cutDurations = (project.imageCuts || []).map(c => c.duration || 0);
+  const backBudget = Math.max(1, SHORTS_TARGET_TOTAL_DURATION - frontDuration);
+  const naturalBackTotal = cutDurations.reduce((s, d) => s + d, 0);
+  if (naturalBackTotal > backBudget) {
+    const scale = backBudget / naturalBackTotal;
+    for (let i = 0; i < cutDurations.length; i++) cutDurations[i] *= scale;
+  }
   const totalDuration = frontDuration + cutDurations.reduce((s, d) => s + d, 0);
   const hookCaptionDuration = assets.hookNarrationBuffer
     ? Math.min(assets.hookNarrationBuffer.duration, frontDuration)
