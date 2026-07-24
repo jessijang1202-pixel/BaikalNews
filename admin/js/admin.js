@@ -205,7 +205,7 @@ const DEFAULT_PAGE_CONTENTS = {
 
 <section class="about-stats">
   <div class="stat">
-    <div class="stat-value">2026년 8월 15일</div>
+    <div class="stat-value">2026년 7월 11일</div>
     <div class="stat-label">창간일</div>
   </div>
   <div class="stat">
