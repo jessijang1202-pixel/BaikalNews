@@ -3306,10 +3306,11 @@ const MEDIA_KOREAN_PEOPLE_RULE = "\n\nPEOPLE & TEXT (STRICT): Every person shown
 // hand-typed, or shorts image cuts).
 const IMAGE_REALISM_RULE = "\n\nMOST IMPORTANT RULE -- PHOTOREALISM: This image represents a real news/press photograph, so it must look exactly like an actual photo taken with a real camera at the real scene -- not an illustration, painting, 3D render, or 'AI-art' look. Prioritize photorealistic accuracy above all other style choices: realistic anatomy and proportions (especially hands and faces), natural skin texture, correct real-world lighting and shadow physics, authentic materials and textures, and a candid, unposed documentary quality. Avoid the telltale over-smooth, overly symmetrical, glossy 'AI-generated' look.";
 const IMAGE_NO_RAIN_RULE = "\n\nWEATHER & CLARITY: Default to clear, sunny weather with bright natural light. AVOID rain, raindrops, wet surfaces, fog, mist, haze, overcast/gray skies, and gloomy or murky moods unless the subject matter specifically calls for them -- these have been overused in recent generations. The main subject must always be in sharp, crisp focus; a subtle out-of-focus/blur background used to emphasize the subject is fine, but the overall image must never look hazy or washed out.";
-// Only appended for the article representative image (triggerAiImageGeneration) --
-// that slot is always displayed in a 16:9 box (object-fit:cover), and Gemini's
-// image model otherwise defaults to a square 1:1 output, which forces a harsh
-// crop that cuts off headroom/context instead of a properly composed shot.
+// Only appended for the article representative image (triggerAiImageGeneration).
+// The site now displays this image at its full original size/aspect ratio
+// (no crop box), but Gemini's image model otherwise defaults to a square 1:1
+// output, which reads oddly as a wide article hero -- this just steers the
+// composition toward a natural widescreen shot instead of forcing a crop.
 const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape composition (not square, not portrait). Compose the shot with this widescreen framing in mind, leaving natural headroom/context at top and bottom rather than a tightly cropped square subject.";
 
 async function generateGeminiImage(promptText) {
