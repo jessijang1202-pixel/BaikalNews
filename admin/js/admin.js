@@ -5493,9 +5493,14 @@ async function generateShortsCutImagesOnly() {
       const kept = await keepShortsImageLocal(blob, cut.imageKey);
       cut.imageUrl = kept.url;
       cut.imageBase64 = kept.base64;
-      renderShortsMediaPreview();
     }
     document.getElementById("shorts-media-section").style.display = "block";
+    // Unconditional, not just inside the loop above -- if every cut already
+    // had an image (all skipped via `continue`), the loop body never ran
+    // and the preview grid was never (re)rendered at all, even though the
+    // images conceptually already existed. Looked like "generated but not
+    // showing."
+    renderShortsMediaPreview();
     const ready = checkShortsMediaReady();
     await persistCurrentShortsProject();
     statusEl.textContent = ready
