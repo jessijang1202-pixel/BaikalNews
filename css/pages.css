@@ -521,7 +521,6 @@
 .category-intro p {
   color: var(--text-secondary);
   font-size: 0.98rem;
-  max-width: 640px;
 }
 
 .sort-tabs {
