@@ -559,7 +559,9 @@
   flex-direction: column;
   align-items: flex-start;
 }
-.subscribe-row .newsletter-form {
+.subscribe-row .newsletter-copy,
+.subscribe-row .newsletter-form,
+.subscribe-row .newsletter-disclaimer {
   flex-basis: auto;
   width: 100%;
 }
