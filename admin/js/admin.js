@@ -1420,6 +1420,12 @@ async function duplicateArticle(id) {
 
   if (window.SupabaseAdapter) {
     await window.SupabaseAdapter.saveArticle(duplicated);
+    if (window.SupabaseAdapter.isConfigured()) {
+      const verify = await window.SupabaseAdapter.fetchArticleById(duplicated.id);
+      if (!verify) {
+        alert("⚠ 복제본이 Supabase에 저장되지 않고 이 브라우저에만 저장되었습니다. articles 테이블 구조/권한을 확인해 주세요.");
+      }
+    }
   }
   await logAudit("기사 복제", duplicated.id, `기사 #${art.id}을 바탕으로 신규 초안 #${duplicated.id}을 만듦.`);
   await renderArticlesList();
@@ -1604,7 +1610,22 @@ async function saveArticle() {
     await window.SupabaseAdapter.saveArticle(art);
   }
   await logAudit(actionName, art.id, `제목: ${title} | 담당자 피드백: ${rejectionNote || '특이사항 없음'}`);
-  
+
+  // saveArticle() silently falls back to LocalStorage-only if the Supabase
+  // write itself fails (missing column, RLS policy, etc.) without
+  // surfacing that to the caller -- the alert below used to fire
+  // unconditionally regardless of which one actually happened, so a
+  // fallback-only save looked identical to a real one. Verify directly
+  // against the database instead of trusting a bare success return.
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    const verify = await window.SupabaseAdapter.fetchArticleById(art.id);
+    if (!verify || verify.title !== art.title) {
+      alert("⚠ 이 기사가 Supabase(공용 데이터베이스)에 저장되지 않고 이 브라우저에만 저장되었습니다. 기사 목록/사이트에 안 보일 수 있습니다. Supabase 콘솔에서 articles 테이블 구조와 권한(RLS)을 확인해 주세요.");
+      hideArticleForm();
+      return;
+    }
+  }
+
   alert("기사와 편집 설정이 정상적으로 저장되었습니다.");
   hideArticleForm();
 }
