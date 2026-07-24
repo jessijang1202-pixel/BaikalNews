@@ -1157,53 +1157,8 @@
 
       <!-- ================= TAB: NEWSLETTER ================= -->
       <section id="tab-subscribers" class="tab-content">
-        <!-- Subscriber Briefing -->
+        <!-- 카카오톡 3분 뉴스 구독자 -->
         <div class="panel" style="padding: 24px;">
-          <div class="panel-header">
-            <h3 class="panel-title">구독자 브리핑</h3>
-            <button class="btn-admin btn-admin-secondary" onclick="copyNewsletterEmailList()">이메일 목록 복사</button>
-          </div>
-          <div class="admin-grid-4" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
-            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-blue-deep), #155e95);">
-              <span class="stat-title">총 구독자 수</span>
-              <span class="stat-number" id="newsletter-stat-total">0</span>
-              <span class="stat-trend">누적 구독자</span>
-            </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-green-deep), #129980);">
-              <span class="stat-title">이번 달 신규 구독</span>
-              <span class="stat-number" id="newsletter-stat-month">0</span>
-              <span class="stat-trend">이번 달 신규 가입</span>
-            </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #b8860b, #e0c25e);">
-              <span class="stat-title">최근 7일 신규</span>
-              <span class="stat-number" id="newsletter-stat-week">0</span>
-              <span class="stat-trend">최근 7일 가입자</span>
-            </div>
-          </div>
-
-          <h4 style="margin: 24px 0 12px; font-size: 0.95rem;">구독자수 추이 (최근 14일)</h4>
-          <div id="newsletter-trend-chart-container" style="overflow-x: auto;">
-            <div class="help-text">차트를 불러오는 중...</div>
-          </div>
-
-          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
-
-          <h4 style="margin-bottom: 12px; font-size: 0.95rem;">구독자 이메일 목록</h4>
-          <div class="admin-table-wrapper" style="max-height: 320px; overflow-y: auto;">
-            <table class="admin-table">
-              <thead>
-                <tr><th>이메일</th><th>구독일</th><th>작업</th></tr>
-              </thead>
-              <tbody id="newsletter-subscribers-list"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 카카오톡 3분 뉴스 구독자 -- same shape as the newsletter panel
-             above, phone numbers instead of email. Sending itself isn't
-             automated yet (needs a 카카오톡 채널 to be created first); this
-             is just the signup list to send to once that's ready. -->
-        <div class="panel" style="padding: 24px; margin-top: 24px;">
           <div class="panel-header">
             <h3 class="panel-title">카카오톡 3분 뉴스 구독자</h3>
             <button class="btn-admin btn-admin-secondary" onclick="copyKakaoPhoneList()">전화번호 목록 복사</button>
@@ -1240,6 +1195,48 @@
                 <tr><th>전화번호</th><th>신청일</th><th>작업</th></tr>
               </thead>
               <tbody id="kakao-subscribers-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 이메일 뉴스레터 구독자 -->
+        <div class="panel" style="padding: 24px; margin-top: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title">이메일 뉴스레터 구독자</h3>
+            <button class="btn-admin btn-admin-secondary" onclick="copyNewsletterEmailList()">이메일 목록 복사</button>
+          </div>
+          <div class="admin-grid-4" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-blue-deep), #155e95);">
+              <span class="stat-title">총 구독자 수</span>
+              <span class="stat-number" id="newsletter-stat-total">0</span>
+              <span class="stat-trend">누적 구독자</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-green-deep), #129980);">
+              <span class="stat-title">이번 달 신규 구독</span>
+              <span class="stat-number" id="newsletter-stat-month">0</span>
+              <span class="stat-trend">이번 달 신규 가입</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #b8860b, #e0c25e);">
+              <span class="stat-title">최근 7일 신규</span>
+              <span class="stat-number" id="newsletter-stat-week">0</span>
+              <span class="stat-trend">최근 7일 가입자</span>
+            </div>
+          </div>
+
+          <h4 style="margin: 24px 0 12px; font-size: 0.95rem;">구독자수 추이 (최근 14일)</h4>
+          <div id="newsletter-trend-chart-container" style="overflow-x: auto;">
+            <div class="help-text">차트를 불러오는 중...</div>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+          <h4 style="margin-bottom: 12px; font-size: 0.95rem;">구독자 이메일 목록</h4>
+          <div class="admin-table-wrapper" style="max-height: 320px; overflow-y: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr><th>이메일</th><th>구독일</th><th>작업</th></tr>
+              </thead>
+              <tbody id="newsletter-subscribers-list"></tbody>
             </table>
           </div>
         </div>
