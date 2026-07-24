@@ -668,6 +668,7 @@ async function switchTab(tabName) {
     await loadOrGenerateNewsletterDraft();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
+    await renderKakaoSubscriberBriefing();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
   }
@@ -6679,6 +6680,133 @@ async function copyNewsletterEmailList() {
   try {
     await navigator.clipboard.writeText(text);
     alert(`구독자 이메일 ${subscribers.length}건을 클립보드에 복사했습니다.`);
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
+  }
+}
+
+// ==========================================
+// 카카오톡 3분 뉴스 구독자 -- same structure as the newsletter briefing
+// above (stats/trend/list), phone numbers instead of email. Sending itself
+// isn't automated here yet (needs a 카카오톡 채널 first); this just tracks
+// who's asked to be notified once it's ready, and lets the admin copy the
+// number list out for manual use in the meantime.
+// ==========================================
+async function renderKakaoSubscriberBriefing() {
+  const subscribers = await window.SupabaseAdapter.fetchKakaoSubscribers();
+
+  document.getElementById("kakao-stat-total").textContent = subscribers.length.toLocaleString("ko-KR");
+
+  const now = new Date();
+  const thisMonthCount = subscribers.filter(s => {
+    const d = new Date(s.subscribedAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+  document.getElementById("kakao-stat-month").textContent = thisMonthCount.toLocaleString("ko-KR");
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const lastWeekCount = subscribers.filter(s => new Date(s.subscribedAt) >= sevenDaysAgo).length;
+  document.getElementById("kakao-stat-week").textContent = lastWeekCount.toLocaleString("ko-KR");
+
+  renderKakaoTrendChart(subscribers);
+  renderKakaoSubscribersList(subscribers);
+}
+
+function renderKakaoTrendChart(subscribers) {
+  const container = document.getElementById("kakao-trend-chart-container");
+  if (!container) return;
+
+  const days = 14;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    buckets.push({ key: d.toISOString().slice(0, 10), label: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 });
+  }
+  const bucketByKey = {};
+  buckets.forEach(b => { bucketByKey[b.key] = b; });
+
+  subscribers.forEach(s => {
+    const key = (s.subscribedAt || '').slice(0, 10);
+    const bucket = bucketByKey[key];
+    if (bucket) bucket.count += 1;
+  });
+
+  if (buckets.every(b => b.count === 0)) {
+    container.innerHTML = `<div class="help-text">최근 14일간 신규 신청자가 없습니다.</div>`;
+    return;
+  }
+
+  const maxVal = Math.max(1, ...buckets.map(b => b.count));
+  const chartHeight = 140;
+  const topPad = 18;
+  const barGroupWidth = 36;
+  const barWidth = 20;
+  const svgWidth = buckets.length * barGroupWidth;
+
+  const bars = buckets.map((b, i) => {
+    const x = i * barGroupWidth;
+    const h = Math.round((b.count / maxVal) * chartHeight);
+    const y = topPad + chartHeight - h;
+    const label = b.count > 0
+      ? `<text x="${x + 8 + barWidth / 2}" y="${Math.max(y - 5, 10)}" font-size="10" text-anchor="middle" fill="var(--admin-text-secondary)">${b.count}</text>`
+      : '';
+    return `
+      <g>
+        <title>${b.label}: 신규 신청 ${b.count}명</title>
+        <rect x="${x + 8}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" fill="#b8860b" rx="2"></rect>
+        ${label}
+      </g>
+      <text x="${x + barGroupWidth / 2}" y="${topPad + chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${b.label}</text>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg width="${svgWidth}" height="${topPad + chartHeight + 30}" viewBox="0 0 ${svgWidth} ${topPad + chartHeight + 30}" style="min-width: 100%;">
+      ${bars}
+    </svg>
+  `;
+}
+
+function renderKakaoSubscribersList(subscribers) {
+  const tbody = document.getElementById("kakao-subscribers-list");
+  if (!tbody) return;
+
+  if (subscribers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--admin-text-muted); padding: 20px 0;">아직 신청자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = subscribers.map(s => `
+    <tr>
+      <td>${s.phone}</td>
+      <td style="white-space: nowrap;">${s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString("ko-KR") : ''}</td>
+      <td><a onclick="deleteKakaoSubscriberRow(${s.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
+    </tr>
+  `).join('');
+}
+
+async function deleteKakaoSubscriberRow(id) {
+  if (!confirm("이 신청자를 목록에서 삭제하시겠습니까?")) return;
+  await window.SupabaseAdapter.deleteKakaoSubscriber(id);
+  await renderKakaoSubscriberBriefing();
+}
+
+async function copyKakaoPhoneList() {
+  const subscribers = await window.SupabaseAdapter.fetchKakaoSubscribers();
+  if (subscribers.length === 0) {
+    alert("복사할 전화번호가 없습니다.");
+    return;
+  }
+  const text = subscribers.map(s => s.phone).join(', ');
+  try {
+    await navigator.clipboard.writeText(text);
+    alert(`신청자 전화번호 ${subscribers.length}건을 클립보드에 복사했습니다.`);
   } catch (err) {
     console.error("클립보드 복사 실패:", err);
     alert("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");

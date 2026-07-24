@@ -265,6 +265,33 @@ async function handleNewsletterSubscribe(event) {
   }
 }
 
+// KakaoTalk 3분 뉴스 signup form (homepage #kakao-subscribe section, above
+// the newsletter section) -- same pattern as handleNewsletterSubscribe.
+async function handleKakaoSubscribe(event) {
+  event.preventDefault();
+  const form = event.target;
+  const phoneInput = document.getElementById("kakao-phone");
+  const submitBtn = document.getElementById("kakao-submit-btn");
+  const phone = phoneInput.value.trim();
+  if (!phone) return;
+
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "처리 중...";
+
+  try {
+    await window.SupabaseAdapter.subscribeKakao(phone);
+    alert("신청해 주셔서 감사합니다! 카카오톡 채널이 준비되는 대로 3분 뉴스를 보내드립니다.");
+    form.reset();
+  } catch (err) {
+    console.error("Kakao subscribe failed:", err);
+    alert(err.message || "신청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+}
+
 // 2. Dynamic Override for Static Policy Pages
 function initStaticPageOverrides() {
   const pathname = window.location.pathname;

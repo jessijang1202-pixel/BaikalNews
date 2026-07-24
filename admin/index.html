@@ -1198,6 +1198,51 @@
             </table>
           </div>
         </div>
+
+        <!-- 카카오톡 3분 뉴스 구독자 -- same shape as the newsletter panel
+             above, phone numbers instead of email. Sending itself isn't
+             automated yet (needs a 카카오톡 채널 to be created first); this
+             is just the signup list to send to once that's ready. -->
+        <div class="panel" style="padding: 24px; margin-top: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title">카카오톡 3분 뉴스 구독자</h3>
+            <button class="btn-admin btn-admin-secondary" onclick="copyKakaoPhoneList()">전화번호 목록 복사</button>
+          </div>
+          <div class="admin-grid-4" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+            <div class="stat-card" style="background: linear-gradient(135deg, #b8860b, #FEE500); color:#191919;">
+              <span class="stat-title" style="color:#191919;">총 신청자 수</span>
+              <span class="stat-number" id="kakao-stat-total" style="color:#191919;">0</span>
+              <span class="stat-trend" style="color:#191919;">누적 신청자</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-green-deep), #129980);">
+              <span class="stat-title">이번 달 신규 신청</span>
+              <span class="stat-number" id="kakao-stat-month">0</span>
+              <span class="stat-trend">이번 달 신규 신청</span>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, var(--color-blue-deep), #155e95);">
+              <span class="stat-title">최근 7일 신규</span>
+              <span class="stat-number" id="kakao-stat-week">0</span>
+              <span class="stat-trend">최근 7일 신청자</span>
+            </div>
+          </div>
+
+          <h4 style="margin: 24px 0 12px; font-size: 0.95rem;">신청자수 추이 (최근 14일)</h4>
+          <div id="kakao-trend-chart-container" style="overflow-x: auto;">
+            <div class="help-text">차트를 불러오는 중...</div>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+          <h4 style="margin-bottom: 12px; font-size: 0.95rem;">신청자 전화번호 목록</h4>
+          <div class="admin-table-wrapper" style="max-height: 320px; overflow-y: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr><th>전화번호</th><th>신청일</th><th>작업</th></tr>
+              </thead>
+              <tbody id="kakao-subscribers-list"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- ================= TAB: NEWSLETTER ================= -->

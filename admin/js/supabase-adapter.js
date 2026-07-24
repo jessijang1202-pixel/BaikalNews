@@ -713,6 +713,50 @@
     },
 
     // ==========================================
+    // 카카오톡 3분 뉴스 subscribers (collected via the public site's
+    // #kakao-subscribe form) -- same shape as newsletter subscribers above,
+    // phone number instead of email.
+    // ==========================================
+    fetchKakaoSubscribers: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('kakao_subscribers')
+              .select('*')
+              .order('subscribed_at', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              phone: row.phone,
+              subscribedAt: row.subscribed_at
+            }));
+          } catch (err) {
+            console.error("Supabase fetchKakaoSubscribers error:", err);
+          }
+        }
+      }
+      return [];
+    },
+
+    deleteKakaoSubscriber: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { error } = await client.from('kakao_subscribers').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteKakaoSubscriber error:", err);
+          }
+        }
+      }
+      return false;
+    },
+
+    // ==========================================
     // 숏폼(Shorts) Projects
     // ==========================================
     fetchShorts: async function() {

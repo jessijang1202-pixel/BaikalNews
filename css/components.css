@@ -542,6 +542,28 @@
   text-decoration: underline;
 }
 
+/* KakaoTalk 3-min news signup -- same layout as the newsletter block, just
+   re-tinted to Kakao's actual brand yellow (#FEE500) so it reads as "the
+   Kakao one" at a glance, positioned above the newsletter block so readers
+   choose between the two. */
+.newsletter-block.kakao-block {
+  background: #FFF6C8;
+}
+.newsletter-block.kakao-block .newsletter-input:focus {
+  border-color: #FEE500;
+}
+#kakao-submit-btn {
+  border: 1px solid #FEE500;
+  background-color: #FEE500;
+  color: #191919;
+  font-weight: 700;
+  white-space: nowrap;
+}
+#kakao-submit-btn:hover {
+  background-color: #F6DC00;
+  border-color: #F6DC00;
+}
+
 /* Compact modifier - used for the article-page sidebar newsletter widget */
 .newsletter-block.compact {
   display: block;
