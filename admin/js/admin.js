@@ -1695,13 +1695,59 @@ function slugify(text) {
     .replace(/^-|-$/g, '');
 }
 
+// Repairs the single most common way Gemini/Claude break their own
+// requested JSON: a literal newline/tab/carriage-return left un-escaped
+// inside a string value -- very likely whenever a field asks for multi-line
+// content (e.g. shorts' scriptMd, a "타임라인 표 형태" markdown document).
+// A raw control character inside a JSON string is invalid and JSON.parse()
+// rejects the entire response over it. This walks the text char-by-char
+// tracking whether we're inside a quoted string (respecting \" escapes)
+// and escapes any raw control character found there, leaving whitespace
+// between actual JSON tokens (indentation, etc.) untouched.
+function repairJsonControlCharsInStrings(text) {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        result += ch;
+        escaped = false;
+      } else if (ch === '\\') {
+        result += ch;
+        escaped = true;
+      } else if (ch === '"') {
+        result += ch;
+        inString = false;
+      } else if (ch === '\n') {
+        result += '\\n';
+      } else if (ch === '\r') {
+        result += '\\r';
+      } else if (ch === '\t') {
+        result += '\\t';
+      } else {
+        result += ch;
+      }
+    } else {
+      if (ch === '"') inString = true;
+      result += ch;
+    }
+  }
+  return result;
+}
+
 function parseAiJsonResponse(resultText) {
   const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
   try {
     return JSON.parse(cleanedText);
   } catch (err) {
-    console.error("AI output parsing failed. Raw text:", resultText);
-    throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
+    try {
+      return JSON.parse(repairJsonControlCharsInStrings(cleanedText));
+    } catch (err2) {
+      console.error("AI output parsing failed. Raw text:", resultText);
+      throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
+    }
   }
 }
 
@@ -4517,14 +4563,14 @@ ${backInstruction}
 - 영상 상단에 항상 떠 있는 배너에 들어갈 짧은 후킹 제목도 추천하십시오. 자막(hookText)과는 별개로, 영상 내내 노출되는 타이틀입니다. 1줄로 충분하면 2번째 줄은 빈 문자열로 두십시오.
 - (중요) veoPrompt와 각 imageCuts의 prompt에 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하십시오. 외국인, 서양인, 혼혈로 보이는 인물은 절대 등장시키지 마십시오. AI는 한글 텍스트도 철자가 틀리게 그리므로, 화면에 텍스트(휴대폰 화면, 간판, 문서, 자막 등)가 등장하는 장면은 언어와 상관없이 절대 만들지 마십시오. 간판이 있는 장소라면 안 보이는 구도로 묘사하십시오.
 
-반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오.
+반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오. "scriptMd"처럼 여러 줄로 작성하는 값 안의 줄바꿈은 반드시 \\n으로 이스케이프하여, 유효한 JSON 문자열 하나로 만드십시오 (실제 줄바꿈 문자를 문자열 안에 그대로 넣지 마십시오).
 {
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
     { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
   ],
-  "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)",
+  "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성 -- 줄바꿈은 \\n으로 이스케이프)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
   "topBarTitleLine2": "상단 배너용 후킹 제목 2줄 (선택, 없으면 빈 문자열)"
 }
