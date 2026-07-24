@@ -1059,9 +1059,12 @@
                 <div class="shorts-card">
                   <div class="shorts-card-kicker" style="margin-bottom:10px;">나레이션</div>
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <button type="button" class="btn-admin btn-admin-secondary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
-                    <button type="button" class="btn-admin btn-admin-secondary" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()" style="min-width:38px;">▶</button>
-                    <button type="button" class="btn-admin btn-admin-secondary" onclick="stopShortsNarrationPlayback()" style="min-width:38px;">⏹</button>
+                    <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
+                    <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">
+                      <button type="button" class="shorts-narration-player-btn" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()">▶</button>
+                      <button type="button" class="shorts-narration-player-btn" onclick="stopShortsNarrationPlayback()">⏹</button>
+                      <span class="shorts-narration-player-time" id="shorts-narration-time">0:00 / 0:00</span>
+                    </div>
                   </div>
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
                     <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">재생 속도

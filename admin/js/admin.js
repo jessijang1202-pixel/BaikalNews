@@ -3899,6 +3899,8 @@ function resetShortsWizardSections() {
   if (veoPromptEditorEl) veoPromptEditorEl.style.display = "none";
   const youtubeMetaEl = document.getElementById("shorts-youtube-meta");
   if (youtubeMetaEl) youtubeMetaEl.style.display = "none";
+  const narrationPlayerEl = document.getElementById("shorts-narration-player");
+  if (narrationPlayerEl) narrationPlayerEl.style.display = "none";
   document.getElementById("shorts-media-preview").innerHTML = "";
   document.getElementById("shorts-media-status").textContent = "";
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
@@ -5422,6 +5424,7 @@ function renderShortsNarrationRecap() {
   statusEl.textContent = readyCount === 0
     ? "생성된 나레이션이 없습니다."
     : `나레이션 ${readyCount}/${totalCount}개 준비됨`;
+  refreshShortsNarrationPlayerUI();
 }
 
 // "나레이션 생성" in step 4 -- reuses the same generator step 2's approval
@@ -5447,6 +5450,8 @@ async function generateShortsNarrationFromAssembly() {
 // 큐 전체를 초기화해 다음 재생이 처음(후킹)부터 다시 시작하게 한다.
 let shortsNarrationQueue = [];
 let shortsNarrationIdx = 0;
+let shortsNarrationDurations = [];
+let shortsNarrationTotalDuration = 0;
 
 function buildShortsNarrationQueue() {
   const queue = [];
@@ -5457,10 +5462,52 @@ function buildShortsNarrationQueue() {
   return queue;
 }
 
+function formatShortsTime(seconds) {
+  const s = Math.max(0, Math.round(seconds || 0));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+// Reads a clip's real length off the audio file itself (loadedmetadata),
+// rather than trusting the stored cut.duration -- that field includes a
+// +0.3s pad and can drift out of sync with edits, and the whole point here
+// is giving the admin a number they can actually judge 재생 속도 against.
+function getShortsAudioDuration(url) {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => resolve(a.duration || 0);
+    a.onerror = () => resolve(0);
+    a.src = url;
+  });
+}
+
+// Shows/hides the player-style play/stop controls (hidden until narration
+// actually exists -- no point showing playback controls for nothing to
+// play) and computes the total runtime up front so it's visible before the
+// admin even presses play, not just discovered by listening through once.
+async function refreshShortsNarrationPlayerUI() {
+  const queue = currentShortsProject ? buildShortsNarrationQueue() : [];
+  const playerWrap = document.getElementById("shorts-narration-player");
+  const timeEl = document.getElementById("shorts-narration-time");
+  if (queue.length === 0) {
+    if (playerWrap) playerWrap.style.display = "none";
+    shortsNarrationDurations = [];
+    shortsNarrationTotalDuration = 0;
+    return;
+  }
+  shortsNarrationDurations = await Promise.all(queue.map(getShortsAudioDuration));
+  shortsNarrationTotalDuration = shortsNarrationDurations.reduce((s, d) => s + d, 0);
+  if (playerWrap) playerWrap.style.display = "flex";
+  if (timeEl) timeEl.textContent = `0:00 / ${formatShortsTime(shortsNarrationTotalDuration)}`;
+}
+
 function toggleShortsNarrationPlayback() {
   if (!currentShortsProject) return;
   const player = document.getElementById("shorts-narration-playback");
   const playBtn = document.getElementById("shorts-narration-play-btn");
+  const timeEl = document.getElementById("shorts-narration-time");
   if (!player) return;
 
   if (!player.paused) {
@@ -5481,6 +5528,13 @@ function toggleShortsNarrationPlayback() {
     alert("재생할 나레이션이 없습니다. 먼저 나레이션을 생성해 주세요.");
     return;
   }
+  const updateTimeDisplay = () => {
+    if (!timeEl) return;
+    const elapsedBefore = shortsNarrationDurations.slice(0, shortsNarrationIdx).reduce((s, d) => s + d, 0);
+    const current = elapsedBefore + (player.currentTime || 0);
+    timeEl.textContent = `${formatShortsTime(current)} / ${formatShortsTime(shortsNarrationTotalDuration)}`;
+  };
+  player.ontimeupdate = updateTimeDisplay;
   player.onended = () => {
     shortsNarrationIdx += 1;
     if (shortsNarrationIdx < shortsNarrationQueue.length) {
@@ -5488,6 +5542,7 @@ function toggleShortsNarrationPlayback() {
       player.play();
     } else if (playBtn) {
       playBtn.textContent = "▶";
+      updateTimeDisplay();
     }
   };
   player.src = shortsNarrationQueue[0];
@@ -5498,14 +5553,17 @@ function toggleShortsNarrationPlayback() {
 function stopShortsNarrationPlayback() {
   const player = document.getElementById("shorts-narration-playback");
   const playBtn = document.getElementById("shorts-narration-play-btn");
+  const timeEl = document.getElementById("shorts-narration-time");
   if (!player) return;
   player.onended = null;
+  player.ontimeupdate = null;
   player.pause();
   player.currentTime = 0;
   player.removeAttribute("src");
   shortsNarrationQueue = [];
   shortsNarrationIdx = 0;
   if (playBtn) playBtn.textContent = "▶";
+  if (timeEl) timeEl.textContent = `0:00 / ${formatShortsTime(shortsNarrationTotalDuration)}`;
 }
 
 function updateShortsStyleSettings() {

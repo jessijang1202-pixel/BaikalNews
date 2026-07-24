@@ -531,6 +531,43 @@ body {
   background: rgba(220,53,69,0.8);
 }
 
+/* Narration playback, styled like a real audio player -- only shown once
+   narration actually exists (toggled via JS), with a live current/total
+   time readout so the admin can judge whether 재생 속도 needs to go
+   higher before it overlaps/cuts off, instead of guessing. */
+.shorts-narration-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sf-surface-2, var(--admin-bg-secondary));
+  border: 1px solid var(--sf-divider, var(--admin-border));
+  border-radius: 999px;
+  padding: 6px 14px 6px 6px;
+}
+.shorts-narration-player-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--sf-accent, var(--admin-accent-cyan));
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.shorts-narration-player-btn:hover {
+  filter: brightness(1.1);
+}
+.shorts-narration-player-time {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--sf-text-muted, var(--admin-text-secondary));
+  white-space: nowrap;
+}
+
 /* Generation/recording status text was the same tiny .help-text size as
    every other hint on the page, easy to miss -- exactly the kind of miss
    that led to repeat clicks on a paid Veo generation. Bigger and bolder,
