@@ -4179,16 +4179,26 @@ async function openLocalShortsDraft(localDraftId) {
   };
   shortsAssets = null;
 
+  // A key existing (hasFront/imageKey/etc.) but idbGetBlob() coming back
+  // null used to be handled identically to "there was never any media here"
+  // -- imageUrl/finalVideoUrl etc. just silently stayed blank, no alert, no
+  // console warning, nothing. That's indistinguishable from real data loss
+  // to whoever's looking at Step 3 missing thumbnails it had a moment ago.
+  // Track every expected-but-missing item and surface it as one alert.
+  const missingMedia = [];
   try {
     if (draft.hasFront) {
       const blob = await idbGetBlob(`${localDraftId}:front`);
       if (blob) currentShortsProject.veoVideoUrl = URL.createObjectURL(blob);
+      else missingMedia.push("전반(0:00~0:08) 영상/이미지");
     }
     if (draft.hasFinal) {
       const blob = await idbGetBlob(`${localDraftId}:final`);
       if (blob) {
         currentShortsProject.finalVideoUrl = URL.createObjectURL(blob);
         currentShortsProject.finalVideoMimeType = blob.type;
+      } else {
+        missingMedia.push("완성된 최종 영상");
       }
     }
     if (draft.hasHookNarration) {
@@ -4201,23 +4211,37 @@ async function openLocalShortsDraft(localDraftId) {
         // hookNarrationBase64 and overwrite the already-saved audio with
         // blank on Supabase.
         currentShortsProject.hookNarrationBase64 = await blobToBase64DataUrl(blob);
+      } else {
+        missingMedia.push("후킹 나레이션");
       }
     }
+    let cutIdx = 0;
     for (const cut of currentShortsProject.imageCuts) {
+      cutIdx += 1;
       if (cut.imageKey) {
         const blob = await idbGetBlob(cut.imageKey);
-        if (blob) cut.imageUrl = URL.createObjectURL(blob);
+        if (blob) {
+          cut.imageUrl = URL.createObjectURL(blob);
+        } else {
+          missingMedia.push(`컷 ${cutIdx} 이미지`);
+        }
       }
       if (cut.narrationKey) {
         const blob = await idbGetBlob(cut.narrationKey);
         if (blob) {
           cut.narrationUrl = URL.createObjectURL(blob);
           cut.narrationBase64 = await blobToBase64DataUrl(blob);
+        } else {
+          missingMedia.push(`컷 ${cutIdx} 나레이션`);
         }
       }
     }
   } catch (err) {
     console.warn("로컬 미디어 복원 중 일부 실패:", err);
+    missingMedia.push("(복원 중 오류 발생 -- 콘솔 참고)");
+  }
+  if (missingMedia.length > 0) {
+    alert(`⚠ 이 브라우저에서 다음 미디어를 찾지 못했습니다 -- 다시 생성해야 합니다:\n\n${missingMedia.join('\n')}\n\n(대본/자막 등 텍스트는 영향 없습니다.)`);
   }
 
   document.getElementById("shorts-wizard-title").textContent = "로컬 임시 숏폼 편집";
