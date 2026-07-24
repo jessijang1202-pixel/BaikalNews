@@ -5405,6 +5405,112 @@ async function generateShortsMedia() {
   }
 }
 
+// If both halves are now present, advance to media_ready and reveal Step 4
+// -- shared by the combined button and both granular ones below, so
+// whichever order the admin generates things in, the assembly step still
+// unlocks the moment everything it needs actually exists.
+function checkShortsMediaReady() {
+  if (!currentShortsProject) return false;
+  const hasFront = !!currentShortsProject.veoVideoUrl;
+  const cuts = currentShortsProject.imageCuts || [];
+  const allCutsReady = cuts.length > 0 && cuts.every(c => !!c.imageUrl);
+  if (hasFront && allCutsReady) {
+    currentShortsProject.status = 'media_ready';
+    const assemblySection = document.getElementById("shorts-assembly-section");
+    assemblySection.style.display = "block";
+    populateShortsStyleSettingsUI();
+    return true;
+  }
+  return false;
+}
+
+// Generates ONLY the 전반(0:00~0:08) slot -- split out from
+// generateShortsMedia() so re-running media generation after already
+// having a good Veo clip doesn't also burn another Veo credit just to get
+// the image cuts. Applies an uploaded reference file directly (no Veo
+// cost) exactly like the combined button does; only actually calls Veo if
+// nothing was uploaded for this slot.
+async function generateShortsFrontOnly() {
+  if (!currentShortsProject) return;
+  const statusEl = document.getElementById("shorts-media-status");
+  const btn = document.getElementById("shorts-generate-front-btn");
+  if (btn) btn.disabled = true;
+  beginShortsBusyOperation();
+  try {
+    if (currentShortsProject.frontUpload) {
+      statusEl.textContent = "업로드된 자료를 전반(0:00~0:08)에 적용 중...";
+      currentShortsProject.veoVideoUrl = currentShortsProject.frontUpload.url;
+      currentShortsProject.frontIsImage = currentShortsProject.frontUpload.type === 'image';
+    } else {
+      if (!currentShortsProject.veoPrompt) {
+        alert("Veo 프롬프트가 없습니다. 대본(Step 2)을 다시 확인해 주세요.");
+        return;
+      }
+      statusEl.textContent = "Veo 영상 생성 중... (몇 분 소요될 수 있습니다)";
+      const veoBlob = await generateVeoVideo(currentShortsProject.veoPrompt, (msg) => { statusEl.textContent = msg; });
+      currentShortsProject.veoVideoUrl = await keepShortsBlobLocal(veoBlob, `${ensureShortsLocalDraftId()}:front`);
+      currentShortsProject.frontIsImage = false;
+    }
+    document.getElementById("shorts-media-section").style.display = "block";
+    renderShortsMediaPreview();
+    const ready = checkShortsMediaReady();
+    await persistCurrentShortsProject();
+    statusEl.textContent = ready
+      ? "전반 생성 완료. 아래에서 조립을 진행하세요."
+      : "전반 생성 완료. 이미지 컷도 생성해 주세요.";
+  } catch (err) {
+    console.error("전반 생성 실패:", err);
+    statusEl.textContent = "전반 생성 실패: " + err.message;
+    alert("전반 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    endShortsBusyOperation();
+  }
+}
+
+// Generates ONLY the 후반 image cuts -- split out for the same reason as
+// generateShortsFrontOnly(), and additionally skips any cut that already
+// has an image (the combined button always redoes every non-uploaded cut;
+// this one is specifically for "just fill in what's missing" without
+// re-spending on cuts that already came out fine).
+async function generateShortsCutImagesOnly() {
+  if (!currentShortsProject) return;
+  const statusEl = document.getElementById("shorts-media-status");
+  const btn = document.getElementById("shorts-generate-cuts-btn");
+  if (btn) btn.disabled = true;
+  beginShortsBusyOperation();
+  try {
+    const cuts = currentShortsProject.imageCuts || [];
+    for (let i = 0; i < cuts.length; i++) {
+      const cut = cuts[i];
+      if (cut.imageUrl) continue; // already has an image (uploaded or previously generated) -- nothing to do
+
+      statusEl.textContent = `이미지 컷 생성 중... (${i + 1}/${cuts.length})`;
+      const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
+      const dataUrl = await generateGeminiImage(verticalPrompt);
+      const blob = await (await fetch(dataUrl)).blob();
+      if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const kept = await keepShortsImageLocal(blob, cut.imageKey);
+      cut.imageUrl = kept.url;
+      cut.imageBase64 = kept.base64;
+      renderShortsMediaPreview();
+    }
+    document.getElementById("shorts-media-section").style.display = "block";
+    const ready = checkShortsMediaReady();
+    await persistCurrentShortsProject();
+    statusEl.textContent = ready
+      ? "이미지 컷 생성 완료. 아래에서 조립을 진행하세요."
+      : "이미지 컷 생성 완료. 전반(Veo 영상)도 생성해 주세요.";
+  } catch (err) {
+    console.error("이미지 컷 생성 실패:", err);
+    statusEl.textContent = "이미지 컷 생성 실패: " + err.message;
+    alert("이미지 컷 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    endShortsBusyOperation();
+  }
+}
+
 // Syncs the 영상 스타일 설정 inputs (상단 배경색/제목, 자막 크기) with
 // currentShortsProject -- pure draw-time styling, so no need to rebuild
 // shortsAssets when these change, just re-preview/re-record.
