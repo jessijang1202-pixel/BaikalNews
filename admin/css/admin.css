@@ -380,6 +380,21 @@ body {
   color: var(--sf-accent-2-700);
 }
 
+/* 녹화 버튼 -- the one irreversible-feeling action on this screen (captures
+   the whole ~30s timeline), so it's deliberately the biggest, loudest
+   button in the wizard rather than sized/colored like its neighbors. */
+.shorts-editorial .shorts-record-btn {
+  background: #f97316;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 16px 32px;
+  border-radius: 8px;
+}
+.shorts-editorial .shorts-record-btn:hover {
+  background: #ea580c;
+}
+
 /* Collapsible STEP sections */
 .shorts-step { border-top: 1px solid var(--sf-divider); margin-top: 6px; }
 .shorts-step:first-of-type { border-top: none; margin-top: 0; }

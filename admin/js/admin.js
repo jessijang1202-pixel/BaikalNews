@@ -3635,6 +3635,7 @@ function saveShortsDraftLocally() {
     captionColor: currentShortsProject.captionColor,
     captionPosition: currentShortsProject.captionPosition,
     narrationSpeed: currentShortsProject.narrationSpeed,
+    extraCutSeconds: currentShortsProject.extraCutSeconds || 0,
     createdBy: currentShortsProject.createdBy || '',
     updatedAt: new Date().toISOString()
   };
@@ -4097,6 +4098,7 @@ async function openShortsProject(id) {
   currentShortsProject.captionColor = scriptJson.captionColor;
   currentShortsProject.captionPosition = scriptJson.captionPosition;
   currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.2;
+  currentShortsProject.extraCutSeconds = scriptJson.extraCutSeconds || 0;
   // frontUpload/backUploads are transient staging state (not persisted --
   // once media generation runs they're baked into veoVideoUrl/imageCuts),
   // so reopening a saved project always starts with an empty upload queue.
@@ -4175,7 +4177,8 @@ async function openLocalShortsDraft(localDraftId) {
     captionFontSize: draft.captionFontSize,
     captionColor: draft.captionColor,
     captionPosition: draft.captionPosition,
-    narrationSpeed: draft.narrationSpeed || 1.2
+    narrationSpeed: draft.narrationSpeed || 1.2,
+    extraCutSeconds: draft.extraCutSeconds || 0
   };
   shortsAssets = null;
 
@@ -4361,7 +4364,8 @@ async function syncShortsScriptToSupabase() {
         captionFontSize: currentShortsProject.captionFontSize,
         captionColor: currentShortsProject.captionColor,
         captionPosition: currentShortsProject.captionPosition,
-        narrationSpeed: currentShortsProject.narrationSpeed
+        narrationSpeed: currentShortsProject.narrationSpeed,
+        extraCutSeconds: currentShortsProject.extraCutSeconds || 0
       },
       createdBy: currentShortsProject.createdBy || (session ? session.name : '')
     };
@@ -5542,6 +5546,13 @@ function populateShortsStyleSettingsUI() {
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
   if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
   if (narrationSpeedInput) narrationSpeedInput.value = currentShortsProject.narrationSpeed || 1.2;
+  const extraSecondsStatusEl = document.getElementById("shorts-extra-seconds-status");
+  if (extraSecondsStatusEl) {
+    const extra = currentShortsProject.extraCutSeconds || 0;
+    extraSecondsStatusEl.textContent = extra > 0
+      ? `컷당 +${extra}초 (총 +${extra * (currentShortsProject.imageCuts || []).length}초)`
+      : '';
+  }
   renderShortsNarrationRecap();
 }
 
@@ -6107,8 +6118,14 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
   // advancing -- so a still-long clip may bleed slightly into the next
   // cut's visual rather than being cut off abruptly (the per-segment
   // stop() below is the actual cutoff backstop for that case).
-  const SHORTS_TARGET_TOTAL_DURATION = 30;
-  const cutDurations = (project.imageCuts || []).map(c => Math.max(1, (c.duration || 0) / narrationSpeed));
+  // "이미지 컷 1초씩 늘리기" raises this budget by 1s per cut each time it's
+  // clicked (extraCutSeconds), for when speeding up narration alone still
+  // isn't enough -- deliberately allowing the video to run past 30s rather
+  // than compress/cut narration further, since the admin asked for exactly
+  // that trade-off.
+  const extraCutSeconds = project.extraCutSeconds || 0;
+  const SHORTS_TARGET_TOTAL_DURATION = 30 + extraCutSeconds * (project.imageCuts || []).length;
+  const cutDurations = (project.imageCuts || []).map(c => Math.max(1, (c.duration || 0) / narrationSpeed + extraCutSeconds));
   const backBudget = Math.max(1, SHORTS_TARGET_TOTAL_DURATION - frontDuration);
   const naturalBackTotal = cutDurations.reduce((s, d) => s + d, 0);
   if (naturalBackTotal > backBudget) {
@@ -6294,6 +6311,21 @@ function copyShortsYoutubeField(fieldId) {
     // fallback instead of silently doing nothing.
     alert("자동 복사에 실패했습니다. 텍스트가 선택되어 있으니 Ctrl+C(또는 Cmd+C)로 복사해 주세요.");
   });
+}
+
+// "이미지 컷 1초씩 늘려서 다시 보기" -- for when 재생 속도 alone still isn't
+// enough to fit long narration without overlap/cutoff. Adds 1s per cut to
+// the 30s budget runShortsTimelineInner() targets (cumulative -- each click
+// adds another second), then immediately re-previews so the admin can tell
+// right away whether it's now enough, without a separate button press.
+async function extendShortsCutsAndPreview() {
+  if (!currentShortsProject) return;
+  currentShortsProject.extraCutSeconds = (currentShortsProject.extraCutSeconds || 0) + 1;
+  shortsAssets = null;
+  saveShortsDraftLocally();
+  const statusEl = document.getElementById("shorts-extra-seconds-status");
+  if (statusEl) statusEl.textContent = `컷당 +${currentShortsProject.extraCutSeconds}초 (총 +${currentShortsProject.extraCutSeconds * (currentShortsProject.imageCuts || []).length}초)`;
+  await previewShortsAssembly();
 }
 
 async function previewShortsAssembly() {
