@@ -4805,8 +4805,8 @@ function renderImageCutsEditor(cuts) {
       <label class="shorts-field-label">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
       <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장" oninput="syncShortsCutEdits()">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
 
-      <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게)</label>
-      <input type="text" class="form-control-admin shorts-cut-caption" style="${boxStyle}" placeholder="자막" value="${(cut.caption || '').replace(/"/g, '&quot;')}" oninput="syncShortsCutEdits()">
+      <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게 · Enter로 줄바꿈 가능)</label>
+      <textarea class="form-control-admin shorts-cut-caption" style="margin-bottom:10px; min-height:44px; max-height:88px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;" placeholder="자막" oninput="syncShortsCutEdits()">${(cut.caption || '').replace(/</g, '&lt;')}</textarea>
 
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
         <label style="font-size:0.75rem; color:var(--sf-text-muted, var(--admin-text-secondary)); white-space:nowrap;">길이(초)
@@ -6009,6 +6009,11 @@ async function buildShortsAssets(project) {
   return { front, images, audioCtx, mixDestination, hookNarrationBuffer };
 }
 
+// Captions can now contain manual line breaks (Enter in the 자막 textarea),
+// so this draws each line separately instead of one fillText() call --
+// canvas text rendering has no native newline support, a literal \n in a
+// single fillText() just renders as an invisible/garbled character, not an
+// actual line break.
 function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
   if (!text) return;
   const size = fontSize || 72;
@@ -6016,16 +6021,23 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const y = position === 'top' ? canvasH * 0.22
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length === 0) { ctx.restore(); return; }
+  const lineHeight = size * 1.25;
+  const centerY = position === 'top' ? canvasH * 0.22
     : position === 'center' ? canvasH / 2
     : canvasH - 260; // 'bottom' (default) -- original position
-  const metrics = ctx.measureText(text);
+  const maxWidth = Math.max(...lines.map(l => ctx.measureText(l).width));
   const paddingX = 32, paddingY = 20;
-  const boxH = size + 20;
+  const boxH = lineHeight * lines.length + paddingY;
+  const boxTop = centerY - boxH / 2;
   ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillRect(canvasW / 2 - metrics.width / 2 - paddingX, y - boxH / 2 - paddingY / 2, metrics.width + paddingX * 2, boxH + paddingY);
+  ctx.fillRect(canvasW / 2 - maxWidth / 2 - paddingX, boxTop, maxWidth + paddingX * 2, boxH);
   ctx.fillStyle = color || "#ffffff";
-  ctx.fillText(text, canvasW / 2, y);
+  lines.forEach((line, i) => {
+    const y = boxTop + paddingY / 2 + lineHeight * (i + 0.5);
+    ctx.fillText(line, canvasW / 2, y);
+  });
   ctx.restore();
 }
 
