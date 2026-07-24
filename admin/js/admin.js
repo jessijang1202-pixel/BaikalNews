@@ -2916,13 +2916,19 @@ async function resizeAndCompressImage(fileOrBlob, options) {
 
 // Raw upload of an already-processed blob to the "article-images" bucket --
 // no resizing/compression here, callers decide whether that already happened.
-async function uploadRawBlobToStorage(blob, ext) {
+// sourceTag prefixes the filename (e.g. "upload-", "ai-") so the public site
+// can tell a manually-uploaded photo from an AI-generated one purely from
+// its URL -- css/pages.css uses an [src*="/upload-"] attribute selector to
+// show manual uploads at their original aspect ratio while keeping
+// AI-generated images in the fixed 16:9 crop. No DB column needed for this.
+async function uploadRawBlobToStorage(blob, ext, sourceTag) {
   const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
   if (!client) {
     throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
 
-  const path = `articles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const prefix = sourceTag ? `${sourceTag}-` : '';
+  const path = `articles/${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const contentType = ext === 'jpg' ? 'image/jpeg' : (blob.type || `image/${ext}`);
 
   const { error } = await client.storage.from('article-images').upload(path, blob, {
@@ -2943,7 +2949,7 @@ async function uploadRawBlobToStorage(blob, ext) {
 // to already exist (see admin setup docs) -- throws a clear error otherwise.
 // Always downscales/recompresses to JPEG first (see resizeAndCompressImage)
 // so both AI-generated and manually-uploaded photos land in Storage small.
-async function uploadImageToStorage(fileOrBlob, extHint) {
+async function uploadImageToStorage(fileOrBlob, extHint, sourceTag) {
   if (!window.SupabaseAdapter) {
     throw new Error("Supabase 연동 모듈을 찾을 수 없습니다.");
   }
@@ -2959,7 +2965,7 @@ async function uploadImageToStorage(fileOrBlob, extHint) {
     ext = (extHint || nameExt || 'png').toLowerCase().replace('jpeg', 'jpg');
   }
 
-  const { publicUrl } = await uploadRawBlobToStorage(uploadBlob, ext);
+  const { publicUrl } = await uploadRawBlobToStorage(uploadBlob, ext, sourceTag);
   return publicUrl;
 }
 
@@ -3126,7 +3132,7 @@ async function handleArticleImageUpload(event) {
   if (statusEl) statusEl.textContent = "업로드 중...";
 
   try {
-    const url = await uploadImageToStorage(file);
+    const url = await uploadImageToStorage(file, null, 'upload');
     setFormImageValue(url);
     if (statusEl) statusEl.textContent = "업로드 완료: 기사 대표 이미지로 적용되었습니다.";
   } catch (err) {
@@ -3376,7 +3382,7 @@ async function triggerAiImageGeneration() {
     const dataUrl = await generateGeminiImage(promptText + IMAGE_ASPECT_RATIO_RULE);
     const blob = await (await fetch(dataUrl)).blob();
     const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-    const publicUrl = await uploadImageToStorage(blob, ext);
+    const publicUrl = await uploadImageToStorage(blob, ext, 'ai');
 
     const mediaList = JSON.parse(localStorage.getItem("baikal_media_library") || JSON.stringify(DEFAULT_MEDIA_ASSETS));
     mediaList.unshift(publicUrl);

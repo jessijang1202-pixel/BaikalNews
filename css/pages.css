@@ -91,10 +91,23 @@
   overflow: hidden;
 }
 
+/* Default: fixed 16:9 crop (matches AI-generated images and legacy uploads
+   whose URL predates the upload-/ai- filename tagging below). Manually
+   uploaded images are tagged with an "upload-" filename prefix (see
+   uploadRawBlobToStorage in admin/js/admin.js) and shown at their full
+   original aspect ratio instead -- no DB column needed, the distinction
+   lives entirely in the stored image URL. */
 .article-featured-image img {
   width: 100%;
-  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
   display: block;
+}
+
+.article-featured-image img[src*="/upload-"] {
+  aspect-ratio: auto;
+  height: auto;
+  object-fit: unset;
 }
 
 .image-caption {
