@@ -380,19 +380,28 @@ body {
   color: var(--sf-accent-2-700);
 }
 
-/* 녹화 버튼 -- the one irreversible-feeling action on this screen (captures
-   the whole ~30s timeline), so it's deliberately the biggest, loudest
-   button in the wizard rather than sized/colored like its neighbors. */
-.shorts-editorial .shorts-record-btn {
-  background: #f97316;
-  color: #fff;
+/* Shared large size for the consequential end-of-pipeline actions --
+   녹화 (captures the whole ~30s timeline), mp4 변환, and 영상 다운로드 --
+   deliberately bigger/louder than their neighbors instead of blending in. */
+.shorts-editorial .shorts-lg-btn {
   font-size: 1.05rem;
   font-weight: 700;
   padding: 16px 32px;
   border-radius: 8px;
 }
-.shorts-editorial .shorts-record-btn:hover {
+.shorts-editorial .shorts-lg-btn.shorts-btn-orange {
+  background: #f97316;
+  color: #fff;
+}
+.shorts-editorial .shorts-lg-btn.shorts-btn-orange:hover {
   background: #ea580c;
+}
+.shorts-editorial .shorts-lg-btn.shorts-btn-blue {
+  background: var(--sf-accent);
+  color: #fff;
+}
+.shorts-editorial .shorts-lg-btn.shorts-btn-blue:hover {
+  background: var(--sf-accent-700);
 }
 
 /* Collapsible STEP sections */

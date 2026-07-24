@@ -959,9 +959,9 @@
                 <p class="help-text" style="margin-bottom:16px;">아래에서 대본 내용을 확인하고 필요하면 직접 수정한 뒤 승인하세요.</p>
 
                 <div class="form-group-admin">
-                  <label for="shorts-hook-text">0:00~0:03 후킹 문구</label>
-                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <input type="text" id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장" oninput="syncShortsHookEdit()">
+                  <label for="shorts-hook-text">0:00~0:03 후킹 문구 (Enter로 줄바꿈 가능)</label>
+                  <div style="display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+                    <textarea id="shorts-hook-text" class="form-control-admin" style="flex:1; min-width:200px; min-height:44px; max-height:88px; resize:none;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장" oninput="syncShortsHookEdit()"></textarea>
                     <button type="button" class="shorts-ghost-btn" onclick="regenerateHookNarration()">나레이션 재생성</button>
                   </div>
                   <audio id="shorts-hook-narration-preview" controls style="display:none; margin-top:8px; height:32px;"></audio>
@@ -1111,13 +1111,13 @@
                 <span class="help-text" id="shorts-extra-seconds-status"></span>
               </div>
               <div style="margin-top:14px;">
-                <button type="button" id="shorts-record-btn" class="btn-admin shorts-record-btn" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
+                <button type="button" id="shorts-record-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
               </div>
               <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
               <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
               <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
-                <a id="shorts-final-download" class="btn-admin btn-admin-secondary" style="display:none;" download>⬇ 영상 다운로드</a>
-                <button type="button" id="shorts-convert-mp4-btn" class="btn-admin btn-admin-secondary" style="display:none;" onclick="convertShortsFinalVideoToMp4()">mp4로 변환 (1~3분 소요)</button>
+                <a id="shorts-final-download" class="btn-admin shorts-lg-btn shorts-btn-blue" style="display:none;" download>⬇ 영상 다운로드</a>
+                <button type="button" id="shorts-convert-mp4-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" style="display:none;" onclick="convertShortsFinalVideoToMp4()">mp4로 변환 (1~3분 소요)</button>
               </div>
 
               <div class="shorts-card" id="shorts-youtube-meta" style="display:none; margin-top:16px; max-width:480px;">
