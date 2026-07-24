@@ -1085,6 +1085,23 @@ textarea.form-control-admin {
   flex-shrink: 0;
 }
 
+.trending-item span {
+  flex: 1;
+}
+
+.trending-item-link {
+  flex-shrink: 0;
+  color: var(--admin-accent-cyan);
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.trending-item-link:hover {
+  text-decoration: underline;
+}
+
 /* AI self-check results (check.md) */
 .checklist-item {
   display: flex;

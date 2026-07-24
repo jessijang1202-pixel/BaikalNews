@@ -2031,6 +2031,7 @@ function renderTrendingList() {
     <label class="trending-item">
       <input type="radio" name="trending-pick" value="${i}" onchange="selectTrendingArticle(${i})">
       <span>${item.title}</span>
+      ${item.url ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="trending-item-link" title="원문 기사 새 탭으로 열기" onclick="event.stopPropagation()">↗</a>` : ''}
     </label>
   `).join('');
 }
