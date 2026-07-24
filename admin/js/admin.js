@@ -4563,12 +4563,20 @@ async function generateShortsScript() {
     const backUploads = currentShortsProject.backUploads || [];
     const neededAiCuts = Math.max(0, SHORTS_TARGET_CUT_COUNT - backUploads.length);
     const perCutDuration = Math.max(3, Math.round(22 / SHORTS_TARGET_CUT_COUNT));
+    // A soft target, not a hard cap enforced in code -- a previous attempt at
+    // truncating narration text after the fact lost meaning mid-sentence,
+    // which was worse than a slightly-too-long script. This just steers the
+    // model toward writing concisely from the start (~4.5 Hangul chars per
+    // second of natural TTS speaking speed), so 재생 속도 (1.1~1.2x) and
+    // "이미지 컷 1초씩 늘리기" don't have to compensate for as much on
+    // every single script.
+    const targetNarrationChars = Math.round(perCutDuration * 4.5);
 
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
