@@ -150,14 +150,26 @@
           </div>
         </div>
 
+        <!-- Compact KakaoTalk 3-min news signup -->
+        <div class="newsletter-block compact kakao-block">
+          <div class="newsletter-copy">
+            <h3>카카오톡 3분 뉴스</h3>
+            <p>매일 1회, 3분 뉴스 브리핑을 카카오톡으로 받아보세요.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="handleKakaoSubscribe(event)">
+            <input type="tel" id="kakao-phone" placeholder="휴대폰 번호" class="newsletter-input" required aria-label="휴대폰 번호" pattern="01[0-9]-?[0-9]{3,4}-?[0-9]{4}">
+            <button type="submit" class="btn" id="kakao-submit-btn">신청하기</button>
+          </form>
+        </div>
+
         <!-- Compact newsletter signup -->
         <div class="newsletter-block compact">
           <div class="newsletter-copy">
             <h3>바이칼뉴스 뉴스레터</h3>
             <p>매주 목요일, 엄선한 지역 소식을 받아보세요.</p>
           </div>
-          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('구독해 주셔서 감사합니다! 입력하신 이메일로 메일이 발송됩니다.'); this.reset();">
-            <input type="email" placeholder="이메일 주소" class="newsletter-input" required aria-label="이메일 주소">
+          <form class="newsletter-form" onsubmit="handleNewsletterSubscribe(event)">
+            <input type="email" id="newsletter-email" placeholder="이메일 주소" class="newsletter-input" required aria-label="이메일 주소">
             <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독하기</button>
           </form>
         </div>

@@ -180,33 +180,32 @@
       <div id="photo-gallery-container" class="photo-grid"></div>
     </section>
 
-    <!-- 6b. KakaoTalk 3-min News -->
-    <section class="home-section" id="kakao-subscribe">
-      <div class="newsletter-block kakao-block">
-        <div class="newsletter-copy">
-          <h3>카카오톡으로 3분 뉴스받기</h3>
-          <p>매일 하루 1회, 그날 꼭 알아야 할 뉴스를 3분 안에 정리해 카카오톡으로 보내드립니다. 지금 신청해두시면 카카오톡 채널 개설과 동시에 발송을 시작합니다.</p>
+    <!-- 6b/7. Subscribe row: KakaoTalk + Newsletter side by side -->
+    <section class="home-section">
+      <div class="subscribe-row">
+        <div class="newsletter-block kakao-block" id="kakao-subscribe">
+          <div class="newsletter-copy">
+            <h3>카카오톡으로 3분 뉴스받기</h3>
+            <p>매일 하루 1회, 그날 꼭 알아야 할 뉴스를 3분 안에 정리해 카카오톡으로 보내드립니다. 지금 신청해두시면 카카오톡 채널 개설과 동시에 발송을 시작합니다.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="handleKakaoSubscribe(event)">
+            <input type="tel" id="kakao-phone" placeholder="휴대폰 번호 (예: 010-1234-5678)" class="newsletter-input" required aria-label="휴대폰 번호" pattern="01[0-9]-?[0-9]{3,4}-?[0-9]{4}">
+            <button type="submit" class="btn" id="kakao-submit-btn">3분 뉴스 신청</button>
+          </form>
+          <p class="newsletter-disclaimer">신청 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
         </div>
-        <form class="newsletter-form" onsubmit="handleKakaoSubscribe(event)">
-          <input type="tel" id="kakao-phone" placeholder="휴대폰 번호 (예: 010-1234-5678)" class="newsletter-input" required aria-label="휴대폰 번호" pattern="01[0-9]-?[0-9]{3,4}-?[0-9]{4}">
-          <button type="submit" class="btn" id="kakao-submit-btn">3분 뉴스 신청</button>
-        </form>
-        <p class="newsletter-disclaimer">신청 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
-      </div>
-    </section>
 
-    <!-- 7. Newsletter -->
-    <section class="home-section" id="newsletter">
-      <div class="newsletter-block">
-        <div class="newsletter-copy">
-          <h3>바이칼 뉴스레터 구독</h3>
-          <p>한 주간의 깊이 있고 신뢰할 수 있는 문화, 지역 정책, 경제 및 기술 소식을 이메일로 받아보세요. 스팸 없이 오직 투명한 보도만을 전합니다.</p>
+        <div class="newsletter-block" id="newsletter">
+          <div class="newsletter-copy">
+            <h3>바이칼 뉴스레터 구독</h3>
+            <p>한 주간의 깊이 있고 신뢰할 수 있는 문화, 지역 정책, 경제 및 기술 소식을 이메일로 받아보세요. 스팸 없이 오직 투명한 보도만을 전합니다.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="handleNewsletterSubscribe(event)">
+            <input type="email" id="newsletter-email" placeholder="이메일 주소를 입력하세요" class="newsletter-input" required aria-label="이메일 주소">
+            <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독 신청</button>
+          </form>
+          <p class="newsletter-disclaimer">구독 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
         </div>
-        <form class="newsletter-form" onsubmit="handleNewsletterSubscribe(event)">
-          <input type="email" id="newsletter-email" placeholder="이메일 주소를 입력하세요" class="newsletter-input" required aria-label="이메일 주소">
-          <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독 신청</button>
-        </form>
-        <p class="newsletter-disclaimer">구독 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
       </div>
     </section>
 

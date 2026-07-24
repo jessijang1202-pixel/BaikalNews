@@ -542,6 +542,28 @@
   text-decoration: underline;
 }
 
+/* Side-by-side KakaoTalk + Newsletter -- two full-width stacked blocks felt
+   heavy, so each takes half the row instead. flex-wrap (no media query
+   needed) drops to one column once two 320px-min halves no longer fit.
+   Each half stacks its own heading/form vertically instead of the full-width
+   block's side-by-side layout, which doesn't have room to breathe at half
+   width. */
+.subscribe-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.subscribe-row .newsletter-block {
+  flex: 1 1 320px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.subscribe-row .newsletter-form {
+  flex-basis: auto;
+  width: 100%;
+}
+
 /* KakaoTalk 3-min news signup -- same layout as the newsletter block, just
    re-tinted to Kakao's actual brand yellow (#FEE500) so it reads as "the
    Kakao one" at a glance, positioned above the newsletter block so readers
@@ -592,8 +614,13 @@
   border: 1px solid var(--border-medium);
 }
 
-.newsletter-block.compact #newsletter-submit-btn {
+.newsletter-block.compact #newsletter-submit-btn,
+.newsletter-block.compact #kakao-submit-btn {
   width: 100%;
+}
+
+.newsletter-block.compact.kakao-block {
+  margin-bottom: 24px;
 }
 
 /* ============================================================
