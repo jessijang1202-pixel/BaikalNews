@@ -3560,6 +3560,7 @@ function saveShortsDraftLocally() {
     captionFontSize: currentShortsProject.captionFontSize,
     captionColor: currentShortsProject.captionColor,
     captionPosition: currentShortsProject.captionPosition,
+    narrationSpeed: currentShortsProject.narrationSpeed,
     createdBy: currentShortsProject.createdBy || '',
     updatedAt: new Date().toISOString()
   };
@@ -4019,6 +4020,7 @@ async function openShortsProject(id) {
   currentShortsProject.captionFontSize = scriptJson.captionFontSize;
   currentShortsProject.captionColor = scriptJson.captionColor;
   currentShortsProject.captionPosition = scriptJson.captionPosition;
+  currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.2;
   // frontUpload/backUploads are transient staging state (not persisted --
   // once media generation runs they're baked into veoVideoUrl/imageCuts),
   // so reopening a saved project always starts with an empty upload queue.
@@ -4096,7 +4098,8 @@ async function openLocalShortsDraft(localDraftId) {
     topBarTitleFontSize: draft.topBarTitleFontSize,
     captionFontSize: draft.captionFontSize,
     captionColor: draft.captionColor,
-    captionPosition: draft.captionPosition
+    captionPosition: draft.captionPosition,
+    narrationSpeed: draft.narrationSpeed || 1.2
   };
   shortsAssets = null;
 
@@ -4257,7 +4260,8 @@ async function syncShortsScriptToSupabase() {
         topBarTitleColorLine2: currentShortsProject.topBarTitleColorLine2,
         captionFontSize: currentShortsProject.captionFontSize,
         captionColor: currentShortsProject.captionColor,
-        captionPosition: currentShortsProject.captionPosition
+        captionPosition: currentShortsProject.captionPosition,
+        narrationSpeed: currentShortsProject.narrationSpeed
       },
       createdBy: currentShortsProject.createdBy || (session ? session.name : '')
     };
@@ -4429,26 +4433,6 @@ async function handleShortsStyleUpload(event) {
   }
 }
 
-// Hard-enforced narration length cap -- the script-generation prompt asks
-// the model to stay within a character budget, but "asked nicely" isn't a
-// limit; the model still regularly returned narration long enough that
-// every cut ended up needing the 30s-cap compression, and long enough past
-// its compressed slot to audibly cut off mid-sentence. This truncates for
-// real, preferring to cut at the last sentence-ending punctuation (or word
-// boundary) within range rather than chopping mid-word.
-function truncateShortsNarrationText(text, maxChars) {
-  if (!text || text.length <= maxChars) return text;
-  const truncated = text.slice(0, maxChars);
-  const lastSentenceEnd = Math.max(
-    truncated.lastIndexOf('다.'), truncated.lastIndexOf('요.'),
-    truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?')
-  );
-  if (lastSentenceEnd > maxChars * 0.5) return truncated.slice(0, lastSentenceEnd + 1);
-  const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > maxChars * 0.5) return truncated.slice(0, lastSpace);
-  return truncated;
-}
-
 async function generateShortsScript() {
   const articleId = parseInt(document.getElementById("shorts-article-select").value, 10);
   if (!articleId) {
@@ -4479,15 +4463,8 @@ async function generateShortsScript() {
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
-    // Roughly 4~5 Hangul characters per second at natural TTS speaking speed --
-    // gives the model a concrete length ceiling instead of the open-ended "longer
-    // than the caption, descriptive" instruction that used to let narration run
-    // arbitrarily long. Actual TTS duration still drives each cut's final display
-    // time (generateCutNarration), but a runaway total is now also hard-capped
-    // at render/record time (see SHORTS_TARGET_TOTAL_DURATION in runShortsTimeline).
-    const maxNarrationChars = Math.round(perCutDuration * 4.5);
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로, 반드시 ${maxNarrationChars}자 이내 -- 소리 내어 읽었을 때 ${perCutDuration}초 안팎에 끝나야 전체 영상이 30초를 넘지 않습니다), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -4517,7 +4494,7 @@ ${backInstruction}
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로, ${maxNarrationChars}자 이내)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
@@ -4529,8 +4506,7 @@ ${backInstruction}
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
-      prompt: c.prompt || '', caption: c.caption || '',
-      narrationText: truncateShortsNarrationText(c.narration || c.caption || '', maxNarrationChars),
+      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.narration || c.caption || '',
       duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
@@ -5279,63 +5255,6 @@ async function regenerateHookNarration() {
   }
 }
 
-// One-click fix for "every cut's narration is long" (as opposed to just one
-// or two, where trimming/regenerating a single cut by hand is easier).
-// Rewrites each cut's 대본 to fit its share of the 30s budget via a cheap
-// Gemini TEXT call -- no Veo/image cost involved -- then regenerates that
-// cut's narration audio. truncateShortsNarrationText() is a hard backstop
-// in case the rewrite still comes back too long.
-async function condenseAllShortsNarration() {
-  if (!currentShortsProject) return;
-  currentShortsProject.imageCuts = readImageCutsFromDom();
-  const cuts = currentShortsProject.imageCuts || [];
-  if (cuts.length === 0) return;
-  if (!confirm(`${cuts.length}개 컷의 대본을 모두 더 짧게 다시 써서 나레이션을 재생성합니다.\n\n(텍스트 축약 + 나레이션 음성 생성만 사용 -- Veo/이미지 재생성 비용은 들지 않습니다.)\n\n계속할까요?`)) return;
-
-  const statusEl = document.getElementById("shorts-narration-status");
-  const voiceSelect = document.getElementById("shorts-narration-voice");
-  const voiceName = voiceSelect ? voiceSelect.value : "Kore";
-  const draftId = ensureShortsLocalDraftId();
-
-  // Front duration isn't stored on the project itself (only computed at
-  // asset-build time) -- 8s is the cap every front segment is built toward,
-  // so it's a reasonable approximation for sizing this budget.
-  const APPROX_FRONT_DURATION = 8;
-  const perCutBudget = Math.max(2, (30 - APPROX_FRONT_DURATION) / cuts.length);
-  const maxChars = Math.round(perCutBudget * 4.5);
-
-  beginShortsBusyOperation();
-  try {
-    for (let i = 0; i < cuts.length; i++) {
-      const cut = cuts[i];
-      if (!cut.narrationText) continue;
-      if (statusEl) statusEl.textContent = `컷 ${i + 1} 대본 줄이는 중... (${i + 1}/${cuts.length})`;
-      const prompt = `다음 문장을 같은 의미와 어조를 유지하면서 반드시 ${maxChars}자 이내의 자연스러운 한글 문장으로 줄이십시오. 다른 설명이나 따옴표 없이 줄인 문장만 출력하십시오.\n\n[원문]\n${cut.narrationText}`;
-      try {
-        const shortened = await callGeminiTextApi(prompt, "당신은 방송용 나레이션 대본을 압축하는 편집자입니다. 의미를 유지하면서 정확한 글자 수 제한 안에서 자연스러운 문장을 만듭니다.");
-        cut.narrationText = truncateShortsNarrationText(shortened.trim().replace(/^["']|["']$/g, ''), maxChars);
-      } catch (err) {
-        console.error(`컷 ${i + 1} 대본 축약 실패, 강제로 자릅니다:`, err);
-        cut.narrationText = truncateShortsNarrationText(cut.narrationText, maxChars);
-      }
-      if (statusEl) statusEl.textContent = `컷 ${i + 1} 나레이션 재생성 중... (${i + 1}/${cuts.length})`;
-      await generateCutNarration(cut, cut.narrationText, voiceName, draftId);
-    }
-    renderImageCutsEditor(currentShortsProject.imageCuts);
-    renderShortsNarrationRecap();
-    shortsAssets = null;
-    saveShortsDraftLocally();
-    await syncShortsScriptToSupabase();
-    if (statusEl) statusEl.textContent = "모든 컷의 대본을 줄이고 나레이션을 다시 생성했습니다.";
-  } catch (err) {
-    console.error("나레이션 일괄 축약 실패:", err);
-    alert("나레이션 일괄 축약 실패: " + err.message);
-    if (statusEl) statusEl.textContent = "나레이션 일괄 축약 실패: " + err.message;
-  } finally {
-    endShortsBusyOperation();
-  }
-}
-
 async function generateShortsMedia() {
   const statusEl = document.getElementById("shorts-media-status");
   const btn = document.getElementById("shorts-generate-media-btn");
@@ -5400,6 +5319,7 @@ function populateShortsStyleSettingsUI() {
   const sizeInput = document.getElementById("shorts-caption-size");
   const captionColorInput = document.getElementById("shorts-caption-color");
   const positionInput = document.getElementById("shorts-caption-position");
+  const narrationSpeedInput = document.getElementById("shorts-narration-speed");
   if (colorInput) colorInput.value = currentShortsProject.topBarColor || '#0b1a30';
   if (heightInput) heightInput.value = currentShortsProject.topBarHeight || 360;
   if (titleSizeInput) titleSizeInput.value = currentShortsProject.topBarTitleFontSize || 110;
@@ -5410,6 +5330,7 @@ function populateShortsStyleSettingsUI() {
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 72;
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
   if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
+  if (narrationSpeedInput) narrationSpeedInput.value = currentShortsProject.narrationSpeed || 1.2;
   renderShortsNarrationRecap();
 }
 
@@ -5525,6 +5446,7 @@ function updateShortsStyleSettings() {
   const sizeInput = document.getElementById("shorts-caption-size");
   const captionColorInput = document.getElementById("shorts-caption-color");
   const positionInput = document.getElementById("shorts-caption-position");
+  const narrationSpeedInput = document.getElementById("shorts-narration-speed");
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
   currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 360) : 360;
   currentShortsProject.topBarTitleFontSize = titleSizeInput ? (parseInt(titleSizeInput.value, 10) || 110) : 110;
@@ -5535,6 +5457,8 @@ function updateShortsStyleSettings() {
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 72) : 72;
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
   currentShortsProject.captionPosition = positionInput ? positionInput.value : 'bottom';
+  currentShortsProject.narrationSpeed = narrationSpeedInput ? (parseFloat(narrationSpeedInput.value) || 1.2) : 1.2;
+  shortsAssets = null; // playbackRate/timing baked into the built assets -- force a rebuild so the new speed actually takes effect
   saveShortsDraftLocally();
 }
 
@@ -5898,19 +5822,26 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
   const W = canvas.width, H = canvas.height;
   const frontDuration = assets.front.duration;
 
-  // Each cut's duration comes from its own narration clip's actual length
-  // (set when the narration was generated), with nothing capping the sum --
-  // if the AI wrote long narration sentences (or a couple ran long), the
-  // final video could end up well over a minute instead of the intended
-  // 30s. generateShortsScript() now asks for shorter narration up front,
-  // but that's not a guarantee (TTS speed/model compliance both vary), so
-  // this is the hard backstop: if the cuts' natural total would blow the
-  // 30s budget, scale all of them down proportionally to fit exactly.
-  // Narration audio itself isn't cut short -- only how long each image is
-  // DISPLAYED before advancing -- so a still-long clip may bleed slightly
-  // into the next cut's visual rather than being cut off abruptly.
+  // Full narration content is preserved (no text trimming/truncation) --
+  // instead, narration plays back faster via AudioBufferSourceNode.playbackRate,
+  // which shortens its actual duration without cutting a single word.
+  // Admin-adjustable (Step 4, default 1.2x); raise it further if narration
+  // still overlaps or runs long.
+  const narrationSpeed = project.narrationSpeed || 1.2;
+
+  // Each cut's visual duration is its own narration clip's natural length
+  // (set when the narration was generated), shortened by the speed factor
+  // above to match how long it'll actually take to play at that speed. This
+  // is a hard backstop on top of that: if the total would STILL blow the
+  // 30s budget even after speeding up (e.g. speed left at 1.0x with long
+  // narration), scale all cuts down proportionally to fit exactly rather
+  // than let the video run long. Narration audio itself still isn't cut
+  // short by this scaling -- only how long each image is DISPLAYED before
+  // advancing -- so a still-long clip may bleed slightly into the next
+  // cut's visual rather than being cut off abruptly (the per-segment
+  // stop() below is the actual cutoff backstop for that case).
   const SHORTS_TARGET_TOTAL_DURATION = 30;
-  const cutDurations = (project.imageCuts || []).map(c => c.duration || 0);
+  const cutDurations = (project.imageCuts || []).map(c => Math.max(1, (c.duration || 0) / narrationSpeed));
   const backBudget = Math.max(1, SHORTS_TARGET_TOTAL_DURATION - frontDuration);
   const naturalBackTotal = cutDurations.reduce((s, d) => s + d, 0);
   if (naturalBackTotal > backBudget) {
@@ -5919,7 +5850,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
   }
   const totalDuration = frontDuration + cutDurations.reduce((s, d) => s + d, 0);
   const hookCaptionDuration = assets.hookNarrationBuffer
-    ? Math.min(assets.hookNarrationBuffer.duration, frontDuration)
+    ? Math.min(assets.hookNarrationBuffer.duration / narrationSpeed, frontDuration)
     : 3;
 
   let recorder = null;
@@ -5964,6 +5895,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
       if (assets.hookNarrationBuffer) {
         const src = assets.audioCtx.createBufferSource();
         src.buffer = assets.hookNarrationBuffer;
+        src.playbackRate.value = narrationSpeed;
         src.connect(assets.mixDestination);
         src.connect(assets.audioCtx.destination);
         src.start(base);
@@ -5977,6 +5909,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
         if (imgAsset.narrationBuffer) {
           const src = assets.audioCtx.createBufferSource();
           src.buffer = imgAsset.narrationBuffer;
+          src.playbackRate.value = narrationSpeed;
           src.connect(assets.mixDestination);
           src.connect(assets.audioCtx.destination);
           src.start(base + segmentStart);
