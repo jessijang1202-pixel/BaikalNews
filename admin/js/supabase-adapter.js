@@ -780,7 +780,8 @@
               amount: Number(row.amount) || 0,
               expenseDate: row.expense_date,
               isRecurring: !!row.is_recurring,
-              memo: row.memo || ''
+              memo: row.memo || '',
+              receiptUrl: row.receipt_url || ''
             }));
           } catch (err) {
             console.error("Supabase fetchExpenses error:", err);
@@ -799,7 +800,8 @@
         amount: expense.amount,
         expense_date: expense.expenseDate,
         is_recurring: !!expense.isRecurring,
-        memo: expense.memo || ''
+        memo: expense.memo || '',
+        receipt_url: expense.receiptUrl || null
       };
       const { error } = await client.from('expenses').insert(dbRow);
       if (error) throw error;

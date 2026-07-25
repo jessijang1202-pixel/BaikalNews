@@ -1392,6 +1392,10 @@
                   <label for="expense-memo">메모 (선택)</label>
                   <input type="text" id="expense-memo" class="form-control-admin" placeholder="예: 6개월 약정, 팀 결제 등">
                 </div>
+                <div class="form-group-admin">
+                  <label for="expense-receipt">영수증 첨부 (선택, 이미지 또는 PDF)</label>
+                  <input type="file" id="expense-receipt" class="form-control-admin" accept="image/*,application/pdf">
+                </div>
                 <div class="form-group-admin" style="display:flex; align-items:center; gap:8px; margin-top: 22px;">
                   <input type="checkbox" id="expense-recurring" style="width:auto;">
                   <label for="expense-recurring" style="margin:0;">매달 반복되는 월정액 비용입니다 (상단 박스에 표시)</label>
@@ -1408,14 +1412,14 @@
             <div class="admin-table-wrapper" style="max-height: 480px; overflow-y: auto;">
               <table class="admin-table">
                 <thead>
-                  <tr><th>결제일</th><th>항목</th><th>구분</th><th>금액</th><th>월정액</th><th>메모</th><th>작업</th></tr>
+                  <tr><th>결제일</th><th>항목</th><th>구분</th><th>금액</th><th>월정액</th><th>메모</th><th>영수증</th><th>작업</th></tr>
                 </thead>
                 <tbody id="expense-ledger-list"></tbody>
                 <tfoot>
                   <tr style="font-weight:700; border-top: 2px solid var(--admin-border);">
                     <td colspan="3">합계</td>
                     <td id="expense-ledger-total">0원</td>
-                    <td colspan="3"></td>
+                    <td colspan="4"></td>
                   </tr>
                 </tfoot>
               </table>

@@ -6896,7 +6896,7 @@ function renderExpenseLedgerList() {
   if (totalEl) totalEl.textContent = `${total.toLocaleString('ko-KR')}원`;
 
   if (expensesCache.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="help-text" style="text-align:center;">등록된 지출 내역이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="help-text" style="text-align:center;">등록된 지출 내역이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = expensesCache.map(e => `
@@ -6907,6 +6907,7 @@ function renderExpenseLedgerList() {
       <td>${e.amount.toLocaleString('ko-KR')}원</td>
       <td>${e.isRecurring ? '✔' : ''}</td>
       <td>${e.memo || ''}</td>
+      <td>${e.receiptUrl ? `<a href="${e.receiptUrl}" target="_blank" rel="noopener">보기</a>` : ''}</td>
       <td><a onclick="deleteExpenseRow(${e.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
     </tr>
   `).join('');
@@ -6920,6 +6921,7 @@ async function submitExpenseForm(event) {
   const expenseDate = document.getElementById("expense-date").value;
   const memo = document.getElementById("expense-memo").value.trim();
   const isRecurring = document.getElementById("expense-recurring").checked;
+  const receiptFile = document.getElementById("expense-receipt").files[0] || null;
 
   if (!itemName || !amount || !expenseDate) {
     alert("항목명, 금액, 결제일을 모두 입력해 주세요.");
@@ -6929,7 +6931,16 @@ async function submitExpenseForm(event) {
   const submitBtn = event.target.querySelector('button[type="submit"]');
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "등록 중..."; }
   try {
-    await window.SupabaseAdapter.saveExpense({ category, itemName, amount, expenseDate, isRecurring, memo });
+    let receiptUrl = '';
+    if (receiptFile) {
+      if (submitBtn) submitBtn.textContent = "영수증 업로드 중...";
+      // PDFs pass straight through (resizeAndCompressImage rejects on a
+      // non-image and uploadImageToStorage falls back to the raw file);
+      // image receipts get the same downscale/recompress as article images.
+      receiptUrl = await uploadImageToStorage(receiptFile, null, 'receipt');
+      if (submitBtn) submitBtn.textContent = "등록 중...";
+    }
+    await window.SupabaseAdapter.saveExpense({ category, itemName, amount, expenseDate, isRecurring, memo, receiptUrl });
     event.target.reset();
     document.getElementById("expense-date").value = new Date().toISOString().slice(0, 10);
     await renderExpensesTab();
