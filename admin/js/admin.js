@@ -6889,7 +6889,12 @@ function renderRecurringExpensesBox() {
 
 function renderExpenseLedgerList() {
   const tbody = document.getElementById("expense-ledger-list");
+  const totalEl = document.getElementById("expense-ledger-total");
   if (!tbody) return;
+
+  const total = expensesCache.reduce((sum, e) => sum + e.amount, 0);
+  if (totalEl) totalEl.textContent = `${total.toLocaleString('ko-KR')}원`;
+
   if (expensesCache.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="help-text" style="text-align:center;">등록된 지출 내역이 없습니다.</td></tr>';
     return;
