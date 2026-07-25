@@ -544,7 +544,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'subscribers', 'curation', 'api-costs', 'settings'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'subscribers', 'curation', 'expenses', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -635,7 +635,7 @@ async function switchTab(tabName) {
     newsletter: "뉴스레터",
     subscribers: "구독자 관리",
     curation: "홈화면 큐레이션 통제",
-    'api-costs': "API 사용 비용 관리",
+    expenses: "비용 관리",
     settings: "설정"
   };
   const titleEl = document.getElementById("current-tab-title");
@@ -671,6 +671,8 @@ async function switchTab(tabName) {
     await renderKakaoSubscriberBriefing();
   } else if (tabName === 'curation') {
     await populateCurationDropdowns();
+  } else if (tabName === 'expenses') {
+    await renderExpensesTab();
   }
 
   setRouteHash('#' + tabName);
@@ -6817,6 +6819,222 @@ async function copyKakaoPhoneList() {
   } catch (err) {
     console.error("클립보드 복사 실패:", err);
     alert("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
+  }
+}
+
+// ==========================================
+// 비용 관리 (법인카드 지출) -- unlike the subscriber lists, these are
+// admin-entered financial records with no meaningful "empty" fallback, so
+// save/delete failures alert instead of failing silently (same principle
+// applied to shorts media and article-save this session).
+// ==========================================
+let expensesCache = [];
+let expenseReportMonthOffset = 0; // 0 = current month, negative = past months
+
+async function renderExpensesTab() {
+  expensesCache = await window.SupabaseAdapter.fetchExpenses();
+  renderRecurringExpensesBox();
+  renderExpenseLedgerList();
+  expenseReportMonthOffset = 0;
+  renderExpenseMonthlyReport();
+
+  const dateEl = document.getElementById("expense-date");
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+}
+
+function switchExpenseSubTab(key, btnEl) {
+  document.querySelectorAll(".expense-subtab-btn").forEach(btn => {
+    btn.classList.remove("btn-admin-primary");
+    btn.classList.add("btn-admin-secondary");
+  });
+  if (btnEl) {
+    btnEl.classList.remove("btn-admin-secondary");
+    btnEl.classList.add("btn-admin-primary");
+  }
+  document.querySelectorAll(".expense-subtab-content").forEach(el => { el.style.display = "none"; });
+  const target = document.getElementById("expense-subtab-" + key);
+  if (target) target.style.display = "block";
+}
+
+// De-dupes by item name, keeping only the latest entry -- an admin logging
+// "노션 구독" as a new ledger row every month it renews shouldn't make the
+// same subscription show up multiple times in this at-a-glance box.
+function renderRecurringExpensesBox() {
+  const box = document.getElementById("expense-recurring-box");
+  const totalEl = document.getElementById("expense-recurring-total");
+  if (!box) return;
+
+  const recurring = expensesCache.filter(e => e.isRecurring);
+  if (recurring.length === 0) {
+    box.innerHTML = '<div class="help-text">등록된 월정액 항목이 없습니다. 아래 "지출 내역"에서 등록 시 "매달 반복되는 월정액 비용"에 체크하세요.</div>';
+    if (totalEl) totalEl.textContent = "0원 / 월";
+    return;
+  }
+
+  const latestByName = new Map();
+  recurring.forEach(e => {
+    const existing = latestByName.get(e.itemName);
+    if (!existing || e.expenseDate > existing.expenseDate) latestByName.set(e.itemName, e);
+  });
+  const items = [...latestByName.values()].sort((a, b) => b.amount - a.amount);
+  const total = items.reduce((sum, e) => sum + e.amount, 0);
+
+  if (totalEl) totalEl.textContent = `${total.toLocaleString('ko-KR')}원 / 월`;
+  box.innerHTML = items.map(e => `
+    <div style="background: var(--admin-bg-body); border:1px solid var(--admin-border); border-radius:6px; padding:8px 12px; font-size:0.8rem; white-space:nowrap;">
+      <strong>${e.itemName}</strong> · ${e.amount.toLocaleString('ko-KR')}원
+    </div>
+  `).join('');
+}
+
+function renderExpenseLedgerList() {
+  const tbody = document.getElementById("expense-ledger-list");
+  if (!tbody) return;
+  if (expensesCache.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="help-text" style="text-align:center;">등록된 지출 내역이 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = expensesCache.map(e => `
+    <tr>
+      <td>${e.expenseDate}</td>
+      <td>${e.itemName}</td>
+      <td>${e.category}</td>
+      <td>${e.amount.toLocaleString('ko-KR')}원</td>
+      <td>${e.isRecurring ? '✔' : ''}</td>
+      <td>${e.memo || ''}</td>
+      <td><a onclick="deleteExpenseRow(${e.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
+    </tr>
+  `).join('');
+}
+
+async function submitExpenseForm(event) {
+  event.preventDefault();
+  const category = document.getElementById("expense-category").value;
+  const itemName = document.getElementById("expense-item-name").value.trim();
+  const amount = Number(document.getElementById("expense-amount").value);
+  const expenseDate = document.getElementById("expense-date").value;
+  const memo = document.getElementById("expense-memo").value.trim();
+  const isRecurring = document.getElementById("expense-recurring").checked;
+
+  if (!itemName || !amount || !expenseDate) {
+    alert("항목명, 금액, 결제일을 모두 입력해 주세요.");
+    return;
+  }
+
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "등록 중..."; }
+  try {
+    await window.SupabaseAdapter.saveExpense({ category, itemName, amount, expenseDate, isRecurring, memo });
+    event.target.reset();
+    document.getElementById("expense-date").value = new Date().toISOString().slice(0, 10);
+    await renderExpensesTab();
+    alert("지출이 등록되었습니다.");
+  } catch (err) {
+    console.error("지출 등록 실패:", err);
+    alert("⚠ 지출 등록에 실패했습니다 (저장되지 않았습니다): " + err.message);
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "지출 등록"; }
+  }
+}
+
+async function deleteExpenseRow(id) {
+  if (!confirm("이 지출 내역을 삭제하시겠습니까?")) return;
+  try {
+    await window.SupabaseAdapter.deleteExpense(id);
+    await renderExpensesTab();
+  } catch (err) {
+    console.error("지출 삭제 실패:", err);
+    alert("⚠ 삭제에 실패했습니다: " + err.message);
+  }
+}
+
+function changeExpenseReportMonth(delta) {
+  expenseReportMonthOffset += delta;
+  if (expenseReportMonthOffset > 0) expenseReportMonthOffset = 0; // never into the future
+  renderExpenseMonthlyReport();
+}
+
+// Compares "YYYY-MM" string prefixes rather than Date objects on purpose --
+// parsing a plain "YYYY-MM-DD" string with `new Date()` reads it as UTC
+// midnight, which can shift into the wrong local month depending on the
+// browser's timezone. String comparison sidesteps that entirely.
+function renderExpenseMonthlyReport() {
+  const labelEl = document.getElementById("expense-report-month-label");
+  const totalEl = document.getElementById("expense-report-total");
+  const trendEl = document.getElementById("expense-report-total-trend");
+  const recurringEl = document.getElementById("expense-report-recurring");
+  const countEl = document.getElementById("expense-report-count");
+  const breakdownEl = document.getElementById("expense-report-breakdown");
+  const listEl = document.getElementById("expense-report-list");
+  if (!labelEl) return;
+
+  const now = new Date();
+  let y = now.getFullYear();
+  let m = now.getMonth() + expenseReportMonthOffset; // 0-indexed, can go negative/over 11
+  while (m < 0) { m += 12; y -= 1; }
+  while (m > 11) { m -= 12; y += 1; }
+  const monthKey = `${y}-${String(m + 1).padStart(2, '0')}`;
+  labelEl.textContent = `${y}년 ${m + 1}월`;
+
+  const monthItems = expensesCache.filter(e => e.expenseDate && e.expenseDate.slice(0, 7) === monthKey);
+  const total = monthItems.reduce((sum, e) => sum + e.amount, 0);
+  const recurringTotal = monthItems.filter(e => e.isRecurring).reduce((sum, e) => sum + e.amount, 0);
+
+  let py = m - 1, pyYear = y;
+  if (py < 0) { py = 11; pyYear -= 1; }
+  const prevMonthKey = `${pyYear}-${String(py + 1).padStart(2, '0')}`;
+  const prevTotal = expensesCache
+    .filter(e => e.expenseDate && e.expenseDate.slice(0, 7) === prevMonthKey)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  totalEl.textContent = `${total.toLocaleString('ko-KR')}원`;
+  recurringEl.textContent = `${recurringTotal.toLocaleString('ko-KR')}원`;
+  countEl.textContent = `${monthItems.length}건`;
+
+  if (prevTotal > 0) {
+    const diffPct = Math.round(((total - prevTotal) / prevTotal) * 100);
+    trendEl.textContent = diffPct === 0 ? "전월과 동일" : (diffPct > 0 ? `전월 대비 ▲${diffPct}%` : `전월 대비 ▼${Math.abs(diffPct)}%`);
+  } else {
+    trendEl.textContent = "전월 데이터 없음";
+  }
+
+  const byCategory = {};
+  monthItems.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
+  const categories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+
+  if (categories.length === 0) {
+    breakdownEl.innerHTML = '<div class="help-text">이 달의 지출 내역이 없습니다.</div>';
+  } else {
+    const maxAmount = categories[0][1];
+    breakdownEl.innerHTML = categories.map(([cat, amt]) => {
+      const barPct = Math.round((amt / maxAmount) * 100);
+      const sharePct = total > 0 ? Math.round((amt / total) * 100) : 0;
+      return `
+        <div>
+          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">
+            <span>${cat}</span>
+            <span>${amt.toLocaleString('ko-KR')}원 (${sharePct}%)</span>
+          </div>
+          <div style="background: var(--admin-bg-body); border-radius:4px; height:8px; overflow:hidden;">
+            <div style="background: var(--admin-accent-cyan); height:100%; width:${barPct}%;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (monthItems.length === 0) {
+    listEl.innerHTML = '<tr><td colspan="5" class="help-text" style="text-align:center;">이 달의 지출 내역이 없습니다.</td></tr>';
+  } else {
+    listEl.innerHTML = monthItems.map(e => `
+      <tr>
+        <td>${e.expenseDate}</td>
+        <td>${e.itemName}</td>
+        <td>${e.category}</td>
+        <td>${e.amount.toLocaleString('ko-KR')}원</td>
+        <td>${e.memo || ''}</td>
+      </tr>
+    `).join('');
   }
 }
 

@@ -757,6 +757,64 @@
     },
 
     // ==========================================
+    // 비용 관리 (법인카드 지출 내역) -- unlike the subscriber lists above,
+    // this has no meaningful local fallback (it's admin-entered financial
+    // records, not something that can silently degrade to "empty"), so
+    // save/update/delete throw on failure instead of swallowing the error --
+    // the caller alerts the admin rather than pretending it saved.
+    // ==========================================
+    fetchExpenses: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('expenses')
+              .select('*')
+              .order('expense_date', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              category: row.category,
+              itemName: row.item_name,
+              amount: Number(row.amount) || 0,
+              expenseDate: row.expense_date,
+              isRecurring: !!row.is_recurring,
+              memo: row.memo || ''
+            }));
+          } catch (err) {
+            console.error("Supabase fetchExpenses error:", err);
+          }
+        }
+      }
+      return [];
+    },
+
+    saveExpense: async function(expense) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const dbRow = {
+        category: expense.category,
+        item_name: expense.itemName,
+        amount: expense.amount,
+        expense_date: expense.expenseDate,
+        is_recurring: !!expense.isRecurring,
+        memo: expense.memo || ''
+      };
+      const { error } = await client.from('expenses').insert(dbRow);
+      if (error) throw error;
+      return true;
+    },
+
+    deleteExpense: async function(id) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const { error } = await client.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+
+    // ==========================================
     // 숏폼(Shorts) Projects
     // ==========================================
     fetchShorts: async function() {

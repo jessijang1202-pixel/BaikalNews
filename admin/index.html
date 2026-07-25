@@ -75,8 +75,8 @@
       <li class="sidebar-item" data-tab="curation">
         <a>홈화면 큐레이션</a>
       </li>
-      <li class="sidebar-item" data-tab="api-costs">
-        <a>API 비용 관리</a>
+      <li class="sidebar-item" data-tab="expenses">
+        <a>비용 관리</a>
       </li>
       <li class="sidebar-item" data-tab="settings">
         <a>설정</a>
@@ -1330,44 +1330,178 @@
         </div>
       </section>
 
-      <!-- ================= TAB: API COST MANAGEMENT ================= -->
-      <section id="tab-api-costs" class="tab-content">
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">API 비용 관리</h3>
-            <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">각 서비스 콘솔에서 실시간 사용량/비용 확인</span>
+      <!-- ================= TAB: EXPENSE MANAGEMENT ================= -->
+      <section id="tab-expenses" class="tab-content">
+
+        <!-- Small "at a glance" box for recurring monthly costs (data plan,
+             SaaS subscriptions, etc.) -- kept visible above the sub-tabs so
+             checking "what do I pay every month" never requires digging
+             through the full ledger. -->
+        <div class="panel" style="padding: 16px 20px; margin-bottom: 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h4 style="font-size: 0.9rem; margin: 0;">📌 월정액 항목 (매달 고정으로 나가는 비용)</h4>
+            <span id="expense-recurring-total" style="font-weight:700; color: var(--admin-accent-cyan);">0원 / 월</span>
+          </div>
+          <div id="expense-recurring-box" style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div class="help-text">불러오는 중...</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:24px;">
+          <button type="button" class="btn-admin btn-admin-primary expense-subtab-btn" data-subtab="ledger" onclick="switchExpenseSubTab('ledger', this)">지출 내역</button>
+          <button type="button" class="btn-admin btn-admin-secondary expense-subtab-btn" data-subtab="report" onclick="switchExpenseSubTab('report', this)">월별 리포트</button>
+          <button type="button" class="btn-admin btn-admin-secondary expense-subtab-btn" data-subtab="api" onclick="switchExpenseSubTab('api', this)">API 비용</button>
+        </div>
+
+        <!-- Sub-tab: 지출 내역 (register + full ledger) -->
+        <div id="expense-subtab-ledger" class="expense-subtab-content">
+          <div class="panel" style="padding: 24px; margin-bottom: 24px;">
+            <div class="panel-header">
+              <h3 class="panel-title">법인카드 지출 등록</h3>
+            </div>
+            <form id="expense-form" onsubmit="submitExpenseForm(event)">
+              <div class="form-grid-2">
+                <div class="form-group-admin">
+                  <label for="expense-category">비용 항목</label>
+                  <select id="expense-category" class="form-control-admin" required>
+                    <option value="구독료">구독료 (SaaS/소프트웨어)</option>
+                    <option value="데이터/통신비">데이터/통신비</option>
+                    <option value="서버·호스팅비">서버·호스팅비</option>
+                    <option value="사무용품비">사무용품비</option>
+                    <option value="교통비">교통비</option>
+                    <option value="식비/접대비">식비/접대비</option>
+                    <option value="광고·마케팅비">광고·마케팅비</option>
+                    <option value="도서·자료구입비">도서·자료구입비</option>
+                    <option value="소모품비">소모품비</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="expense-item-name">항목명 (예: 노션 구독, SKT 데이터)</label>
+                  <input type="text" id="expense-item-name" class="form-control-admin" required>
+                </div>
+                <div class="form-group-admin">
+                  <label for="expense-amount">금액 (원)</label>
+                  <input type="number" id="expense-amount" class="form-control-admin" min="0" step="1" required>
+                </div>
+                <div class="form-group-admin">
+                  <label for="expense-date">결제일</label>
+                  <input type="date" id="expense-date" class="form-control-admin" required>
+                </div>
+                <div class="form-group-admin">
+                  <label for="expense-memo">메모 (선택)</label>
+                  <input type="text" id="expense-memo" class="form-control-admin" placeholder="예: 6개월 약정, 팀 결제 등">
+                </div>
+                <div class="form-group-admin" style="display:flex; align-items:center; gap:8px; margin-top: 22px;">
+                  <input type="checkbox" id="expense-recurring" style="width:auto;">
+                  <label for="expense-recurring" style="margin:0;">매달 반복되는 월정액 비용입니다 (상단 박스에 표시)</label>
+                </div>
+              </div>
+              <button type="submit" class="btn-admin btn-admin-primary" style="margin-top: 8px;">지출 등록</button>
+            </form>
           </div>
 
-          <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin: 0 24px 20px;">
-            아래 링크는 새 탭에서 열리며, 각 API 제공사의 공식 콘솔로 이동합니다. 청구 데이터는 보통 몇 시간 정도 지연되어 반영됩니다.
-          </p>
+          <div class="panel" style="padding: 24px;">
+            <div class="panel-header">
+              <h3 class="panel-title">전체 지출 내역</h3>
+            </div>
+            <div class="admin-table-wrapper" style="max-height: 480px; overflow-y: auto;">
+              <table class="admin-table">
+                <thead>
+                  <tr><th>결제일</th><th>항목</th><th>구분</th><th>금액</th><th>월정액</th><th>메모</th><th>작업</th></tr>
+                </thead>
+                <tbody id="expense-ledger-list"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-          <div style="display:flex; flex-direction:column; gap:16px; margin: 0 24px 24px;">
-
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
-              <div>
-                <div style="font-weight:600;">🟦 Gemini (Google) API 비용</div>
-                <div class="help-text" style="margin-top:4px;">Google Cloud Billing에서 "Generative Language API" 서비스로 필터링하면 일별 비용을 확인할 수 있습니다.</div>
+        <!-- Sub-tab: 월별 리포트 -->
+        <div id="expense-subtab-report" class="expense-subtab-content" style="display:none;">
+          <div class="panel" style="padding: 24px;">
+            <div class="panel-header">
+              <h3 class="panel-title">월별 비용 리포트</h3>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="changeExpenseReportMonth(-1)">◀</button>
+                <span id="expense-report-month-label" style="font-weight:700; min-width:90px; text-align:center; display:inline-block;"></span>
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="changeExpenseReportMonth(1)">▶</button>
               </div>
-              <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Cloud Billing 열기 ↗</a>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
-              <div>
-                <div style="font-weight:600;">🟦 Gemini (Google) API 사용량</div>
-                <div class="help-text" style="margin-top:4px;">Google AI Studio에서 키별 토큰 사용량 추이를 확인할 수 있습니다.</div>
+            <div class="admin-grid-4" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+              <div class="stat-card" style="background: linear-gradient(135deg, var(--color-blue-deep), #155e95);">
+                <span class="stat-title">이번 달 총 지출</span>
+                <span class="stat-number" id="expense-report-total">0원</span>
+                <span class="stat-trend" id="expense-report-total-trend">전월 대비</span>
               </div>
-              <a href="https://aistudio.google.com/" target="_blank" rel="noopener" class="btn-admin btn-admin-secondary" style="white-space:nowrap;">AI Studio 열기 ↗</a>
+              <div class="stat-card" style="background: linear-gradient(135deg, var(--color-green-deep), #129980);">
+                <span class="stat-title">월정액 고정비</span>
+                <span class="stat-number" id="expense-report-recurring">0원</span>
+                <span class="stat-trend">이 달의 월정액 합계</span>
+              </div>
+              <div class="stat-card" style="background: linear-gradient(135deg, #b8860b, #e0c25e);">
+                <span class="stat-title">지출 건수</span>
+                <span class="stat-number" id="expense-report-count">0건</span>
+                <span class="stat-trend">이 달 등록 건수</span>
+              </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
-              <div>
-                <div style="font-weight:600;">🟪 Claude (Anthropic) API 비용</div>
-                <div class="help-text" style="margin-top:4px;">Anthropic Console의 Billing 메뉴에서 사용량과 청구 금액을 확인할 수 있습니다.</div>
-              </div>
-              <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Anthropic Console 열기 ↗</a>
+            <h4 style="margin-bottom: 12px; font-size: 0.95rem;">항목별 지출 비중</h4>
+            <div id="expense-report-breakdown" style="display:flex; flex-direction:column; gap:8px; margin-bottom: 24px;"></div>
+
+            <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 24px 0;">
+
+            <h4 style="margin-bottom: 12px; font-size: 0.95rem;">이 달의 지출 내역</h4>
+            <div class="admin-table-wrapper" style="max-height: 320px; overflow-y: auto;">
+              <table class="admin-table">
+                <thead>
+                  <tr><th>결제일</th><th>항목</th><th>구분</th><th>금액</th><th>메모</th></tr>
+                </thead>
+                <tbody id="expense-report-list"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-tab: API 비용 (기존 API 비용 관리 화면을 그대로 이동) -->
+        <div id="expense-subtab-api" class="expense-subtab-content" style="display:none;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">API 비용 관리</h3>
+              <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">각 서비스 콘솔에서 실시간 사용량/비용 확인</span>
             </div>
 
+            <p style="font-size: 0.9rem; color: var(--admin-text-secondary); margin: 0 24px 20px;">
+              아래 링크는 새 탭에서 열리며, 각 API 제공사의 공식 콘솔로 이동합니다. 청구 데이터는 보통 몇 시간 정도 지연되어 반영됩니다.
+            </p>
+
+            <div style="display:flex; flex-direction:column; gap:16px; margin: 0 24px 24px;">
+
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+                <div>
+                  <div style="font-weight:600;">🟦 Gemini (Google) API 비용</div>
+                  <div class="help-text" style="margin-top:4px;">Google Cloud Billing에서 "Generative Language API" 서비스로 필터링하면 일별 비용을 확인할 수 있습니다.</div>
+                </div>
+                <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Cloud Billing 열기 ↗</a>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+                <div>
+                  <div style="font-weight:600;">🟦 Gemini (Google) API 사용량</div>
+                  <div class="help-text" style="margin-top:4px;">Google AI Studio에서 키별 토큰 사용량 추이를 확인할 수 있습니다.</div>
+                </div>
+                <a href="https://aistudio.google.com/" target="_blank" rel="noopener" class="btn-admin btn-admin-secondary" style="white-space:nowrap;">AI Studio 열기 ↗</a>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px 20px;">
+                <div>
+                  <div style="font-weight:600;">🟪 Claude (Anthropic) API 비용</div>
+                  <div class="help-text" style="margin-top:4px;">Anthropic Console의 Billing 메뉴에서 사용량과 청구 금액을 확인할 수 있습니다.</div>
+                </div>
+                <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener" class="btn-admin btn-admin-primary" style="white-space:nowrap;">Anthropic Console 열기 ↗</a>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
