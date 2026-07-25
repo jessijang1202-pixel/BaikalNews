@@ -466,7 +466,7 @@
 .newsletter-block {
   background: var(--bg-newsletter);
   border: none;
-  border-radius: var(--border-radius-md);
+  border-radius: 10px;
   padding: 30px 34px;
   display: flex;
   align-items: center;
