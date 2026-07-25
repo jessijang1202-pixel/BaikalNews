@@ -6178,7 +6178,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
       throw new Error("이 브라우저는 영상 녹화(MediaRecorder)를 지원하지 않습니다. 다른 브라우저로 시도해 주세요.");
     }
     recordedMimeType = supported;
-    recorder = new MediaRecorder(stream, { mimeType: recordedMimeType, videoBitsPerSecond: 4000000 });
+    recorder = new MediaRecorder(stream, { mimeType: recordedMimeType, videoBitsPerSecond: 8000000 });
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.start();
   }
@@ -6419,7 +6419,13 @@ async function convertShortsWebmToMp4(webmBlob, onStatus) {
   });
   const { fetchFile } = window.FFmpeg;
   ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
-  await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', 'output.mp4');
+  // -crf 18 (lower = higher quality, 18 is close to visually lossless) with
+  // -preset veryfast instead of the original ultrafast -- ultrafast disables
+  // most of libx264's quality-improving coding tools regardless of CRF and
+  // was the main cause of visibly blocky/soft output, not the source
+  // resolution. veryfast recovers most of that quality for a modest (not
+  // dramatic) hit to in-browser wasm conversion speed.
+  await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', 'output.mp4');
   const data = ffmpeg.FS('readFile', 'output.mp4');
   try { ffmpeg.FS('unlink', 'input.webm'); ffmpeg.FS('unlink', 'output.mp4'); } catch (err) { /* best-effort cleanup */ }
   return new Blob([data.buffer], { type: 'video/mp4' });
