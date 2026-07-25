@@ -808,6 +808,23 @@
       return true;
     },
 
+    updateExpense: async function(id, expense) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const dbRow = {
+        category: expense.category,
+        item_name: expense.itemName,
+        amount: expense.amount,
+        expense_date: expense.expenseDate,
+        is_recurring: !!expense.isRecurring,
+        memo: expense.memo || '',
+        receipt_url: expense.receiptUrl || null
+      };
+      const { error } = await client.from('expenses').update(dbRow).eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+
     deleteExpense: async function(id) {
       const client = this.isConfigured() && this.getClient();
       if (!client) throw new Error("Supabase가 설정되지 않았습니다.");

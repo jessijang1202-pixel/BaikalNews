@@ -6900,7 +6900,7 @@ function renderExpenseLedgerList() {
     return;
   }
   tbody.innerHTML = expensesCache.map(e => `
-    <tr>
+    <tr data-expense-id="${e.id}">
       <td>${e.expenseDate}</td>
       <td>${e.itemName}</td>
       <td>${e.category}</td>
@@ -6908,9 +6908,76 @@ function renderExpenseLedgerList() {
       <td>${e.isRecurring ? '✔' : ''}</td>
       <td>${e.memo || ''}</td>
       <td>${e.receiptUrl ? `<a href="${e.receiptUrl}" target="_blank" rel="noopener">보기</a>` : ''}</td>
-      <td><a onclick="deleteExpenseRow(${e.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
+      <td style="white-space:nowrap;">
+        <a onclick="editExpenseRow(${e.id})" style="cursor: pointer;">편집</a> ·
+        <a onclick="deleteExpenseRow(${e.id})" style="color: var(--status-review); cursor: pointer;">삭제</a>
+      </td>
     </tr>
   `).join('');
+}
+
+const EXPENSE_CATEGORY_OPTIONS = ['구독료', '데이터/통신비', '서버·호스팅비', '사무용품비', '교통비', '식비/접대비', '광고·마케팅비', '도서·자료구입비', '소모품비', '기타'];
+
+// Turns one ledger row into inline inputs pre-filled with its current
+// values, instead of a separate modal -- the table already has the right
+// columns, so reusing them keeps this to one row's worth of DOM change.
+function editExpenseRow(id) {
+  const e = expensesCache.find(x => x.id === id);
+  const row = document.querySelector(`#expense-ledger-list tr[data-expense-id="${id}"]`);
+  if (!e || !row) return;
+
+  const esc = (s) => (s || '').replace(/"/g, '&quot;');
+
+  row.innerHTML = `
+    <td><input type="date" id="edit-expense-date-${id}" class="form-control-admin" style="padding:4px;" value="${e.expenseDate}"></td>
+    <td><input type="text" id="edit-expense-item-${id}" class="form-control-admin" style="padding:4px;" value="${esc(e.itemName)}"></td>
+    <td>
+      <select id="edit-expense-category-${id}" class="form-control-admin" style="padding:4px;">
+        ${EXPENSE_CATEGORY_OPTIONS.map(c => `<option value="${c}" ${c === e.category ? 'selected' : ''}>${c}</option>`).join('')}
+      </select>
+    </td>
+    <td><input type="number" id="edit-expense-amount-${id}" class="form-control-admin" style="padding:4px; width:100px;" min="0" step="1" value="${e.amount}"></td>
+    <td style="text-align:center;"><input type="checkbox" id="edit-expense-recurring-${id}" ${e.isRecurring ? 'checked' : ''}></td>
+    <td><input type="text" id="edit-expense-memo-${id}" class="form-control-admin" style="padding:4px;" value="${esc(e.memo)}"></td>
+    <td>
+      <input type="file" id="edit-expense-receipt-${id}" accept="image/*,application/pdf" style="width:110px; font-size:0.72rem;">
+      ${e.receiptUrl ? `<div style="font-size:0.7rem; margin-top:2px;"><a href="${e.receiptUrl}" target="_blank" rel="noopener">기존 파일</a></div>` : ''}
+    </td>
+    <td style="white-space:nowrap;">
+      <a onclick="saveExpenseEdit(${id})" style="color: var(--admin-accent-cyan); cursor: pointer;">저장</a> ·
+      <a onclick="renderExpenseLedgerList()" style="cursor: pointer;">취소</a>
+    </td>
+  `;
+}
+
+async function saveExpenseEdit(id) {
+  const e = expensesCache.find(x => x.id === id);
+  if (!e) return;
+
+  const itemName = document.getElementById(`edit-expense-item-${id}`).value.trim();
+  const category = document.getElementById(`edit-expense-category-${id}`).value;
+  const amount = Number(document.getElementById(`edit-expense-amount-${id}`).value);
+  const expenseDate = document.getElementById(`edit-expense-date-${id}`).value;
+  const isRecurring = document.getElementById(`edit-expense-recurring-${id}`).checked;
+  const memo = document.getElementById(`edit-expense-memo-${id}`).value.trim();
+  const receiptFile = document.getElementById(`edit-expense-receipt-${id}`).files[0] || null;
+
+  if (!itemName || !amount || !expenseDate) {
+    alert("항목명, 금액, 결제일을 모두 입력해 주세요.");
+    return;
+  }
+
+  try {
+    let receiptUrl = e.receiptUrl;
+    if (receiptFile) {
+      receiptUrl = await uploadImageToStorage(receiptFile, null, 'receipt');
+    }
+    await window.SupabaseAdapter.updateExpense(id, { category, itemName, amount, expenseDate, isRecurring, memo, receiptUrl });
+    await renderExpensesTab();
+  } catch (err) {
+    console.error("지출 수정 실패:", err);
+    alert("⚠ 수정에 실패했습니다 (저장되지 않았습니다): " + err.message);
+  }
 }
 
 async function submitExpenseForm(event) {
