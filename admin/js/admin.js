@@ -2526,7 +2526,7 @@ function renderCurationPopularList() {
     return `
       <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--admin-border); border-radius:6px; padding:8px;">
         <span style="font-weight:700; color: var(--admin-text-muted); width: 18px; text-align:center;">${i + 1}</span>
-        <img src="${imageUrl}" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:4px; flex-shrink:0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <img src="${imageUrl}" alt="" crossorigin="anonymous" style="width:44px; height:44px; object-fit:cover; border-radius:4px; flex-shrink:0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div style="flex:1; min-width:0;">
           <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${art.title}</div>
           <div style="font-size:0.72rem; color:var(--admin-text-secondary);">조회수 ${(art.views || 0).toLocaleString("ko-KR")}회</div>
@@ -2570,7 +2570,7 @@ function updateCurationPreview(selectId) {
   const imageUrl = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
   previewEl.innerHTML = `
     <div class="curation-preview-card">
-      <img src="${imageUrl}" alt="" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+      <img src="${imageUrl}" alt="" crossorigin="anonymous" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
       <span>${art.title}</span>
     </div>
   `;
@@ -2815,7 +2815,7 @@ function renderMediaLibraryGrid() {
           <button type="button" class="media-action-btn" title="다운로드" onclick="event.stopPropagation(); downloadMediaItem('${safeSrc}')">다운</button>
           <button type="button" class="media-action-btn media-action-danger" title="삭제" onclick="event.stopPropagation(); deleteMediaItem('${safeSrc}')">삭제</button>
         </div>
-        <img src="${displaySrc}" class="media-img" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <img src="${displaySrc}" class="media-img" crossorigin="anonymous" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div class="media-card-info">${filename}</div>
       </div>
     `;
@@ -6899,7 +6899,7 @@ function renderNewsletterSlotGroup(containerId, fieldName) {
     const imgSrc = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
     return `
       <div class="newsletter-slot" style="display: flex; align-items: center; gap: 12px; border: 1px solid var(--admin-border); border-radius: 8px; padding: 10px;">
-        <img src="${imgSrc}" style="width: 56px; height: 56px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
+        <img src="${imgSrc}" crossorigin="anonymous" style="width: 56px; height: 56px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.src='https://baikalnews.com/images/news_editorial.png'">
         <div style="flex: 1; min-width: 0;">
           <div style="font-size: 0.7rem; color: var(--admin-text-secondary);">${art.categoryLabel || art.category} · ${art.date}</div>
           <div style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</div>
@@ -6954,7 +6954,7 @@ function buildNewsletterArticleRowHtml(art) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td width="100" valign="top" style="padding-right: 14px;">
-              <a href="${url}" target="_blank"><img src="${imgSrc}" width="100" height="100" style="display:block; border-radius: 6px; object-fit: cover;"></a>
+              <a href="${url}" target="_blank"><img src="${imgSrc}" crossorigin="anonymous" width="100" height="100" style="display:block; border-radius: 6px; object-fit: cover;"></a>
             </td>
             <td valign="top">
               <div style="font-size: 11px; color: #0e7490; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">${art.categoryLabel || art.category}</div>
