@@ -4558,6 +4558,25 @@ async function generateShortsScript() {
     return;
   }
 
+  // Regenerating overwrites currentShortsProject.imageCuts entirely, so any
+  // already-generated cut images become orphaned (nothing in the new cuts
+  // still points at them). The Veo video isn't touched here, but it was
+  // rendered from the OLD hook/veoPrompt and may no longer match the new
+  // one. Confirm before silently discarding media that cost real money to
+  // generate -- Step 2 stays reachable/clickable even after Step 3/4, so
+  // this is the only guard against an accidental re-click.
+  if (currentShortsProject) {
+    const hasExistingImages = (currentShortsProject.imageCuts || []).some(c => c.imageUrl && !c.uploaded);
+    const hasExistingVeo = !!currentShortsProject.veoVideoUrl && !currentShortsProject.frontUpload;
+    if (hasExistingImages || hasExistingVeo) {
+      const warnings = [];
+      if (hasExistingImages) warnings.push("- 이미 생성된 이미지 컷은 모두 사라지고, 새 대본에 맞춰 다시 생성해야 합니다.");
+      if (hasExistingVeo) warnings.push("- 기존 Veo 영상은 바로 삭제되진 않지만, 새로 생성될 대본/후킹과 더 이상 맞지 않을 수 있습니다 (필요하면 Step 3에서 다시 생성하세요).");
+      const proceed = confirm(`대본을 다시 생성하면:\n${warnings.join('\n')}\n\n그래도 계속하시겠습니까?`);
+      if (!proceed) return;
+    }
+  }
+
   const articles = await window.SupabaseAdapter.fetchArticles();
   const article = articles.find(a => a.id === articleId);
   if (!article) {
