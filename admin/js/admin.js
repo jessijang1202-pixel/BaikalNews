@@ -93,6 +93,15 @@ async function handleAdminLogin() {
   const session = { name: matched.name, email: matched.email, loginAt: new Date().toISOString() };
   localStorage.setItem("baikal_admin_session", JSON.stringify(session));
 
+  // The login form stays in the DOM (just hidden) after this -- if its
+  // password field kept its typed value, Chrome's "update saved password?"
+  // heuristic can fire on ANY later, unrelated form submit anywhere on the
+  // page (e.g. saving an expense edit), since it scans the whole document
+  // for a filled password field rather than just the form actually
+  // submitted. Clearing it here removes that trigger.
+  const loginFormEl = document.getElementById("admin-login-form");
+  if (loginFormEl) loginFormEl.reset();
+
   await showAdminApp(session);
   await logAudit("관리자 로그인", null, `${matched.name} (${matched.email}) 님이 로그인했습니다.`);
 }
