@@ -654,12 +654,14 @@ async function switchTab(tabName) {
 
   // Refresh lists if switching to specific tabs
   if (tabName === 'dashboard') {
+    await syncScheduledArticlesToPublished();
     await refreshStats();
     await renderPendingList();
     await renderTopViewedList();
     await renderViewsChart();
     await renderScheduledList();
   } else if (tabName === 'articles') {
+    await syncScheduledArticlesToPublished();
     await renderArticlesList();
   } else if (tabName === 'ai-writer') {
     loadGeminiApiKey();
@@ -765,9 +767,40 @@ async function refreshStats() {
   }
 }
 
+// Catches up any 'scheduled' article whose scheduledAt has already passed --
+// there's no server-side cron watching the clock, so this runs on every
+// dashboard/articles tab visit instead. Reuses saveArticle()'s normal upsert
+// path (not a lightweight status-only update) so it goes through the exact
+// same Supabase sync + localStorage mirror as a manual edit would.
+async function syncScheduledArticlesToPublished() {
+  if (!window.SupabaseAdapter) return;
+  let articles = [];
+  try {
+    articles = await window.SupabaseAdapter.fetchArticles();
+  } catch (err) {
+    console.error("예약 기사 자동 발행 확인 실패 (목록 조회):", err);
+    return;
+  }
+
+  const now = new Date();
+  const dueArticles = articles.filter(a =>
+    a.status === 'scheduled' && a.scheduledAt && new Date(a.scheduledAt) <= now
+  );
+  if (dueArticles.length === 0) return;
+
+  for (const art of dueArticles) {
+    art.status = 'published';
+    try {
+      await window.SupabaseAdapter.saveArticle(art);
+      await logAudit("예약 발행 자동 전환", art.id, `예약 시각(${new Date(art.scheduledAt).toLocaleString("ko-KR")}) 도달로 자동 발행 처리됨.`);
+    } catch (err) {
+      console.error(`예약 기사 자동 발행 실패 (id ${art.id}):`, err);
+    }
+  }
+}
+
 // Dashboard 예약 발행 내역 table -- every article still flagged 'scheduled',
-// soonest scheduledAt first (there's no server cron to flip status once the
-// time passes, so this can include entries whose time has already arrived).
+// soonest scheduledAt first.
 async function renderScheduledList() {
   const listEl = document.getElementById("dashboard-scheduled-list");
   const panelEl = document.getElementById("dashboard-scheduled-panel");
