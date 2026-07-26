@@ -640,7 +640,7 @@ async function switchTab(tabName) {
     'article-editor': "새 기사 작성 / 편집",
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
-    shorts: "숏폼 자동 생성",
+    shorts: "숏폼 생성",
     newsletter: "뉴스레터",
     subscribers: "구독자 관리",
     curation: "홈화면 큐레이션 통제",
@@ -3920,6 +3920,13 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-assembly-status").textContent = "녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다).";
   shortsPendingUploads = [];
   renderShortsPendingUploads();
+
+  // Reset back to the 자동 생성 mode tab on every fresh/reopened project,
+  // same as the "every step reopens expanded" reset just below.
+  const manualReviewEl = document.getElementById("shorts-manual-review");
+  if (manualReviewEl) manualReviewEl.style.display = "none";
+  const autoModeBtn = document.querySelector('.shorts-mode-tab-btn[data-mode="auto"]');
+  if (autoModeBtn) switchShortsModeTab('auto', autoModeBtn);
   renderShortsAssignedUploads();
 
   // Every step reopens expanded on a fresh/reopened project, regardless of
@@ -4129,6 +4136,7 @@ async function openShortsProject(id) {
 
   if (project.scriptMd || project.veoPrompt) {
     renderShortsScriptReview();
+    renderShortsManualPanel();
   }
   if (['script_approved', 'media_ready', 'video_ready'].includes(project.status)) {
     document.getElementById("shorts-media-section").style.display = "block";
@@ -4270,6 +4278,7 @@ async function openLocalShortsDraft(localDraftId) {
 
   if (currentShortsProject.scriptMd || currentShortsProject.veoPrompt) {
     renderShortsScriptReview();
+    renderShortsManualPanel();
   }
   if (currentShortsProject.status !== 'script_draft') {
     document.getElementById("shorts-media-section").style.display = "block";
@@ -4673,8 +4682,12 @@ ${backInstruction}
     currentShortsProject.status = 'script_draft';
 
     renderShortsScriptReview();
+    renderShortsManualPanel();
     await persistCurrentShortsProject();
-    document.getElementById("shorts-script-review").scrollIntoView({ behavior: "smooth" });
+    // Scroll whichever mode panel is actually visible -- this function is
+    // shared by both the 자동 and 수동 "대본 생성하기" buttons.
+    const manualModeActive = document.getElementById("shorts-mode-manual").style.display !== "none";
+    document.getElementById(manualModeActive ? "shorts-manual-review" : "shorts-script-review").scrollIntoView({ behavior: "smooth" });
 
     if (btn) btn.textContent = "shorts_check.md 기준 자체 점검 중...";
     const selfCheckResults = await runShortsSelfCheck(currentShortsProject);
@@ -4814,6 +4827,228 @@ function renderShortsScriptReview() {
   }
   renderImageCutsEditor(currentShortsProject.imageCuts || []);
   document.getElementById("shorts-script-review").style.display = "block";
+}
+
+// ==========================================
+// 숏폼 수동 생성 -- cost-saving alternative to Step 3's AI media generation.
+// Reuses the exact same currentShortsProject/generateShortsScript() as the
+// auto mode (so the selected article/script stay identical across modes,
+// per explicit request), but instead of calling Veo/Gemini image generation,
+// this surfaces the raw prompts (normally hidden) with a copy button so the
+// admin can generate the video/images manually in Gemini and upload the
+// result -- same IndexedDB storage path (keepShortsBlobLocal/
+// keepShortsImageLocal) as every other shorts media source, so the shared
+// Step 4 (나레이션) and Step 5 (조립/녹화/mp4/다운로드) below work
+// identically regardless of which mode produced the media.
+// ==========================================
+
+function switchShortsModeTab(mode, btnEl) {
+  document.querySelectorAll(".shorts-mode-tab-btn").forEach(btn => {
+    btn.classList.remove("btn-admin-primary");
+    btn.classList.add("btn-admin-secondary");
+  });
+  if (btnEl) {
+    btnEl.classList.remove("btn-admin-secondary");
+    btnEl.classList.add("btn-admin-primary");
+  }
+  document.querySelectorAll(".shorts-mode-panel").forEach(el => { el.style.display = "none"; });
+  const target = document.getElementById("shorts-mode-" + mode);
+  if (target) target.style.display = "block";
+
+  // Refresh whichever panel just became visible from currentShortsProject --
+  // an edit made in one mode (e.g. tweaking a caption in 수동) needs to show
+  // up if the admin switches back to 자동, and vice versa.
+  if (!currentShortsProject) return;
+  if (mode === 'manual') renderShortsManualPanel();
+  else if (currentShortsProject.hookText || (currentShortsProject.imageCuts || []).length > 0) renderShortsScriptReview();
+}
+
+function renderShortsManualPanel() {
+  const reviewEl = document.getElementById("shorts-manual-review");
+  if (!reviewEl) return;
+  if (!currentShortsProject || (!currentShortsProject.hookText && (currentShortsProject.imageCuts || []).length === 0)) {
+    reviewEl.style.display = "none";
+    return;
+  }
+  reviewEl.style.display = "block";
+
+  const hookEl = document.getElementById("shorts-manual-hook-text");
+  if (hookEl) hookEl.value = currentShortsProject.hookText || '';
+  const veoEl = document.getElementById("shorts-manual-veo-prompt");
+  if (veoEl) veoEl.value = currentShortsProject.veoPrompt || '';
+
+  renderShortsManualFrontPreview();
+  renderShortsManualCutsEditor();
+}
+
+function syncShortsHookEditManual() {
+  if (!currentShortsProject) return;
+  currentShortsProject.hookText = document.getElementById("shorts-manual-hook-text").value.trim();
+  saveShortsDraftLocally();
+}
+
+function syncShortsManualVeoPromptEdit() {
+  if (!currentShortsProject) return;
+  currentShortsProject.veoPrompt = document.getElementById("shorts-manual-veo-prompt").value.trim();
+  saveShortsDraftLocally();
+}
+
+async function copyShortsManualText(elId) {
+  const el = document.getElementById(elId);
+  if (!el || !el.value.trim()) {
+    alert("복사할 내용이 없습니다. 먼저 대본을 생성해 주세요.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(el.value);
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
+}
+
+async function copyShortsManualCutPrompt(i) {
+  const cut = currentShortsProject && currentShortsProject.imageCuts[i];
+  if (!cut || !cut.prompt) {
+    alert("복사할 프롬프트가 없습니다.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(cut.prompt);
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
+}
+
+function renderShortsManualFrontPreview() {
+  const el = document.getElementById("shorts-manual-front-preview");
+  if (!el || !currentShortsProject) return;
+  if (!currentShortsProject.veoVideoUrl) {
+    el.innerHTML = '<span class="help-text">아직 업로드된 파일이 없습니다.</span>';
+    return;
+  }
+  el.innerHTML = currentShortsProject.frontIsImage
+    ? `<img src="${currentShortsProject.veoVideoUrl}" style="width:110px; border-radius:6px; display:block;">`
+    : `<video src="${currentShortsProject.veoVideoUrl}" style="width:110px; border-radius:6px; display:block;" muted controls></video>`;
+}
+
+// Mirrors generateShortsFrontOnly()'s upload branch (currentShortsProject.frontUpload)
+// but stores the file directly instead of going through the pre-generation
+// "assign an upload to a slot" flow -- this happens AFTER a script/prompt
+// already exists, matching the 프롬프트 복사 -> Gemini 제작 -> 업로드 order.
+async function uploadManualFrontMedia(event) {
+  const file = event.target.files[0];
+  if (!file || !currentShortsProject) return;
+  beginShortsBusyOperation();
+  try {
+    const isVideo = file.type.startsWith('video');
+    const key = `${ensureShortsLocalDraftId()}:front`;
+    currentShortsProject.veoVideoUrl = isVideo
+      ? await keepShortsBlobLocal(file, key)
+      : await keepShortsImageLocal(file, key);
+    currentShortsProject.frontIsImage = !isVideo;
+    renderShortsManualFrontPreview();
+    checkShortsMediaReady();
+    await persistCurrentShortsProject();
+  } catch (err) {
+    console.error("전반 미디어 업로드 실패:", err);
+    alert("⚠ 업로드에 실패했습니다: " + err.message);
+  } finally {
+    endShortsBusyOperation();
+    event.target.value = "";
+  }
+}
+
+async function uploadManualCutImage(i, event) {
+  const file = event.target.files[0];
+  if (!file || !currentShortsProject) return;
+  const cut = currentShortsProject.imageCuts[i];
+  if (!cut) return;
+  beginShortsBusyOperation();
+  try {
+    if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    cut.imageUrl = await keepShortsImageLocal(file, cut.imageKey);
+    cut.uploaded = true;
+    renderShortsManualCutsEditor();
+    checkShortsMediaReady();
+    await persistCurrentShortsProject();
+  } catch (err) {
+    console.error("컷 이미지 업로드 실패:", err);
+    alert("⚠ 이미지 업로드에 실패했습니다: " + err.message);
+  } finally {
+    endShortsBusyOperation();
+    event.target.value = "";
+  }
+}
+
+function renderShortsManualCutsEditor() {
+  const container = document.getElementById("shorts-manual-cuts-editor");
+  if (!container || !currentShortsProject) return;
+  const cuts = currentShortsProject.imageCuts || [];
+  container.innerHTML = cuts.map((cut, i) => `
+    <div class="shorts-cut-row shorts-manual-cut-row" data-cut-index="${i}">
+      <div class="shorts-cut-row-header">
+        <span class="shorts-card-kicker">컷 ${i + 1} · 0:08~0:30</span>
+      </div>
+
+      <label class="shorts-field-label">이미지 생성 프롬프트 (Gemini에 붙여넣기용)</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <textarea class="form-control-admin shorts-manual-cut-prompt" readonly style="flex:1; min-height:60px; max-height:100px; resize:none; font-size:0.82rem;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
+        <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsManualCutPrompt(${i})">복사</button>
+      </div>
+
+      <label class="shorts-field-label">대본 (나레이션으로 읽힙니다)</label>
+      <textarea class="form-control-admin shorts-manual-cut-narration-text" style="min-height:44px; max-height:88px; resize:none;" oninput="syncShortsManualCutEdits()">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
+
+      <label class="shorts-field-label">자막 1 / 자막 2</label>
+      <div style="display:flex; gap:8px;">
+        <textarea class="form-control-admin shorts-manual-cut-caption" style="min-height:44px; max-height:88px; resize:none;" placeholder="자막 1" oninput="syncShortsManualCutEdits()">${(cut.caption || '').replace(/</g, '&lt;')}</textarea>
+        <textarea class="form-control-admin shorts-manual-cut-caption2" style="min-height:44px; max-height:88px; resize:none;" placeholder="자막 2 (선택)" oninput="syncShortsManualCutEdits()">${(cut.caption2 || '').replace(/</g, '&lt;')}</textarea>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
+        <label style="font-size:0.75rem; white-space:nowrap;">길이(초)
+          <input type="number" class="form-control-admin shorts-manual-cut-duration" style="width:80px; display:inline-block; margin-left:6px;" min="1" max="30" step="0.1" value="${cut.duration || 5}" oninput="syncShortsManualCutEdits()">
+        </label>
+        <label style="font-size:0.78rem;">Gemini에서 만든 이미지 업로드
+          <input type="file" accept="image/*" onchange="uploadManualCutImage(${i}, event)">
+        </label>
+        ${cut.imageUrl ? `<img src="${cut.imageUrl}" style="width:44px; height:78px; object-fit:cover; border-radius:4px;">` : `<span class="help-text">이미지 없음</span>`}
+      </div>
+    </div>
+  `).join('') + (cuts.length === 0 ? '<span class="help-text">대본을 먼저 생성해 주세요.</span>' : '');
+}
+
+function syncShortsManualCutEdits() {
+  if (!currentShortsProject) return;
+  const rows = document.querySelectorAll("#shorts-manual-cuts-editor .shorts-manual-cut-row");
+  rows.forEach((row) => {
+    const i = Number(row.dataset.cutIndex);
+    const cut = currentShortsProject.imageCuts[i];
+    if (!cut) return;
+    cut.narrationText = row.querySelector(".shorts-manual-cut-narration-text").value.trim();
+    cut.caption = row.querySelector(".shorts-manual-cut-caption").value.trim();
+    cut.caption2 = row.querySelector(".shorts-manual-cut-caption2").value.trim();
+    cut.duration = Number(row.querySelector(".shorts-manual-cut-duration").value) || cut.duration || 5;
+  });
+  saveShortsDraftLocally();
+}
+
+async function saveShortsManualEdits() {
+  if (!currentShortsProject) return;
+  syncShortsManualCutEdits();
+  const hookEl = document.getElementById("shorts-manual-hook-text");
+  const veoEl = document.getElementById("shorts-manual-veo-prompt");
+  if (hookEl) currentShortsProject.hookText = hookEl.value.trim();
+  if (veoEl) currentShortsProject.veoPrompt = veoEl.value.trim();
+  shortsAssets = null;
+  await persistCurrentShortsProject();
+  const statusEl = document.getElementById("shorts-manual-save-status");
+  if (statusEl) {
+    statusEl.textContent = "저장되었습니다.";
+    setTimeout(() => { statusEl.textContent = ""; }, 2500);
+  }
 }
 
 // Shows caption + narration side by side per cut, with an individual
@@ -5543,9 +5778,7 @@ async function generateShortsCutImagesOnly() {
       const dataUrl = await generateGeminiImage(verticalPrompt);
       const blob = await (await fetch(dataUrl)).blob();
       if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const kept = await keepShortsImageLocal(blob, cut.imageKey);
-      cut.imageUrl = kept.url;
-      cut.imageBase64 = kept.base64;
+      cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);
     }
     document.getElementById("shorts-media-section").style.display = "block";
     // Unconditional, not just inside the loop above -- if every cut already

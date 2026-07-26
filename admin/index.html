@@ -64,7 +64,7 @@
         <a>AI 기사 집필실</a>
       </li>
       <li class="sidebar-item" data-tab="shorts">
-        <a>숏폼 자동 생성</a>
+        <a>숏폼 생성</a>
       </li>
       <li class="sidebar-item" data-tab="newsletter">
         <a>뉴스레터</a>
@@ -856,15 +856,15 @@
         </div>
       </section>
 
-      <!-- ================= TAB: SHORTS (숏폼 자동 생성) ================= -->
+      <!-- ================= TAB: SHORTS (숏폼 생성) ================= -->
       <section id="tab-shorts" class="tab-content">
         <div class="panel" style="padding: 24px;">
           <div class="panel-header">
-            <h3 class="panel-title">숏폼 자동 생성</h3>
+            <h3 class="panel-title">숏폼 생성</h3>
             <button class="btn-admin btn-admin-primary" onclick="startNewShortsProject()">+ 새 숏폼 만들기</button>
           </div>
           <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
-            기사 1개를 선택하면 30초 세로형(9:16) 숏폼 대본을 자동 생성합니다. 구성: 0:00~0:08 영상(첫 3초 강력한 후킹 포함) + 0:08~0:30 이미지 컷 22초(기본 5개). 보유하고 있는 영상/사진이 있으면 업로드해서 AI 생성 대신 사용할 수 있습니다. 대본을 검토·수정한 뒤 승인해야 다음 단계(미디어 생성)로 진행됩니다.
+            기사 1개를 선택하면 30초 세로형(9:16) 숏폼 대본을 자동 생성합니다. 구성: 0:00~0:08 영상(첫 3초 강력한 후킹 포함) + 0:08~0:30 이미지 컷 22초(기본 5개). 영상/이미지는 API로 자동 생성(숏폼 자동 생성)하거나, 비용 절약을 위해 Gemini에서 직접 만들어 업로드(숏폼 수동 생성)할 수 있습니다. 대본을 검토·수정한 뒤 승인해야 다음 단계(미디어 생성)로 진행됩니다.
           </p>
           <div class="admin-table-wrapper">
             <table class="admin-table">
@@ -941,6 +941,19 @@
               </div>
             </div>
           </div>
+
+          <!-- 대본/미디어 생성 모드: 자동(Gemini API 자동 호출) vs 수동(비용 절약 -- 프롬프트만
+               보여주고, 제미나이에서 직접 만든 영상/이미지를 업로드). 선택한 기사·대본은
+               currentShortsProject로 공유되므로 모드를 오가도 같은 프로젝트를 이어서 작업합니다.
+               나레이션(Step 4)과 그 이후(조립/녹화/다운로드/유튜브메타)는 두 모드 공통으로 하나만
+               존재합니다 -- 미디어를 자동으로 만들었든 수동 업로드했든 조립 방식은 동일하기 때문입니다. -->
+          <div style="display:flex; gap:10px; margin: 20px 0;">
+            <button type="button" class="btn-admin btn-admin-primary shorts-mode-tab-btn" data-mode="auto" onclick="switchShortsModeTab('auto', this)">숏폼 자동 생성</button>
+            <button type="button" class="btn-admin btn-admin-secondary shorts-mode-tab-btn" data-mode="manual" onclick="switchShortsModeTab('manual', this)">숏폼 수동 생성</button>
+          </div>
+
+          <!-- ===== 모드: 자동 생성 (기존 Step 2·3, 변경 없음) ===== -->
+          <div id="shorts-mode-auto" class="shorts-mode-panel">
 
           <!-- Step 2: 대본 생성 및 검토 -->
           <div class="shorts-step">
@@ -1025,6 +1038,58 @@
               <div id="shorts-media-preview" class="shorts-media-grid" style="margin-top:12px;"></div>
             </div>
           </div>
+
+          </div>
+          <!-- ===== /모드: 자동 생성 ===== -->
+
+          <!-- ===== 모드: 수동 생성 (비용 절약 -- Gemini API를 호출하지 않고, 프롬프트를
+               보여줘서 admin이 직접 Gemini에서 만든 영상/이미지를 업로드) ===== -->
+          <div id="shorts-mode-manual" class="shorts-mode-panel" style="display:none;">
+            <div class="shorts-step">
+              <div class="shorts-step-header" onclick="toggleShortsStep('m2', this)">
+                <span class="shorts-step-kicker">Step 2</span>
+                <h3 class="shorts-step-heading">대본 생성 + 프롬프트로 직접 제작</h3>
+                <span class="shorts-step-chevron">▲</span>
+              </div>
+              <div class="shorts-step-body" id="shorts-step-body-m2">
+                <p class="help-text" style="margin-bottom:16px;">대본은 자동 생성과 동일하게 AI가 작성합니다. 다만 영상(Veo)·이미지는 API로 자동 생성하지 않고, 아래 프롬프트를 복사해 Gemini에서 직접 만든 뒤 업로드하세요. 나레이션 생성과 그 이후(조립·녹화·다운로드)는 아래로 이어지는 공통 단계에서 자동 생성과 동일하게 진행됩니다.</p>
+
+                <div class="form-group-admin">
+                  <button type="button" id="shorts-manual-generate-script-btn" class="btn-admin btn-admin-primary" onclick="generateShortsScript()">대본 생성하기</button>
+                </div>
+
+                <div id="shorts-manual-review" style="display:none; margin-top:20px;">
+                  <div class="form-group-admin">
+                    <label for="shorts-manual-hook-text">0:00~0:03 후킹 문구 (Enter로 줄바꿈 가능)</label>
+                    <textarea id="shorts-manual-hook-text" class="form-control-admin" style="min-height:44px; max-height:88px; resize:none;" placeholder="시청자의 스크롤을 멈추게 할 강력한 한 문장" oninput="syncShortsHookEditManual()"></textarea>
+                  </div>
+
+                  <div class="shorts-card">
+                    <div class="shorts-card-kicker">전반 (0:00~0:08) -- Veo 영상 프롬프트</div>
+                    <textarea id="shorts-manual-veo-prompt" class="form-control-admin" rows="4" style="margin-top:8px;" oninput="syncShortsManualVeoPromptEdit()"></textarea>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                      <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsManualText('shorts-manual-veo-prompt')">프롬프트 복사</button>
+                      <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">Gemini에서 만든 영상/사진 업로드
+                        <input type="file" id="shorts-manual-front-upload" accept="video/*,image/*" onchange="uploadManualFrontMedia(event)">
+                      </label>
+                    </div>
+                    <div id="shorts-manual-front-preview" style="margin-top:10px;"><span class="help-text">아직 업로드된 파일이 없습니다.</span></div>
+                  </div>
+
+                  <div class="form-group-admin">
+                    <label>0:08~0:30 이미지 컷 -- 각 컷의 이미지 프롬프트를 복사해 Gemini에서 만든 뒤 업로드하세요 (컷 추가/삭제는 "숏폼 자동 생성" 탭에서 가능 · 같은 프로젝트를 공유합니다)</label>
+                    <div id="shorts-manual-cuts-editor"></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px;">
+                    <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsManualEdits()">대본 저장</button>
+                    <span class="help-text" id="shorts-manual-save-status"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ===== /모드: 수동 생성 ===== -->
 
           <!-- Step 4: Assembly / recording -->
           <div class="shorts-step" id="shorts-assembly-section" style="display:none;">
