@@ -7425,7 +7425,13 @@ async function loadOrGenerateNewsletterDraft() {
 function buildFreshNewsletterDraft(articles) {
   const published = articles.filter(a => a.status === 'published');
 
-  const byDateDesc = published.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
+  const byDateDesc = published.slice().sort((a, b) => {
+    const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+    const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
+    return bTime - aTime;
+  });
   const latestIds = byDateDesc.slice(0, 3).map(a => a.id);
 
   const byViewsDesc = published

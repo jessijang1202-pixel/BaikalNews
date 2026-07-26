@@ -21,6 +21,22 @@ function parseKoreanDate(dateStr) {
   return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
+// The 보도 날짜 field only has day granularity, so on a day with several
+// scheduled/published articles (common with the content calendar), a
+// same-day comparison alone leaves ties to arbitrary fetch order -- a
+// just-published article could lose out to an earlier-queued one dated the
+// same day. Mirrors the same tiebreak already used for the admin's article
+// list ordering: approvedAt (set the moment an article is actually approved/
+// published) if present, else scheduledAt, else id as a last resort.
+function compareArticlesByDateDesc(a, b) {
+  const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
+  if (dateDiff !== 0) return dateDiff;
+  const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+  const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
+  if (bTime !== aTime) return bTime - aTime;
+  return (b.id || 0) - (a.id || 0);
+}
+
 // Returns the top `count` articles by view count -- membership is always
 // automatic (highest views), but wherever curation.popularReadsIds still
 // covers a current top article, that saved relative order is respected
@@ -445,7 +461,7 @@ function renderHomepage() {
       const autoFill = published
         .filter(a => !usedIds.has(a.id))
         .slice()
-        .sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date))
+        .sort(compareArticlesByDateDesc)
         .slice(0, LATEST_NEWS_COUNT - latestItems.length);
       latestItems = [...latestItems, ...autoFill];
     }
@@ -576,10 +592,10 @@ function renderCategoryPage() {
   if (sort === "popular") {
     filtered = filtered.slice().sort((a, b) => {
       const viewDiff = (b.views || 0) - (a.views || 0);
-      return viewDiff !== 0 ? viewDiff : parseKoreanDate(b.date) - parseKoreanDate(a.date);
+      return viewDiff !== 0 ? viewDiff : compareArticlesByDateDesc(a, b);
     });
   } else {
-    filtered = filtered.slice().sort((a, b) => parseKoreanDate(b.date) - parseKoreanDate(a.date));
+    filtered = filtered.slice().sort(compareArticlesByDateDesc);
   }
 
   const sortLatestEl = document.getElementById("sort-latest");
