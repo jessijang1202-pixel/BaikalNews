@@ -207,6 +207,16 @@ body {
   margin-bottom: 32px;
 }
 
+/* 3-stat-card variant (subscribers, expenses) -- a class instead of an
+   inline grid-template-columns override so the existing
+   "@media (max-width:768px) .admin-grid-4 { grid-template-columns: 1fr }"
+   rule can still collapse it on mobile. An inline style would win over
+   that rule regardless of screen width and force 3 cramped columns on a
+   phone. */
+.stat-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .stat-card {
   border: none;
   border-radius: var(--border-radius);
@@ -1454,6 +1464,16 @@ textarea.form-control-admin {
     padding: 0 20px;
     gap: 12px;
     justify-content: flex-start;
+  }
+
+  /* Every panel's title + action button(s) row -- no wrap on desktop is
+     fine (plenty of width), but on a phone a title plus one or more
+     buttons (e.g. 월별 리포트's ◀/▶ month nav, 구독자 관리's 목록 복사)
+     can overflow past the screen edge instead of dropping to a second
+     line. */
+  .panel-header {
+    flex-wrap: wrap;
+    gap: 10px;
   }
   
   .header-title-area {
