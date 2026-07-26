@@ -1475,7 +1475,19 @@ textarea.form-control-admin {
     flex-wrap: wrap;
     gap: 10px;
   }
-  
+
+  /* .panel-title is itself display:flex (for icon+text titles elsewhere),
+     so once .panel-header above starts wrapping, squeezing it into a
+     shared row with the button group let its own text fragments/spans
+     wrap independently at the flex-item level instead of as one normal
+     paragraph -- title text broke apart letter-by-letter/word-by-word in
+     a disjointed way instead of a clean line wrap. Giving it the full
+     row width fixes both: it gets a normal-width box to wrap text in,
+     and the button group cleanly drops to its own line under it. */
+  .panel-header .panel-title {
+    flex-basis: 100%;
+  }
+
   .header-title-area {
     flex: 1;
   }
