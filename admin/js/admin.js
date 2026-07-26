@@ -3634,7 +3634,7 @@ function saveShortsDraftLocally() {
     hasFinal: !!currentShortsProject.finalVideoUrl,
     hasHookNarration: !!currentShortsProject.hookNarrationUrl,
     imageCuts: (currentShortsProject.imageCuts || []).map(c => ({
-      prompt: c.prompt, narrationText: c.narrationText || '', caption: c.caption, duration: c.duration,
+      prompt: c.prompt, narrationText: c.narrationText || '', caption: c.caption, caption2: c.caption2 || '', duration: c.duration,
       uploaded: !!c.uploaded, imageKey: c.imageKey || null, narrationKey: c.narrationKey || null
     })),
     topBarColor: currentShortsProject.topBarColor,
@@ -4349,6 +4349,7 @@ async function syncShortsScriptToSupabase() {
     const imageCuts = (currentShortsProject.imageCuts || []).map(cut => ({
       prompt: cut.prompt || '',
       caption: cut.caption || '',
+      caption2: cut.caption2 || '',
       narrationText: cut.narrationText || '',
       duration: cut.duration || 5,
       uploaded: !!cut.uploaded,
@@ -4578,18 +4579,19 @@ async function generateShortsScript() {
     const perCutDuration = Math.max(3, Math.round(22 / SHORTS_TARGET_CUT_COUNT));
     // A soft target, not a hard cap enforced in code -- a previous attempt at
     // truncating narration text after the fact lost meaning mid-sentence,
-    // which was worse than a slightly-too-long script. This just steers the
-    // model toward writing concisely from the start (~4.5 Hangul chars per
-    // second of natural TTS speaking speed), so 재생 속도 (1.1~1.2x) and
-    // "이미지 컷 1초씩 늘리기" don't have to compensate for as much on
-    // every single script.
-    const targetNarrationChars = Math.round(perCutDuration * 4.5);
+    // which was worse than a slightly-too-long script. Raised from 4.5 to 6
+    // chars/sec after feedback that scripts were coming out too short --
+    // 4.5 (a natural TTS speaking pace) was too conservative given 재생
+    // 속도 now defaults to 1.0~1.2x rather than always compensating with
+    // speed, and "이미지 컷 1초씩 늘리기" exists as a release valve if a
+    // script still doesn't fit.
+    const targetNarrationChars = Math.round(perCutDuration * 6);
 
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막(15자 내외, 짧고 임팩트 있게 -- 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막 2개(caption1, caption2 -- 이 컷이 보여지는 동안 순서대로 화면에 표시됩니다. 각각 15자 내외로 짧고 임팩트 있게 작성하고, 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구여야 하며, caption1과 caption2는 서로 다른 내용이어야 합니다 -- 예: 상황 제시 -> 핵심 포인트, 또는 질문 -> 답 형태로 자연스럽게 이어지게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -4619,7 +4621,7 @@ ${backInstruction}
   "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption": "화면에 표시할 짧고 임팩트있는 자막 (15자 내외)", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption1": "이 컷 전반부에 표시할 짧고 임팩트있는 자막 (15자 내외)", "caption2": "이 컷 후반부에 표시할, caption1과 다른 짧은 자막 (15자 내외)", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성 -- 줄바꿈은 \\n으로 이스케이프)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
@@ -4631,11 +4633,14 @@ ${backInstruction}
     const script = parseAiJsonResponse(resultText);
 
     const aiCuts = (script.imageCuts || []).map(c => ({
-      prompt: c.prompt || '', caption: c.caption || '', narrationText: c.narration || c.caption || '',
+      // c.caption is a fallback for the old single-caption schema, in case
+      // the model ever ignores the caption1/caption2 instruction.
+      prompt: c.prompt || '', caption: c.caption1 || c.caption || '', caption2: c.caption2 || '',
+      narrationText: c.narration || c.caption1 || c.caption || '',
       duration: Number(c.duration) || perCutDuration, imageUrl: '', uploaded: false
     }));
     const uploadedCuts = backUploads.map(u => ({
-      prompt: '', caption: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
+      prompt: '', caption: '', caption2: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
     }));
 
     currentShortsProject.articleId = articleId;
@@ -4701,7 +4706,7 @@ async function runShortsSelfCheck(project) {
 
   const checklistText = items.map((it, i) => `${i + 1}. [${it.section}] ${it.text}`).join('\n');
   const cutsText = (project.imageCuts || []).map((c, i) =>
-    `컷 ${i + 1} - 이미지 프롬프트: ${c.prompt || '(없음)'} / 대본: ${c.narrationText || ''} / 자막: ${c.caption || ''}`
+    `컷 ${i + 1} - 이미지 프롬프트: ${c.prompt || '(없음)'} / 대본: ${c.narrationText || ''} / 자막1: ${c.caption || ''} / 자막2: ${c.caption2 || ''}`
   ).join('\n');
 
   const prompt = `
@@ -4818,8 +4823,11 @@ function renderImageCutsEditor(cuts) {
       <label class="shorts-field-label">대본 (나레이션으로 읽힙니다 · 자막보다 길게)</label>
       <textarea class="form-control-admin shorts-cut-narration-text" style="${boxStyle}" placeholder="이 컷에서 읽어줄 자연스러운 문장" oninput="syncShortsCutEdits()">${(cut.narrationText || '').replace(/</g, '&lt;')}</textarea>
 
-      <label class="shorts-field-label">자막 (화면에 표시 · 짧고 임팩트 있게 · Enter로 줄바꿈 가능)</label>
-      <textarea class="form-control-admin shorts-cut-caption" style="margin-bottom:10px; min-height:44px; max-height:88px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;" placeholder="자막" oninput="syncShortsCutEdits()">${(cut.caption || '').replace(/</g, '&lt;')}</textarea>
+      <label class="shorts-field-label">자막 1 (컷 전반부에 표시 · 짧고 임팩트 있게 · Enter로 줄바꿈 가능)</label>
+      <textarea class="form-control-admin shorts-cut-caption" style="margin-bottom:10px; min-height:44px; max-height:88px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;" placeholder="자막 1" oninput="syncShortsCutEdits()">${(cut.caption || '').replace(/</g, '&lt;')}</textarea>
+
+      <label class="shorts-field-label">자막 2 (컷 후반부에 표시 · 비워두면 자막 1만 계속 표시)</label>
+      <textarea class="form-control-admin shorts-cut-caption2" style="margin-bottom:10px; min-height:44px; max-height:88px; resize:none; font-size:0.9rem; line-height:1.4; padding:10px 14px;" placeholder="자막 2 (선택)" oninput="syncShortsCutEdits()">${(cut.caption2 || '').replace(/</g, '&lt;')}</textarea>
 
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
         <label style="font-size:0.75rem; color:var(--sf-text-muted, var(--admin-text-secondary)); white-space:nowrap;">길이(초)
@@ -4842,6 +4850,7 @@ function readImageCutsFromDom() {
       prompt: row.querySelector(".shorts-cut-prompt").value.trim(),
       narrationText: row.querySelector(".shorts-cut-narration-text").value.trim(),
       caption: row.querySelector(".shorts-cut-caption").value.trim(),
+      caption2: row.querySelector(".shorts-cut-caption2").value.trim(),
       duration: Number(row.querySelector(".shorts-cut-duration").value) || 5,
       imageUrl: (existing && existing.imageUrl) || '',
       uploaded: !!(existing && existing.uploaded),
@@ -4900,7 +4909,7 @@ function syncShortsCutEdits() {
 
 function addShortsCut() {
   currentShortsProject.imageCuts = readImageCutsFromDom();
-  currentShortsProject.imageCuts.push({ prompt: '', narrationText: '', caption: '', duration: 5, imageUrl: '' });
+  currentShortsProject.imageCuts.push({ prompt: '', narrationText: '', caption: '', caption2: '', duration: 5, imageUrl: '' });
   renderImageCutsEditor(currentShortsProject.imageCuts);
 }
 
@@ -5985,7 +5994,7 @@ async function buildShortsAssets(project) {
   const images = await Promise.all((project.imageCuts || []).map(cut => new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, narrationUrl: cut.narrationUrl });
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl });
     img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
     img.src = cut.imageUrl;
   })));
@@ -6266,7 +6275,13 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
         const cut = assets.images[idx];
         if (cut) {
           drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H);
-          drawShortsCaption(ctx, cut.caption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
+          // caption2 (if present) takes over for the back half of the cut --
+          // two short captions shown one after another rather than one long
+          // one. Falls back to caption alone for the whole duration when
+          // caption2 is empty (uploaded cuts, or cuts written before this).
+          const halfDuration = (cutDurations[idx] || 1) / 2;
+          const activeCaption = (cut.caption2 && t >= halfDuration) ? cut.caption2 : cut.caption;
+          drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
         }
       }
       drawShortsTopBar(ctx, project, W);
