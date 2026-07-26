@@ -777,10 +777,19 @@ async function renderScheduledList() {
   if (window.SupabaseAdapter) {
     articles = await window.SupabaseAdapter.fetchArticles();
   }
+  // status stays 'scheduled' in the DB forever -- nothing flips it to
+  // 'published' once the scheduled time passes (the public site's
+  // isArticleLive() just treats a past scheduledAt as live for display
+  // purposes, it never writes back to the row). So filtering on status
+  // alone kept already-live articles stuck in this "예약된" list
+  // indefinitely; the real "still pending" condition is scheduledAt still
+  // being in the future. Ascending sort then naturally puts the soonest
+  // upcoming one on top.
+  const now = new Date();
   const scheduled = articles
-    .filter(a => a.status === 'scheduled')
+    .filter(a => a.status === 'scheduled' && a.scheduledAt && new Date(a.scheduledAt) > now)
     .slice()
-    .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
 
   if (panelEl) panelEl.style.display = scheduled.length > 0 ? '' : 'none';
   if (scheduled.length === 0) {
