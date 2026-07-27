@@ -7634,6 +7634,30 @@ function syncKakaoBriefingEdit() {
 // 짧게 재생성을 시도하고, 그래도 넘으면 절대 그냥 보내지 말고 관리자가
 // 직접 줄이도록 명확히 경고한다.
 const KAKAO_BRIEFING_VAR_CHAR_LIMIT = 650;
+const KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN = 550; // 400자처럼 예산을 못 채우고 끝나는 것도 문제라 최소선도 둠
+
+function setKakaoBriefingBusy(active, text) {
+  const banner = document.getElementById("kakao-briefing-busy-banner");
+  const textEl = document.getElementById("kakao-briefing-busy-text");
+  if (textEl && text) textEl.textContent = text;
+  if (banner) banner.classList.toggle("is-active", active);
+}
+
+// A few generations still slipped a "☀ 2026년 7월 27일 ... 브리핑" header line
+// in despite the prompt saying not to -- this strips a leading line that
+// looks like a decorative title/date header as a defensive backstop, since
+// prompt instructions aren't 100% reliable on their own.
+function stripLeakedKakaoBriefingHeader(text) {
+  const lines = text.split('\n');
+  if (lines.length > 1) {
+    const firstLine = lines[0].trim();
+    const looksLikeHeader = /^[☀️🌅📰🔔]/.test(firstLine) || (/브리핑/.test(firstLine) && /\d{4}년|\d+월|\d+일/.test(firstLine));
+    if (looksLikeHeader) {
+      return lines.slice(1).join('\n').replace(/^\n+/, '');
+    }
+  }
+  return text;
+}
 
 async function generateKakaoBriefing() {
   const btn = document.getElementById("kakao-briefing-generate-btn");
@@ -7642,9 +7666,9 @@ async function generateKakaoBriefing() {
     if (!confirm("이미 작성된 오늘의 브리핑이 있습니다. 새로 생성하면 지금까지 수정한 내용은 사라집니다. 계속하시겠습니까?")) return;
   }
 
-  if (btn) { btn.disabled = true; btn.textContent = "생성 중..."; }
+  if (btn) btn.disabled = true;
+  setKakaoBriefingBusy(true, "네이버 화제 뉴스 불러오는 중...");
   try {
-    if (statusEl) statusEl.textContent = "네이버 화제 뉴스 불러오는 중...";
     const trending = await fetchNaverTrending();
     if (trending.length === 0) throw new Error("오늘의 화제 뉴스를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
 
@@ -7658,25 +7682,32 @@ async function generateKakaoBriefing() {
 ${newsListText}
 
 [작성 지침 -- 반드시 모두 지킬 것]
-- 반드시 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 이내로 작성하십시오. 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다. 항목 수를 줄이더라도 이 글자수를 반드시 지키고, 마지막 항목까지 문장이 자연스럽게 끝나야 합니다.
-- 위 목록에서 오늘 꼭 알아야 할 만한 뉴스를 골라(글자수 제한에 맞게 개수 조절), 각각 제목과 핵심 내용을 1~2문장으로 간결하게 요약하십시오. 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
+- 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오 -- 이 예산을 최대한 채워서 알찬 브리핑이 되어야 합니다). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
+- 위 목록에서 오늘 꼭 알아야 할 만한 뉴스를 이 글자수 예산에 맞는 개수만큼 골라, 각각 제목과 핵심 내용을 1~2문장으로 요약하십시오. 글자 수가 부족하면 항목을 더 추가하거나 각 항목 설명을 조금 더 자세히 쓰십시오. 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
 - 이 메시지는 카카오 "알림톡"(정보성 메시지)으로 발송되므로, 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)를 절대 포함하지 마십시오. 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하십시오.
-- 인사말, 헤더, 마무리 문구, "☀" 같은 장식적 이모지 타이틀은 넣지 마십시오 (이미 승인된 고정 템플릿에 별도로 포함되어 있습니다). 오직 뉴스 요약 목록 내용만 작성하십시오.
+- (매우 중요) 인사말, 헤더, 마무리 문구, 날짜, "☀" 같은 장식적 이모지 타이틀을 절대 넣지 마십시오. 예를 들어 "☀ ${todayLabel} 3분 뉴스 브리핑" 같은 첫 줄을 절대 만들지 마십시오 -- 이미 승인된 고정 템플릿에 별도로 포함되어 있어, 여기서 또 넣으면 중복되고 글자 예산만 낭비됩니다. 첫 줄부터 바로 첫 번째 뉴스 항목으로 시작하십시오.
 - 마크다운 문법(#, **, - 등) 없이 번호와 줄바꿈만으로 구성하십시오.
 - 다른 설명 없이, 뉴스 요약 본문 그 자체만 출력하십시오.
 ${extra || ''}`;
 
-    const systemInstruction = "당신은 카카오 알림톡(정보성 메시지)으로 매일 아침 발송되는 3분 뉴스 브리핑을 작성하는 뉴스 큐레이터입니다. 절대 광고성/행동유도 문구를 쓰지 말고, 사실 전달에만 집중하며, 주어진 글자수 제한을 반드시 지키십시오.";
+    const systemInstruction = "당신은 카카오 알림톡(정보성 메시지)으로 매일 아침 발송되는 3분 뉴스 브리핑을 작성하는 뉴스 큐레이터입니다. 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 사실 전달에만 집중하고, 주어진 글자수 범위를 반드시 지키십시오.";
 
-    if (statusEl) statusEl.textContent = "AI가 3분 브리핑 작성 중...";
-    let resultText = (await callGeminiTextApi(buildPrompt(), systemInstruction)).trim();
+    setKakaoBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
+    let resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(), systemInstruction)).trim());
 
     // Hard technical limit, not a style preference -- retry once, tighter,
     // if the first pass ran long instead of silently truncating mid-sentence.
     if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
-      if (statusEl) statusEl.textContent = `글자수 초과(${resultText.length}자)로 더 짧게 재생성 중...`;
+      setKakaoBriefingBusy(true, `글자수 초과(${resultText.length}자)로 더 짧게 재생성 중...`);
       const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
-      resultText = (await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim();
+      resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim());
+    } else if (resultText.length < KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN) {
+      // Too short wastes the AlimTalk character budget the admin is paying
+      // for either way -- retry asking for more items/detail instead of
+      // leaving a thin brief.
+      setKakaoBriefingBusy(true, `분량 부족(${resultText.length}자)으로 더 채워서 재생성 중...`);
+      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 뉴스 항목 수를 늘리거나 각 항목 설명을 조금 더 자세히 써서, 반드시 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
+      resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim());
     }
 
     kakaoBriefingDraft = { date: todayDateKey(), content: resultText };
@@ -7691,7 +7722,8 @@ ${extra || ''}`;
     if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
     alert("브리핑 생성 실패: " + err.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "오늘의 브리핑 생성"; }
+    if (btn) btn.disabled = false;
+    setKakaoBriefingBusy(false);
   }
 }
 
