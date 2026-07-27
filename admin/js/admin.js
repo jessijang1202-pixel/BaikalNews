@@ -553,7 +553,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'subscribers', 'curation', 'expenses', 'settings'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'kakao-briefing', 'subscribers', 'curation', 'expenses', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -642,6 +642,7 @@ async function switchTab(tabName) {
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
     newsletter: "뉴스레터",
+    'kakao-briefing': "카카오 3분 브리핑",
     subscribers: "구독자 관리",
     curation: "홈화면 큐레이션 통제",
     expenses: "비용 관리",
@@ -677,6 +678,9 @@ async function switchTab(tabName) {
     await renderShortsList();
   } else if (tabName === 'newsletter') {
     await loadOrGenerateNewsletterDraft();
+  } else if (tabName === 'kakao-briefing') {
+    loadGeminiApiKey();
+    await loadOrGenerateKakaoBriefing();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
     await renderKakaoSubscriberBriefing();
@@ -7500,6 +7504,123 @@ async function regenerateNewsletterDraft() {
 
 function findNewsletterArticleById(id) {
   return newsletterArticlesCache.find(a => a.id === id);
+}
+
+// ==========================================
+// 카카오 3분 브리핑 -- draft-generation + review only. Actual sending is
+// manual: the admin copies this text into the Kakao Channel Admin Center's
+// own message composer and uses its 예약 발송 (scheduled send) to fire at
+// 8am, since true API-based automated sending requires a paid Bizmessage
+// vendor (Aligo/Solapi/etc), not something set up yet. Content comes from
+// Naver's trending news (reusing fetchNaverTrending(), already built for
+// the AI 집필실), not our own articles -- this is meant to be a general
+// daily news digest, not a promo for our own coverage.
+// ==========================================
+let kakaoBriefingDraft = null; // { date: 'YYYY-MM-DD', content: '...' }
+
+function kakaoBriefingStorageKey() {
+  return `baikal_kakao_briefing_${todayDateKey()}`;
+}
+
+async function loadOrGenerateKakaoBriefing() {
+  const saved = localStorage.getItem(kakaoBriefingStorageKey());
+  if (saved) {
+    try {
+      kakaoBriefingDraft = JSON.parse(saved);
+      renderKakaoBriefingUI();
+      return;
+    } catch (err) {
+      console.warn("저장된 카카오 브리핑 파싱 실패, 새로 생성이 필요합니다:", err);
+    }
+  }
+  kakaoBriefingDraft = null;
+  renderKakaoBriefingUI();
+}
+
+function persistKakaoBriefingDraft() {
+  if (!kakaoBriefingDraft) return;
+  localStorage.setItem(kakaoBriefingStorageKey(), JSON.stringify(kakaoBriefingDraft));
+}
+
+function renderKakaoBriefingUI() {
+  const textEl = document.getElementById("kakao-briefing-content");
+  const statusEl = document.getElementById("kakao-briefing-status");
+  if (!textEl) return;
+  if (kakaoBriefingDraft && kakaoBriefingDraft.content) {
+    textEl.value = kakaoBriefingDraft.content;
+    if (statusEl) statusEl.textContent = `${kakaoBriefingDraft.date} 기준 초안 (글자 수: ${kakaoBriefingDraft.content.length}자)`;
+  } else {
+    textEl.value = '';
+    if (statusEl) statusEl.textContent = '아직 생성된 브리핑이 없습니다. "오늘의 브리핑 생성" 버튼을 눌러주세요.';
+  }
+}
+
+function syncKakaoBriefingEdit() {
+  const content = document.getElementById("kakao-briefing-content").value;
+  kakaoBriefingDraft = { date: todayDateKey(), content };
+  persistKakaoBriefingDraft();
+  const statusEl = document.getElementById("kakao-briefing-status");
+  if (statusEl) statusEl.textContent = `${kakaoBriefingDraft.date} 기준 초안 (글자 수: ${content.length}자)`;
+}
+
+async function generateKakaoBriefing() {
+  const btn = document.getElementById("kakao-briefing-generate-btn");
+  const statusEl = document.getElementById("kakao-briefing-status");
+  if (kakaoBriefingDraft && kakaoBriefingDraft.content) {
+    if (!confirm("이미 작성된 오늘의 브리핑이 있습니다. 새로 생성하면 지금까지 수정한 내용은 사라집니다. 계속하시겠습니까?")) return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = "생성 중..."; }
+  try {
+    if (statusEl) statusEl.textContent = "네이버 화제 뉴스 불러오는 중...";
+    const trending = await fetchNaverTrending();
+    if (trending.length === 0) throw new Error("오늘의 화제 뉴스를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+
+    if (statusEl) statusEl.textContent = "AI가 3분 브리핑 작성 중...";
+    const newsListText = trending.slice(0, 12).map((t, i) => `${i + 1}. ${t.title}`).join('\n');
+    const todayLabel = new Date().toLocaleDateString("ko-KR", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+    const prompt = `
+아래는 오늘(${todayLabel}) 네이버 랭킹 뉴스 기준 화제가 된 뉴스 제목 목록입니다. 이를 바탕으로 카카오톡으로 매일 아침 발송할 "3분 뉴스 브리핑"을 작성하십시오.
+
+[오늘의 화제 뉴스 제목 목록]
+${newsListText}
+
+[작성 지침]
+- 전체를 눈으로 읽었을 때 약 3분 안에 다 읽을 수 있는 분량으로 작성하십시오 (한글 기준 800~1000자 내외).
+- 위 목록에서 오늘 꼭 알아야 할 만한 뉴스 6~8개를 선별하여, 각각 제목과 핵심 내용을 1~2문장으로 간결하게 요약하십시오. 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
+- 카카오톡 채팅으로 그대로 발송할 메시지 본문이므로, 마크다운 문법(#, **, - 등) 없이 이모지와 줄바꿈만으로 가독성 있게 구성하십시오.
+- 맨 위에 "☀ ${todayLabel} 3분 뉴스 브리핑" 형태의 인사말 헤더를 넣으십시오.
+- 맨 아래에 "바이칼뉴스가 매일 아침 전해드립니다" 같은 짧은 마무리 문구를 넣으십시오.
+- 다른 설명 없이, 발송할 메시지 본문 그 자체만 출력하십시오.
+`;
+    const resultText = await callGeminiTextApi(prompt, "당신은 매일 아침 독자에게 카카오톡으로 3분 뉴스 브리핑을 전달하는 뉴스 큐레이터입니다. 간결하고 명확하게, 과장이나 추측 없이 사실 위주로 작성하십시오.");
+
+    kakaoBriefingDraft = { date: todayDateKey(), content: resultText.trim() };
+    persistKakaoBriefingDraft();
+    renderKakaoBriefingUI();
+  } catch (err) {
+    console.error("카카오 브리핑 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("브리핑 생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "오늘의 브리핑 생성"; }
+  }
+}
+
+async function copyKakaoBriefingText() {
+  const textEl = document.getElementById("kakao-briefing-content");
+  if (!textEl || !textEl.value.trim()) {
+    alert("복사할 내용이 없습니다. 먼저 브리핑을 생성해 주세요.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(textEl.value);
+    alert("클립보드에 복사했습니다. 카카오톡 채널 관리자센터에 붙여넣고 오전 8시로 예약 발송해 주세요.");
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
 }
 
 function renderNewsletterDraftUI() {
