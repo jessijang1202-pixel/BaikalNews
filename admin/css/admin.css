@@ -938,6 +938,17 @@ textarea.form-control-admin {
   min-height: 120px;
 }
 
+/* Visually masks API key text as dots without being a real type="password"
+   input. A real password-type field that gets its value set programmatically
+   (loadGeminiApiKey()/loadClaudeApiKey() run on every AI 집필실/숏폼/카카오
+   브리핑 tab visit) while sitting hidden behind a non-active .tab-content
+   was the actual repeat trigger for Chrome's "update saved password?"
+   prompt -- not the login form, which was already fixed separately. Plain
+   text + this masking avoids the password-manager heuristics entirely. */
+.masked-key-input {
+  -webkit-text-security: disc;
+}
+
 .help-text {
   font-size: 0.75rem;
   color: var(--admin-text-muted);
