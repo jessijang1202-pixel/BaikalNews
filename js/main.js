@@ -283,29 +283,27 @@ async function handleNewsletterSubscribe(event) {
 
 // KakaoTalk 3분 뉴스 signup form (homepage #kakao-subscribe section, above
 // the newsletter section) -- same pattern as handleNewsletterSubscribe.
-async function handleKakaoSubscribe(event) {
-  event.preventDefault();
-  const form = event.target;
-  const phoneInput = document.getElementById("kakao-phone");
-  const submitBtn = document.getElementById("kakao-submit-btn");
-  const phone = phoneInput.value.trim();
-  if (!phone) return;
+// 3분 뉴스 신청은 더 이상 직접 입력한 전화번호를 폼으로 받지 않고,
+// 카카오 로그인 동의 화면에서 전화번호 제공에 동의받는 방식으로 바뀜 --
+// 사용자가 타이핑할 필요가 없고, 번호도 카카오가 인증한 값 그대로 받는다.
+// 인가 코드 교환(액세스 토큰 발급)은 Client Secret이 필요해 브라우저에서
+// 할 수 없으므로, 리다이렉트 이후 실제 저장 처리는 서버리스 함수
+// (/api/kakao-oauth-callback, 아직 구현 전)가 담당한다.
+const KAKAO_JS_KEY = "62e9094018b0cc5e533d637fbe93542b";
+const KAKAO_SUBSCRIBE_REDIRECT_URI = "https://baikalnews.com/kakao-callback.html";
 
-  const originalText = submitBtn.textContent;
-  submitBtn.disabled = true;
-  submitBtn.textContent = "처리 중...";
-
-  try {
-    await window.SupabaseAdapter.subscribeKakao(phone);
-    alert("신청해 주셔서 감사합니다! 카카오톡 채널이 준비되는 대로 3분 뉴스를 보내드립니다.");
-    form.reset();
-  } catch (err) {
-    console.error("Kakao subscribe failed:", err);
-    alert(err.message || "신청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = originalText;
+function startKakaoSubscribe() {
+  if (typeof Kakao === "undefined") {
+    alert("카카오 SDK를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    return;
   }
+  if (!Kakao.isInitialized()) {
+    Kakao.init(KAKAO_JS_KEY);
+  }
+  Kakao.Auth.authorize({
+    redirectUri: KAKAO_SUBSCRIBE_REDIRECT_URI,
+    scope: "phone_number"
+  });
 }
 
 // 2. Dynamic Override for Static Policy Pages

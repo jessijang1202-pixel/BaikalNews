@@ -156,10 +156,9 @@
             <h3>카카오톡 3분 뉴스</h3>
             <p>매일, 3분 뉴스 브리핑을 카카오톡으로 받아보세요.</p>
           </div>
-          <form class="newsletter-form" onsubmit="handleKakaoSubscribe(event)">
-            <input type="tel" id="kakao-phone" placeholder="휴대폰 번호" class="newsletter-input" required aria-label="휴대폰 번호" pattern="01[0-9]-?[0-9]{3,4}-?[0-9]{4}">
-            <button type="submit" class="btn" id="kakao-submit-btn">신청하기</button>
-          </form>
+          <div class="newsletter-form">
+            <button type="button" class="btn" id="kakao-submit-btn" onclick="startKakaoSubscribe()">카카오로 신청하기</button>
+          </div>
         </div>
 
         <!-- Compact newsletter signup -->
@@ -219,6 +218,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/supabase-adapter.js" defer></script>
   <script src="js/articles.js" defer></script>
+  <script src="https://developers.kakao.com/sdk/js/kakao.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>
 </html>
