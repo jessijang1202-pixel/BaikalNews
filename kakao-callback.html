@@ -44,11 +44,37 @@
   </style>
 </head>
 <body>
-  <div class="kakao-callback-card">
-    <h1>카카오 3분 뉴스 신청 접수 중</h1>
-    <p>카카오 계정 동의가 정상적으로 확인되었습니다.</p>
-    <p>다만 자동 발송 연동이 아직 준비 중이라, 신청 내용이 완전히 저장되지는 않았습니다. 연동이 완료되는 대로 다시 안내드리겠습니다. 불편을 드려 죄송합니다.</p>
+  <div class="kakao-callback-card" id="kakao-callback-card">
+    <h1 id="kakao-callback-title">확인 중입니다...</h1>
+    <p id="kakao-callback-message"></p>
     <p><a href="index.html">바이칼 뉴스 홈으로 돌아가기</a></p>
   </div>
+  <script>
+    // api/kakao-oauth-callback.js가 실제 처리(토큰 교환, 전화번호 저장)를
+    // 마친 뒤 이 페이지로 ?status=success 또는 ?status=error&reason=...
+    // 형태로 리다이렉트한다. 이 페이지 자체는 그 결과를 사람이 읽을 수
+    // 있는 메시지로만 보여준다.
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const reason = params.get('reason');
+    const titleEl = document.getElementById('kakao-callback-title');
+    const messageEl = document.getElementById('kakao-callback-message');
+
+    const reasonMessages = {
+      no_code: '카카오 인증 정보를 받지 못했습니다.',
+      token_exchange_failed: '카카오 인증 처리 중 오류가 발생했습니다.',
+      no_phone_number: '전화번호 제공에 동의하지 않으셨거나, 카카오 계정에 등록된 번호를 확인하지 못했습니다.',
+      save_failed: '신청 내용을 저장하는 중 오류가 발생했습니다.',
+      server_error: '일시적인 서버 오류가 발생했습니다.'
+    };
+
+    if (status === 'success') {
+      titleEl.textContent = '3분 뉴스 신청이 완료되었습니다';
+      messageEl.textContent = '카카오톡 채널을 통해 매일 아침 3분 뉴스 브리핑을 보내드리겠습니다.';
+    } else {
+      titleEl.textContent = '신청을 완료하지 못했습니다';
+      messageEl.textContent = reasonMessages[reason] || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+  </script>
 </body>
 </html>

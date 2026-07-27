@@ -288,9 +288,13 @@ async function handleNewsletterSubscribe(event) {
 // 사용자가 타이핑할 필요가 없고, 번호도 카카오가 인증한 값 그대로 받는다.
 // 인가 코드 교환(액세스 토큰 발급)은 Client Secret이 필요해 브라우저에서
 // 할 수 없으므로, 리다이렉트 이후 실제 저장 처리는 서버리스 함수
-// (/api/kakao-oauth-callback, 아직 구현 전)가 담당한다.
+// (api/kakao-oauth-callback.js)가 담당한다.
 const KAKAO_JS_KEY = "62e9094018b0cc5e533d637fbe93542b";
-const KAKAO_SUBSCRIBE_REDIRECT_URI = "https://baikalnews.com/kakao-callback.html";
+// Points at the serverless function (api/kakao-oauth-callback.js), not the
+// static kakao-callback.html directly -- the function does the actual
+// token exchange + phone number save, then redirects the browser on to
+// kakao-callback.html with a ?status= param for the final message.
+const KAKAO_SUBSCRIBE_REDIRECT_URI = "https://baikalnews.com/api/kakao-oauth-callback";
 
 function startKakaoSubscribe() {
   if (typeof Kakao === "undefined") {
