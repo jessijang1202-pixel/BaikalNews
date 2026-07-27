@@ -34,6 +34,16 @@ function getAdminSession() {
 }
 
 function initAdminAuth() {
+  // Unconditional, on every page load -- not just after a fresh login. A
+  // returning admin with an already-persisted session skips handleAdminLogin()
+  // entirely (goes straight to showAdminApp() below), so a reset placed only
+  // inside handleAdminLogin() never ran for that far more common case,
+  // leaving whatever the browser autofilled into the hidden login form as
+  // the last thing Chrome saw -- which is what kept re-triggering the
+  // "update saved password?" prompt on unrelated later actions.
+  const loginFormEl = document.getElementById("admin-login-form");
+  if (loginFormEl) loginFormEl.reset();
+
   const session = getAdminSession();
   if (session) {
     showAdminApp(session);
