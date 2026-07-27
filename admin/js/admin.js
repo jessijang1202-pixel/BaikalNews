@@ -7555,7 +7555,7 @@ function renderKakaoSendModeUI() {
 
   document.querySelectorAll('.kakao-mode-btn').forEach(btn => {
     const isActive = btn.dataset.mode === mode;
-    btn.classList.toggle('btn-admin-primary', isActive);
+    btn.classList.toggle('btn-admin-orange', isActive);
     btn.classList.toggle('btn-admin-secondary', !isActive);
     btn.disabled = isActive;
   });

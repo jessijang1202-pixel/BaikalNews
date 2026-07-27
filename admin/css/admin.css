@@ -731,6 +731,16 @@ body {
   transform: translateY(-1px);
 }
 
+.btn-admin-orange {
+  background-color: #f97316;
+  color: #ffffff;
+}
+
+.btn-admin-orange:hover {
+  background-color: #ea580c;
+  transform: translateY(-1px);
+}
+
 /* Badges */
 .badge {
   display: inline-block;
