@@ -1342,24 +1342,26 @@
       </section>
 
       <!-- ================= TAB: KAKAO 3-MIN BRIEFING ================= -->
-      <!-- Draft-generation + review only -- 실제 발송은 이 내용을 복사해 카카오톡
-           채널 관리자센터(Kakao Channel Admin Center)에 붙여넣고 오전 8시로
-           예약 발송하는 수동(반자동) 방식. 채널 메시지 API 자동 발송은 유료
-           비즈메시지 발송대행사를 거쳐야만 가능해서, 지금은 이 방식으로 운영. -->
+      <!-- 알림톡(AlimTalk) 템플릿은 "고정 문구 + 변수" 구조로, 아래에서 생성/편집하는
+           내용은 승인된 템플릿의 #{brief} 변수 자리에 들어갈 뉴스 본문만 해당함
+           (인사말/마무리/수신동의 안내 문구는 승인받은 고정 템플릿 쪽에 별도로
+           들어있음). 알리고(Aligo) 등 비즈메시지 발송대행사를 통한 실제 자동
+           발송 연동 전까지는, 이 내용을 참고해 카카오톡 채널 관리자센터에서
+           수동으로 발송/예약하는 용도로도 쓸 수 있음. -->
       <section id="tab-kakao-briefing" class="tab-content">
         <div class="panel" style="padding: 24px;">
           <div class="panel-header">
-            <h3 class="panel-title">카카오 3분 브리핑</h3>
+            <h3 class="panel-title">카카오 3분 브리핑 (알림톡 변수 내용)</h3>
             <div style="display: flex; gap: 12px;">
               <button type="button" id="kakao-briefing-generate-btn" class="btn-admin btn-admin-secondary" onclick="generateKakaoBriefing()">오늘의 브리핑 생성</button>
               <button type="button" class="btn-admin btn-admin-primary" onclick="copyKakaoBriefingText()">본문 복사</button>
             </div>
           </div>
           <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
-            네이버 화제 뉴스를 바탕으로 AI가 "3분 안에 읽는 오늘의 뉴스 브리핑"을 작성합니다 (우리 기사가 아니라 그날의 주요 뉴스 전반을 다룹니다). 내용을 검토·수정한 뒤 "본문 복사"로 복사해서, <a href="https://center-pf.kakao.com" target="_blank" rel="noopener">카카오톡 채널 관리자센터</a>의 메시지 작성 화면에 붙여넣고 오전 8시로 예약 발송해 주세요.
+            네이버 화제 뉴스를 바탕으로 AI가 "3분 안에 읽는 오늘의 뉴스 브리핑"을 작성합니다 (우리 기사가 아니라 그날의 주요 뉴스 전반을 다룹니다). 카카오 <strong>알림톡</strong>으로 발송하기 위한 변수(#{brief}) 내용만 작성하며, 인사말·수신동의 안내 등 고정 문구는 승인된 템플릿에 별도로 포함됩니다. 알림톡 발송 자체가 불가능해지므로 글자수 제한을 반드시 지켜야 하며, 광고성 문구는 절대 포함하지 않습니다.
           </p>
           <div class="help-text" id="kakao-briefing-status" style="margin-bottom: 10px;"></div>
-          <textarea id="kakao-briefing-content" class="form-control-admin" style="min-height: 360px; font-family: inherit; line-height: 1.6;" placeholder="아직 생성된 브리핑이 없습니다. 위 &quot;오늘의 브리핑 생성&quot; 버튼을 눌러주세요." oninput="syncKakaoBriefingEdit()"></textarea>
+          <textarea id="kakao-briefing-content" class="form-control-admin" style="min-height: 300px; font-family: inherit; line-height: 1.6;" placeholder="아직 생성된 브리핑이 없습니다. 위 &quot;오늘의 브리핑 생성&quot; 버튼을 눌러주세요." oninput="syncKakaoBriefingEdit()"></textarea>
         </div>
       </section>
 
