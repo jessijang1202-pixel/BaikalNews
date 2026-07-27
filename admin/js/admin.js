@@ -680,6 +680,7 @@ async function switchTab(tabName) {
     await loadOrGenerateNewsletterDraft();
   } else if (tabName === 'kakao-briefing') {
     loadGeminiApiKey();
+    renderKakaoSendModeUI();
     await loadOrGenerateKakaoBriefing();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
@@ -7520,6 +7521,50 @@ let kakaoBriefingDraft = null; // { date: 'YYYY-MM-DD', content: '...' }
 
 function kakaoBriefingStorageKey() {
   return `baikal_kakao_briefing_${todayDateKey()}`;
+}
+
+// Send-mode toggle -- purely a status record/preference right now, not a
+// real switch, since "자동" has nothing to actually trigger until the
+// Aligo integration (API key/templateCode/Vercel Cron) exists. Once that's
+// built, flipping this to 'auto' will be what turns the real automated
+// send path on.
+function getKakaoSendMode() {
+  return localStorage.getItem('baikal_kakao_send_mode') || 'manual';
+}
+
+function setKakaoSendMode(mode) {
+  localStorage.setItem('baikal_kakao_send_mode', mode);
+  renderKakaoSendModeUI();
+}
+
+function renderKakaoSendModeUI() {
+  const mode = getKakaoSendMode();
+  const badge = document.getElementById('kakao-send-mode-badge');
+  const descEl = document.getElementById('kakao-send-mode-desc');
+  if (!badge) return;
+
+  document.querySelectorAll('.kakao-mode-btn').forEach(btn => {
+    const isActive = btn.dataset.mode === mode;
+    btn.classList.toggle('btn-admin-primary', isActive);
+    btn.classList.toggle('btn-admin-secondary', !isActive);
+    btn.disabled = isActive;
+  });
+
+  if (mode === 'auto') {
+    badge.textContent = '자동 발송 (알리고 연동)';
+    badge.style.background = 'var(--color-green-deep)';
+    badge.style.color = '#ffffff';
+    if (descEl) {
+      descEl.innerHTML = '매일 오전 8시, 알리고 API를 통해 신청자 전체에게 자동으로 발송됩니다. <strong style="color: var(--status-review);">⚠ 아직 알리고 연동이 완료되지 않았습니다 -- 연동 전까지는 이 모드를 선택해도 실제로는 발송되지 않으니, 그동안은 수동 발송을 이용해 주세요.</strong>';
+    }
+  } else {
+    badge.textContent = '수동 발송';
+    badge.style.background = 'var(--admin-accent-cyan)';
+    badge.style.color = '#0b1a30';
+    if (descEl) {
+      descEl.textContent = '관리자가 매일 아래 내용을 "본문 복사"로 복사해, 카카오톡 채널 관리자센터에 직접 붙여넣고 오전 8시로 예약 발송합니다. 지금은 이 방식으로 운영 중입니다.';
+    }
+  }
 }
 
 async function loadOrGenerateKakaoBriefing() {

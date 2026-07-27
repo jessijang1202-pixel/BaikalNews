@@ -1349,6 +1349,25 @@
            발송 연동 전까지는, 이 내용을 참고해 카카오톡 채널 관리자센터에서
            수동으로 발송/예약하는 용도로도 쓸 수 있음. -->
       <section id="tab-kakao-briefing" class="tab-content">
+        <!-- 발송 방식 토글 -- 실제 발송 동작을 바꾸는 스위치가 아니라(자동 발송은
+             아직 알리고 연동 전이라 실제로 아무것도 트리거하지 않음), 지금 이
+             브리핑을 어떤 방식으로 내보내고 있는지를 관리자가 헷갈리지 않도록
+             기록·표시해두는 용도. 연동 완료 후에는 이 토글이 실제 자동 발송
+             경로를 켜고 끄는 스위치가 됨. -->
+        <div class="panel" style="padding: 20px 24px; margin-bottom: 20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <span style="font-weight:700; font-size:0.95rem;">발송 방식:</span>
+              <span id="kakao-send-mode-badge" style="font-size:0.85rem; font-weight:700; padding:6px 16px; border-radius:20px;">수동 발송</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-admin btn-admin-secondary kakao-mode-btn" data-mode="manual" onclick="setKakaoSendMode('manual')">수동 발송으로 전환</button>
+              <button type="button" class="btn-admin btn-admin-secondary kakao-mode-btn" data-mode="auto" onclick="setKakaoSendMode('auto')">자동 발송으로 전환</button>
+            </div>
+          </div>
+          <p id="kakao-send-mode-desc" class="help-text" style="margin-top:10px; margin-bottom:0;"></p>
+        </div>
+
         <div class="panel" style="padding: 24px;">
           <div class="panel-header">
             <h3 class="panel-title">카카오 3분 브리핑 (알림톡 변수 내용)</h3>
