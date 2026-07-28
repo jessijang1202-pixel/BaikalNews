@@ -3,13 +3,15 @@
 // consent request the first time specifically because it was requested
 // outside an actual 회원가입(membership signup) flow -- so this now stores
 // a real membership record keyed by the Kakao user's own id (kakao_user_id),
-// not just a bare phone number row. This has to be a real server-side
-// function, not a static page -- exchanging the authorization code for an
-// access token requires KAKAO_CLIENT_SECRET, which must never be exposed
-// to the browser. Runs entirely server-side: exchange code -> fetch the
-// user's id + phone number -> upsert into Supabase's kakao_subscribers
-// table (re-signing up with the same Kakao account updates the phone
-// number rather than erroring) -> redirect to a plain status page.
+// plus name, not just a bare phone number row (matching Kakao's own
+// "회원가입 화면" example, which showed 이름+연락처 together as required
+// signup fields). This has to be a real server-side function, not a
+// static page -- exchanging the authorization code for an access token
+// requires KAKAO_CLIENT_SECRET, which must never be exposed to the
+// browser. Runs entirely server-side: exchange code -> fetch the user's
+// id + name + phone number -> upsert into Supabase's kakao_subscribers
+// table (re-signing up with the same Kakao account updates the stored
+// info rather than erroring) -> redirect to a plain status page.
 //
 // Env vars required (set in Vercel): KAKAO_REST_API_KEY, KAKAO_CLIENT_SECRET.
 // Supabase URL/anon key below are already public (embedded client-side in
@@ -68,11 +70,12 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: new URLSearchParams({
-        property_keys: JSON.stringify(['kakao_account.phone_number'])
+        property_keys: JSON.stringify(['kakao_account.name', 'kakao_account.phone_number'])
       })
     });
     const userData = await userRes.json();
     const kakaoUserId = userData && userData.id ? String(userData.id) : null;
+    const name = (userData && userData.kakao_account && userData.kakao_account.name) || null;
     const phone = normalizeKakaoPhone(userData && userData.kakao_account && userData.kakao_account.phone_number);
 
     if (!kakaoUserId || !phone) {
@@ -81,8 +84,8 @@ module.exports = async (req, res) => {
     }
 
     // Upsert on kakao_user_id -- this is a membership record now, so the
-    // same Kakao account signing up again should update its phone number
-    // rather than fail as a duplicate.
+    // same Kakao account signing up again should update its info rather
+    // than fail as a duplicate.
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/kakao_subscribers?on_conflict=kakao_user_id`, {
       method: 'POST',
       headers: {
@@ -91,7 +94,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates'
       },
-      body: JSON.stringify({ kakao_user_id: kakaoUserId, phone })
+      body: JSON.stringify({ kakao_user_id: kakaoUserId, name, phone })
     });
 
     if (!insertRes.ok) {

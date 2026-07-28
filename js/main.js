@@ -314,7 +314,7 @@ function startKakaoSubscribe() {
   }
   Kakao.Auth.authorize({
     redirectUri: KAKAO_SUBSCRIBE_REDIRECT_URI,
-    scope: "phone_number"
+    scope: "phone_number,name"
   });
 }
 
