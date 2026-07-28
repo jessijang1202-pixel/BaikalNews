@@ -588,9 +588,11 @@
   border-color: #F6DC00;
 }
 
-/* 카카오 회원가입 안내 모달 -- 실제 카카오 동의 화면으로 넘어가기 전, 우리
-   사이트가 무엇을 수집하는지 먼저 알려주는 화면 (카카오 심사용 "회원가입
-   화면" 캡처에도 쓸 수 있음). */
+/* 회원가입 화면 -- 일반적인 "SNS 간편 회원가입" 폼 레이아웃 (필수 회원정보를
+   입력란 형태로 보여준 뒤 하단에 SNS 가입 버튼). 카카오 심사에서 요구하는
+   "회원가입 화면" 예시와 같은 구조라, 승인 여부와 무관하게 지금 바로
+   캡처해서 심사 제출용으로 쓸 수 있다. 입력란은 실제로 타이핑하는 게
+   아니라 카카오 로그인 후 자동으로 채워지는 값이라 읽기 전용으로 둠. */
 .kakao-signup-modal-overlay {
   position: fixed;
   inset: 0;
@@ -623,49 +625,67 @@
 }
 .kakao-signup-modal h3 {
   font-family: var(--font-serif);
-  font-size: 1.3rem;
+  font-size: 1.4rem;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.kakao-signup-modal h4 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
-.kakao-signup-modal p {
-  font-size: 0.86rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.signup-form-field {
   margin-bottom: 14px;
 }
-.kakao-signup-modal-list {
-  list-style: none;
-  margin: 0 0 16px;
-  padding: 14px 18px;
-  background: #FFF6C8;
-  border-radius: 8px;
-}
-.kakao-signup-modal-list li {
-  font-size: 0.9rem;
+.signup-form-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-primary);
-  padding: 4px 0;
+  margin-bottom: 6px;
+}
+.signup-form-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  background-color: var(--bg-secondary, #f7f7f5);
 }
 .kakao-signup-modal-note {
   font-size: 0.76rem;
   color: var(--text-muted);
-  margin-bottom: 20px;
+  margin-top: 16px;
+  margin-bottom: 0;
+  text-align: center;
 }
 .kakao-signup-modal-note a {
   color: var(--accent-cyan);
 }
 #kakao-signup-modal-continue {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid #FEE500;
   background-color: #FEE500;
   color: #191919;
   font-weight: 700;
   font-size: 0.95rem;
-  padding: 12px;
+  padding: 13px;
   border-radius: 8px;
   cursor: pointer;
+  margin-top: 22px;
 }
 #kakao-signup-modal-continue:hover {
   background-color: #F6DC00;
   border-color: #F6DC00;
+}
+.kakao-signup-btn-icon {
+  font-size: 1rem;
 }
 
 /* Compact modifier - used for the article-page sidebar newsletter widget */
