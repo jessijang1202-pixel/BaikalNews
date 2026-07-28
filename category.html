@@ -157,7 +157,7 @@
             <p>매일, 3분 뉴스 브리핑을 카카오톡으로 받아보세요.</p>
           </div>
           <div class="newsletter-form">
-            <button type="button" class="btn" id="kakao-submit-btn" onclick="startKakaoSubscribe()">카카오로 회원가입</button>
+            <button type="button" class="btn" id="kakao-submit-btn" onclick="openKakaoSignupModal()">카카오로 뉴스 받기</button>
           </div>
         </div>
 
@@ -212,6 +212,21 @@
       </div>
     </div>
   </footer>
+
+  <!-- 카카오 회원가입 안내 모달 (index.html과 동일) -->
+  <div class="kakao-signup-modal-overlay" id="kakao-signup-modal" style="display:none;">
+    <div class="kakao-signup-modal">
+      <button type="button" class="kakao-signup-modal-close" onclick="closeKakaoSignupModal()" aria-label="닫기">&times;</button>
+      <h3>카카오로 회원가입</h3>
+      <p>바이칼뉴스 "카카오톡 3분 뉴스" 회원가입 시, 카카오 계정으로부터 아래 정보를 제공받습니다.</p>
+      <ul class="kakao-signup-modal-list">
+        <li><strong>이름</strong> (필수)</li>
+        <li><strong>휴대폰 번호</strong> (필수)</li>
+      </ul>
+      <p class="kakao-signup-modal-note">수집된 정보는 매일 아침 3분 뉴스 브리핑 발송 목적으로만 사용되며, <a href="privacy-policy.html">개인정보처리방침</a> 및 <a href="terms.html">이용약관</a>에 따라 관리됩니다.</p>
+      <button type="button" id="kakao-signup-modal-continue" onclick="confirmKakaoSignup()">카카오로 계속하기</button>
+    </div>
+  </div>
 
   <!-- Scripts (deferred so they don't block HTML parsing/rendering) -->
   <script src="js/supabase-config.js" defer></script>
