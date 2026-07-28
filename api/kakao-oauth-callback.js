@@ -1,10 +1,15 @@
-// Kakao Login redirect target for the "카카오로 3분 뉴스 신청" button
-// (js/main.js's startKakaoSubscribe()). This has to be a real server-side
+// Kakao Login redirect target for the "카카오로 회원가입" button
+// (js/main.js's startKakaoSubscribe()). Kakao rejected the phone_number
+// consent request the first time specifically because it was requested
+// outside an actual 회원가입(membership signup) flow -- so this now stores
+// a real membership record keyed by the Kakao user's own id (kakao_user_id),
+// not just a bare phone number row. This has to be a real server-side
 // function, not a static page -- exchanging the authorization code for an
 // access token requires KAKAO_CLIENT_SECRET, which must never be exposed
 // to the browser. Runs entirely server-side: exchange code -> fetch the
-// user's phone number -> save it to Supabase's kakao_subscribers table ->
-// redirect the browser to a plain status page (kakao-callback.html).
+// user's id + phone number -> upsert into Supabase's kakao_subscribers
+// table (re-signing up with the same Kakao account updates the phone
+// number rather than erroring) -> redirect to a plain status page.
 //
 // Env vars required (set in Vercel): KAKAO_REST_API_KEY, KAKAO_CLIENT_SECRET.
 // Supabase URL/anon key below are already public (embedded client-side in
@@ -67,30 +72,31 @@ module.exports = async (req, res) => {
       })
     });
     const userData = await userRes.json();
+    const kakaoUserId = userData && userData.id ? String(userData.id) : null;
     const phone = normalizeKakaoPhone(userData && userData.kakao_account && userData.kakao_account.phone_number);
 
-    if (!phone) {
-      console.error('Kakao user info missing phone_number:', userData);
+    if (!kakaoUserId || !phone) {
+      console.error('Kakao user info missing id/phone_number:', userData);
       return toStatusPage(res, 'error', 'no_phone_number');
     }
 
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/kakao_subscribers`, {
+    // Upsert on kakao_user_id -- this is a membership record now, so the
+    // same Kakao account signing up again should update its phone number
+    // rather than fail as a duplicate.
+    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/kakao_subscribers?on_conflict=kakao_user_id`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=ignore-duplicates'
+        Prefer: 'resolution=merge-duplicates'
       },
-      body: JSON.stringify({ phone })
+      body: JSON.stringify({ kakao_user_id: kakaoUserId, phone })
     });
 
-    // A duplicate (already-subscribed number) is not a real failure --
-    // Prefer: resolution=ignore-duplicates already makes that a 201/200,
-    // but handle a raw 409 defensively too in case that header is ignored.
-    if (!insertRes.ok && insertRes.status !== 409) {
+    if (!insertRes.ok) {
       const errText = await insertRes.text();
-      console.error('Supabase kakao_subscribers insert failed:', errText);
+      console.error('Supabase kakao_subscribers upsert failed:', errText);
       return toStatusPage(res, 'error', 'save_failed');
     }
 
