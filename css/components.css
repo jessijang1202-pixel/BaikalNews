@@ -654,6 +654,18 @@
   color: var(--text-muted);
   background-color: var(--bg-secondary, #f7f7f5);
 }
+/* 카카오 심사에서 "회원가입 화면 내 수집 항목, 수집 조건 기재 필수"라고
+   명시했기 때문에, 입력란 라벨만으로는 부족하고 이 화면 자체에 수집
+   항목/목적/보유기간을 글로 명시해야 한다. */
+.signup-collection-notice {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  background: var(--bg-secondary, #f7f7f5);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 4px;
+}
 .kakao-signup-modal-note {
   font-size: 0.76rem;
   color: var(--text-muted);
