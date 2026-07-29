@@ -3428,12 +3428,19 @@ const MEDIA_KOREAN_PEOPLE_RULE = "\n\nPEOPLE & TEXT (STRICT): Every person shown
 // hand-typed, or shorts image cuts).
 const IMAGE_REALISM_RULE = "\n\nMOST IMPORTANT RULE -- PHOTOREALISM: This image represents a real news/press photograph, so it must look exactly like an actual photo taken with a real camera at the real scene -- not an illustration, painting, 3D render, or 'AI-art' look. Prioritize photorealistic accuracy above all other style choices: realistic anatomy and proportions (especially hands and faces), natural skin texture, correct real-world lighting and shadow physics, authentic materials and textures, and a candid, unposed documentary quality. Avoid the telltale over-smooth, overly symmetrical, glossy 'AI-generated' look.";
 const IMAGE_NO_RAIN_RULE = "\n\nWEATHER & CLARITY: Default to clear, sunny weather with bright natural light. AVOID rain, raindrops, wet surfaces, fog, mist, haze, overcast/gray skies, and gloomy or murky moods unless the subject matter specifically calls for them -- these have been overused in recent generations. The main subject must always be in sharp, crisp focus; a subtle out-of-focus/blur background used to emphasize the subject is fine, but the overall image must never look hazy or washed out.";
+// A generated image sometimes comes back as the actual photo pillarboxed/
+// letterboxed inside a differently-shaped canvas, with plain white (or
+// black) bars filling the rest -- visible as ugly margins once the site
+// displays the image at its real size. Applies to every image generation
+// call (article hero, shorts cuts) since the underlying cause is the same
+// regardless of which aspect ratio was requested.
+const IMAGE_NO_LETTERBOX_RULE = "\n\nFULL-BLEED FRAMING (STRICT): The photograph must completely fill the entire image canvas edge-to-edge, with the requested aspect ratio being the shape of the photo itself -- not a smaller photo padded, pillarboxed, or letterboxed inside a differently-proportioned canvas. Absolutely no white, black, gray, or blank margins, borders, or bars anywhere in the image, on any side. Every single pixel of the output must be actual photographic scene content.";
 // Only appended for the article representative image (triggerAiImageGeneration).
 // The site now displays this image at its full original size/aspect ratio
 // (no crop box), but Gemini's image model otherwise defaults to a square 1:1
 // output, which reads oddly as a wide article hero -- this just steers the
 // composition toward a natural widescreen shot instead of forcing a crop.
-const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape composition (not square, not portrait). Compose the shot with this widescreen framing in mind, leaving natural headroom/context at top and bottom rather than a tightly cropped square subject.";
+const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape composition (not square, not portrait), filling the entire frame edge-to-edge with photographic content -- no white/blank margins or letterboxing top or bottom. Compose the shot with this widescreen framing in mind, leaving natural headroom/context at top and bottom rather than a tightly cropped square subject.";
 
 async function generateGeminiImage(promptText) {
   const apiKey = localStorage.getItem("baikal_gemini_key");
@@ -3447,7 +3454,7 @@ async function generateGeminiImage(promptText) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + MEDIA_KOREAN_PEOPLE_RULE }] }] })
+    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + IMAGE_NO_LETTERBOX_RULE + MEDIA_KOREAN_PEOPLE_RULE }] }] })
   });
 
   if (!response.ok) {
