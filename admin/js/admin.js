@@ -563,7 +563,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'newsletter', 'kakao-briefing', 'subscribers', 'curation', 'expenses', 'settings'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'letter-send', 'subscribers', 'curation', 'expenses', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -651,9 +651,8 @@ async function switchTab(tabName) {
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
-    newsletter: "뉴스레터",
-    'kakao-briefing': "카카오 3분 브리핑",
-    subscribers: "구독자 관리",
+    'letter-send': "기사 레터 발송",
+    subscribers: "구독자 현황",
     curation: "홈화면 큐레이션 통제",
     expenses: "비용 관리",
     settings: "설정"
@@ -686,9 +685,8 @@ async function switchTab(tabName) {
     loadGeminiApiKey();
     loadClaudeApiKey();
     await renderShortsList();
-  } else if (tabName === 'newsletter') {
+  } else if (tabName === 'letter-send') {
     await loadOrGenerateNewsletterDraft();
-  } else if (tabName === 'kakao-briefing') {
     loadGeminiApiKey();
     renderKakaoSendModeUI();
     await loadOrGenerateKakaoBriefing();
@@ -7181,6 +7179,20 @@ async function renderExpensesTab() {
 
   const dateEl = document.getElementById("expense-date");
   if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+}
+
+function switchLetterSubTab(key, btnEl) {
+  document.querySelectorAll(".letter-subtab-btn").forEach(btn => {
+    btn.classList.remove("btn-admin-primary");
+    btn.classList.add("btn-admin-secondary");
+  });
+  if (btnEl) {
+    btnEl.classList.remove("btn-admin-secondary");
+    btnEl.classList.add("btn-admin-primary");
+  }
+  document.querySelectorAll(".letter-subtab-content").forEach(el => { el.style.display = "none"; });
+  const target = document.getElementById("letter-subtab-" + key);
+  if (target) target.style.display = "block";
 }
 
 function switchExpenseSubTab(key, btnEl) {
