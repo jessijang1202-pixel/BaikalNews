@@ -552,10 +552,16 @@ function renderHomepage() {
     }
   });
 
-  // Feature #6: Photo Gallery (last 4 published articles)
+  // Feature #6: Photo Gallery (4 most recently published articles)
   const photoContainer = document.getElementById("photo-gallery-container");
   if (photoContainer) {
-    const photoItems = published.slice(Math.max(0, published.length - 4));
+    // published is ordered by id ascending (Supabase fetch order), which
+    // isn't the same as actual publish recency -- an article scheduled
+    // for today can have a lower id than one queued for a later date, so
+    // slicing off the array's tail silently dropped the true latest
+    // article whenever id order and date order disagreed. Same root
+    // cause as the 최신 보도 fix; reuses the same comparator.
+    const photoItems = published.slice().sort(compareArticlesByDateDesc).slice(0, 4);
     if (photoItems.length > 0) {
       photoContainer.innerHTML = photoItems.map(art => {
         const imageUrl = art.image || 'images/baikal_ice.png';
