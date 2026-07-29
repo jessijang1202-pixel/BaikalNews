@@ -11,6 +11,12 @@
       "destination": "/admin/:path*"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/generate-daily-briefing",
+      "schedule": "0 23 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/admin/(.*)",

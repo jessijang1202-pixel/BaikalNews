@@ -497,8 +497,10 @@
       return true;
     },
 
-    // 3분 뉴스 브리핑 아카이브 (공개 페이지 briefing.html) -- 관리자 페이지에서
-    // 생성/게시한 내용을 최신순으로 가져온다.
+    // 3분 뉴스 브리핑 아카이브 (공개 페이지 briefing.html) -- 관리자가
+    // "게시" 처리한(status='published') 내용만 최신순으로 가져온다.
+    // 매일 8시 자동 생성 크론이 만들어 두는 초안(status='draft')은
+    // 관리자가 검토 후 게시하기 전까지 이 목록에 노출되지 않는다.
     fetchNewsBriefings: async function() {
       const client = this.getClient();
       if (!client) return [];
@@ -506,6 +508,7 @@
         const { data, error } = await client
           .from('news_briefings')
           .select('*')
+          .eq('status', 'published')
           .order('briefing_date', { ascending: false });
         if (error) throw error;
         return (data || []).map(row => ({

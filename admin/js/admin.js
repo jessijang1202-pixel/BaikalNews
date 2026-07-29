@@ -6910,8 +6910,12 @@ function parseKoreanDate(dateStr) {
   return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
+// toISOString() reports the UTC calendar date, which lags a full day
+// behind Korea's during 00:00-08:59 KST (UTC+9) -- exactly the window the
+// new 8am briefing cron runs in. Using Asia/Seoul here keeps the admin's
+// "오늘" draft key in sync with the date the cron writes to Supabase.
 function todayDateKey() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
 }
 
 async function renderNewsletterSubscriberBriefing() {
@@ -7544,13 +7548,32 @@ function findNewsletterArticleById(id) {
 // 없고, 초안은 로컬에 두었다가 "웹사이트에 게시" 버튼을 눌러야만
 // news_briefings 테이블에 반영되어 공개 페이지에 노출된다.
 // ==========================================
-let webBriefingDraft = null; // { date: 'YYYY-MM-DD', title: '...', content: '...' }
+let webBriefingDraft = null; // { date: 'YYYY-MM-DD', title: '...', content: '...', status: 'draft'|'published' }
 
 function webBriefingStorageKey() {
   return `baikal_web_briefing_${todayDateKey()}`;
 }
 
+// Checks Supabase first (not just localStorage) so this device picks up
+// today's draft even if it was created elsewhere -- either the 8am cron,
+// or "오늘의 브리핑 생성" clicked from a different admin browser. Falls
+// back to localStorage only if Supabase has nothing yet (e.g. offline).
 async function loadOrGenerateWebBriefing() {
+  const today = todayDateKey();
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    try {
+      const remote = await window.SupabaseAdapter.fetchNewsBriefingByDate(today);
+      if (remote) {
+        webBriefingDraft = remote;
+        persistWebBriefingDraft();
+        renderWebBriefingUI();
+        return;
+      }
+    } catch (err) {
+      console.warn("오늘 브리핑 원격 조회 실패, 로컬 저장본으로 대체합니다:", err);
+    }
+  }
+
   const saved = localStorage.getItem(webBriefingStorageKey());
   if (saved) {
     try {
@@ -7578,7 +7601,12 @@ function renderWebBriefingUI() {
   if (webBriefingDraft && webBriefingDraft.content) {
     if (titleEl) titleEl.value = webBriefingDraft.title || '';
     textEl.value = webBriefingDraft.content;
-    if (statusEl) statusEl.textContent = `${webBriefingDraft.date} 기준 초안 (${webBriefingDraft.content.length}자) -- 아직 웹사이트에 게시되지 않았습니다.`;
+    if (statusEl) {
+      const publishedNote = webBriefingDraft.status === 'published'
+        ? '웹사이트에 게시됨'
+        : '초안 상태 -- 아직 웹사이트에 게시되지 않았습니다. 매일 아침 8시 자동 생성된 초안일 수 있으니 검토 후 게시해 주세요.';
+      statusEl.textContent = `${webBriefingDraft.date} 기준 (${webBriefingDraft.content.length}자) -- ${publishedNote}`;
+    }
   } else {
     if (titleEl) titleEl.value = '';
     textEl.value = '';
@@ -7589,10 +7617,14 @@ function renderWebBriefingUI() {
 function syncWebBriefingEdit() {
   const title = document.getElementById("web-briefing-title").value;
   const content = document.getElementById("web-briefing-content").value;
-  webBriefingDraft = { date: todayDateKey(), title, content };
+  const prevStatus = (webBriefingDraft && webBriefingDraft.status) || 'draft';
+  webBriefingDraft = { date: todayDateKey(), title, content, status: prevStatus };
   persistWebBriefingDraft();
   const statusEl = document.getElementById("web-briefing-status");
-  if (statusEl) statusEl.textContent = `${webBriefingDraft.date} 기준 초안 (${content.length}자) -- 아직 웹사이트에 게시되지 않았습니다.`;
+  if (statusEl) {
+    const publishedNote = prevStatus === 'published' ? '웹사이트에 게시됨 (수정 후 다시 게시해야 반영됩니다)' : '초안 상태 -- 아직 웹사이트에 게시되지 않았습니다.';
+    statusEl.textContent = `${webBriefingDraft.date} 기준 (${content.length}자) -- ${publishedNote}`;
+  }
 }
 
 async function generateWebBriefing() {
@@ -7638,9 +7670,20 @@ ${newsListText}
       resultText = resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim();
     }
 
-    webBriefingDraft = { date: todayDateKey(), title, content: resultText };
+    webBriefingDraft = { date: todayDateKey(), title, content: resultText, status: 'draft' };
     persistWebBriefingDraft();
     renderWebBriefingUI();
+
+    // Best-effort -- so this device's manually-generated draft is visible
+    // to other admin devices too (same mechanism the 8am cron uses), but a
+    // save failure here shouldn't block editing/publishing from this device.
+    if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+      try {
+        await window.SupabaseAdapter.saveNewsBriefing(webBriefingDraft);
+      } catch (saveErr) {
+        console.warn("생성된 초안을 Supabase에 저장하는 데 실패했습니다 (로컬에는 저장됨):", saveErr);
+      }
+    }
   } catch (err) {
     console.error("웹 브리핑 생성 실패:", err);
     if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
@@ -7827,39 +7870,43 @@ function stripLeakedKakaoBriefingHeader(text) {
 async function generateKakaoBriefing() {
   const btn = document.getElementById("kakao-briefing-generate-btn");
   const statusEl = document.getElementById("kakao-briefing-status");
+
+  // 네이버를 다시 수집하지 않고, 이미 생성해 둔 "웹사이트 게시용" 브리핑
+  // 원문을 그대로 소스로 사용해 카카오 알림톡 글자수(650자)에 맞게
+  // 압축·재구성한다 -- 같은 날 두 번 수집할 이유가 없고, 두 채널의
+  // 내용도 서로 어긋나지 않게 된다.
+  if (!webBriefingDraft || !webBriefingDraft.content) {
+    alert('먼저 위 "웹사이트 게시용" 브리핑을 생성해 주세요. 카카오톡 발송용은 그 내용을 바탕으로 압축해서 만듭니다.');
+    return;
+  }
+
   if (kakaoBriefingDraft && kakaoBriefingDraft.content) {
     if (!confirm("이미 작성된 오늘의 브리핑이 있습니다. 새로 생성하면 지금까지 수정한 내용은 사라집니다. 계속하시겠습니까?")) return;
   }
 
   if (btn) btn.disabled = true;
-  setKakaoBriefingBusy(true, "네이버 화제 뉴스 불러오는 중...");
+  setKakaoBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
   try {
-    const trending = await fetchNaverTrending();
-    if (trending.length === 0) throw new Error("오늘의 화제 뉴스를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-
-    const newsListText = trending.slice(0, 20).map((t, i) => `${i + 1}. ${t.title}`).join('\n');
-    const todayLabel = new Date().toLocaleDateString("ko-KR", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+    const sourceContent = webBriefingDraft.content;
 
     const buildPrompt = (extra) => `
-아래는 오늘(${todayLabel}) 네이버 랭킹 뉴스 기준 화제가 된 뉴스 제목 목록입니다. 이를 바탕으로 카카오톡 "알림톡"으로 매일 아침 발송할 "3분 뉴스 브리핑"의 본문을 작성하십시오.
+아래는 오늘 바이칼 뉴스 웹사이트에 게시된 "3분 뉴스 브리핑"의 원문입니다. 같은 뉴스를 다시 수집하지 말고, 이 원문에 담긴 소식만을 바탕으로 카카오톡 "알림톡"으로 발송할 압축판 본문을 작성하십시오.
 
-[오늘의 화제 뉴스 제목 목록]
-${newsListText}
+[웹사이트 게시용 브리핑 원문]
+${sourceContent}
 
 [작성 지침 -- 반드시 모두 지킬 것]
-- 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오 -- 이 예산을 최대한 채워서 알찬 브리핑이 되어야 합니다). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
-- (매우 중요) 각 뉴스 항목은 "▩ "로 시작하십시오 (번호 대신 이 기호를 사용하십시오). "제목 줄"과 "설명 줄"을 따로 나누지 말고, 하나의 문장(또는 이어지는 두 문장)으로 바로 핵심 사실을 전달하십시오. 예를 들어 "▩ 밭일하던 100세 할머니 숨진 채 발견\n밭일을 하던 100세 할머니가 숨진 채 발견되었습니다." 처럼 제목을 쓰고 그 아래 줄에서 같은 내용을 다시 풀어 쓰는 방식은 같은 내용이 중복되어 글자를 낭비하므로 절대 금지합니다. 대신 "▩ 밭일하던 100세 할머니 숨진 채 발견됨, 당시 체온 42.2도로 측정돼 폭염 주의 당부됨"처럼 "▩ " 뒤에 바로 한 줄로 이어서 쓰십시오. 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
-- 제목 중복을 없앤 만큼 아낀 글자수로, 최대한 많은 뉴스 항목(목표 12~14개 내외, 글자수 예산이 허락하는 한 최대한)을 다루십시오. 항목 수를 늘리는 대신 각 항목은 반드시 짧고 간결하게 유지하십시오 -- 한 항목에 여러 사실을 욱여넣어 문장을 길게 늘이지 말고, 항목당 핵심 사실 하나만 짧은 한 문장으로 담으십시오. 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
+- 원문에 담긴 뉴스 항목을 빠짐없이 다루되, 각 항목을 짧은 한 문장(또는 이어지는 두 문장)으로 압축하십시오. 원문에 없는 새로운 사실을 추가하거나 추측하지 마십시오.
+- 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
+- (매우 중요) 각 뉴스 항목은 "▩ "로 시작하십시오 (번호 대신 이 기호를 사용하십시오). "제목 줄"과 "설명 줄"을 따로 나누지 말고, 하나의 문장으로 바로 핵심 사실을 전달하십시오. 예를 들어 "▩ 밭일하던 100세 할머니 숨진 채 발견\n밭일을 하던 100세 할머니가 숨진 채 발견되었습니다." 처럼 제목을 쓰고 그 아래 줄에서 같은 내용을 다시 풀어 쓰는 방식은 같은 내용이 중복되어 글자를 낭비하므로 절대 금지합니다. 대신 "▩ 밭일하던 100세 할머니 숨진 채 발견됨, 당시 체온 42.2도로 측정돼 폭염 주의 당부됨"처럼 "▩ " 뒤에 바로 한 줄로 이어서 쓰십시오. 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
 - 문장 종결은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "별세했습니다" → "별세함", "비판했습니다" → "비판함"). 음슴체는 문장이 짧아져 글자수 예산도 더 아낄 수 있습니다.
 - 이 메시지는 카카오 "알림톡"(정보성 메시지)으로 발송되므로, 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)를 절대 포함하지 마십시오. 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하십시오.
-- (매우 중요) 인사말, 헤더, 마무리 문구, 날짜, "☀" 같은 장식적 이모지 타이틀을 절대 넣지 마십시오. 예를 들어 "☀ ${todayLabel} 3분 뉴스 브리핑" 같은 첫 줄을 절대 만들지 마십시오 -- 이미 승인된 고정 템플릿에 별도로 포함되어 있어, 여기서 또 넣으면 중복되고 글자 예산만 낭비됩니다. 첫 줄부터 바로 "▩ "로 시작하는 첫 번째 뉴스 항목으로 시작하십시오.
+- (매우 중요) 인사말, 헤더, 마무리 문구, 날짜, "☀" 같은 장식적 이모지 타이틀을 절대 넣지 마십시오 -- 이미 승인된 고정 템플릿에 별도로 포함되어 있어, 여기서 또 넣으면 중복되고 글자 예산만 낭비됩니다. 첫 줄부터 바로 "▩ "로 시작하는 첫 번째 뉴스 항목으로 시작하십시오.
 - 마크다운 문법(#, **, - 등) 없이 "▩ "와 줄바꿈만으로 구성하십시오.
 - 다른 설명 없이, 뉴스 요약 본문 그 자체만 출력하십시오.
 ${extra || ''}`;
 
-    const systemInstruction = "당신은 카카오 알림톡(정보성 메시지)으로 매일 아침 발송되는 3분 뉴스 브리핑을 작성하는 뉴스 큐레이터입니다. 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 사실 전달에만 집중하고, 주어진 글자수 범위를 반드시 지키십시오.";
-
-    setKakaoBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
+    const systemInstruction = "당신은 웹사이트에 이미 게시된 3분 뉴스 브리핑 원문을 카카오 알림톡(정보성 메시지) 발송용으로 압축·재구성하는 편집자입니다. 원문에 없는 내용을 추가하지 말고, 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 주어진 글자수 범위를 반드시 지키십시오.";
     let resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(), systemInstruction)).trim());
 
     // Hard technical limit, not a style preference -- retry once, tighter,
@@ -7873,7 +7920,7 @@ ${extra || ''}`;
       // for either way -- retry asking for more items/detail instead of
       // leaving a thin brief.
       setKakaoBriefingBusy(true, `분량 부족(${resultText.length}자)으로 더 채워서 재생성 중...`);
-      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 뉴스 항목 수를 늘리거나 각 항목 설명을 조금 더 자세히 써서, 반드시 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
+      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
       resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim());
     }
 

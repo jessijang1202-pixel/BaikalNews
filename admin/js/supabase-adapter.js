@@ -850,7 +850,8 @@
               id: row.id,
               date: row.briefing_date,
               title: row.title,
-              content: row.content
+              content: row.content,
+              status: row.status
             }));
           } catch (err) {
             console.error("Supabase fetchNewsBriefings error:", err);
@@ -860,13 +861,43 @@
       return [];
     },
 
+    // 관리자 패널이 탭을 열 때 "오늘" 초안이 이미 있는지(수동 생성이든,
+    // 매일 8시 자동 생성 크론이 만들어 둔 것이든) 확인하는 용도.
+    fetchNewsBriefingByDate: async function(date) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('news_briefings')
+              .select('*')
+              .eq('briefing_date', date)
+              .maybeSingle();
+            if (error) throw error;
+            if (!data) return null;
+            return {
+              id: data.id,
+              date: data.briefing_date,
+              title: data.title,
+              content: data.content,
+              status: data.status
+            };
+          } catch (err) {
+            console.error("Supabase fetchNewsBriefingByDate error:", err);
+          }
+        }
+      }
+      return null;
+    },
+
     saveNewsBriefing: async function(briefing) {
       const client = this.isConfigured() && this.getClient();
       if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
       const dbRow = {
         briefing_date: briefing.date,
         title: briefing.title,
-        content: briefing.content
+        content: briefing.content,
+        status: briefing.status || 'published'
       };
       const { error } = await client
         .from('news_briefings')
