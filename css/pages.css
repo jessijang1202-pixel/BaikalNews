@@ -597,6 +597,58 @@
   letter-spacing: 0.04em;
 }
 
+/* 3분 뉴스 브리핑 아카이브 (briefing.html) */
+.briefing-archive {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 0 40px;
+}
+
+.briefing-entry {
+  padding: 32px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.briefing-entry:first-child {
+  padding-top: 0;
+}
+
+.briefing-entry:last-child {
+  border-bottom: none;
+}
+
+.briefing-entry-date {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.briefing-entry-title {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+.briefing-entry-content {
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  line-height: 1.85;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.briefing-empty {
+  text-align: center;
+  padding: 80px 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
 /* Boxed sections, matching the About page's value/team cards */
 .policy-section {
   margin-bottom: 32px;

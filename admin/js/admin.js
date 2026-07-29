@@ -692,6 +692,7 @@ async function switchTab(tabName) {
     loadGeminiApiKey();
     renderKakaoSendModeUI();
     await loadOrGenerateKakaoBriefing();
+    await loadOrGenerateWebBriefing();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
     await renderKakaoSubscriberBriefing();
@@ -7522,6 +7523,150 @@ async function regenerateNewsletterDraft() {
 
 function findNewsletterArticleById(id) {
   return newsletterArticlesCache.find(a => a.id === id);
+}
+
+// ==========================================
+// 3분 뉴스 브리핑 -- 웹사이트 게시용 (briefing.html 아카이브). 카카오
+// 알림톡용 변수(650자 제한)와는 완전히 별개로 생성되는, 더 길고 자세한
+// 글이다. Naver 화제 뉴스를 소스로 쓰는 것은 동일하지만 글자수 상한이
+// 없고, 초안은 로컬에 두었다가 "웹사이트에 게시" 버튼을 눌러야만
+// news_briefings 테이블에 반영되어 공개 페이지에 노출된다.
+// ==========================================
+let webBriefingDraft = null; // { date: 'YYYY-MM-DD', title: '...', content: '...' }
+
+function webBriefingStorageKey() {
+  return `baikal_web_briefing_${todayDateKey()}`;
+}
+
+async function loadOrGenerateWebBriefing() {
+  const saved = localStorage.getItem(webBriefingStorageKey());
+  if (saved) {
+    try {
+      webBriefingDraft = JSON.parse(saved);
+      renderWebBriefingUI();
+      return;
+    } catch (err) {
+      console.warn("저장된 웹 브리핑 파싱 실패, 새로 생성이 필요합니다:", err);
+    }
+  }
+  webBriefingDraft = null;
+  renderWebBriefingUI();
+}
+
+function persistWebBriefingDraft() {
+  if (!webBriefingDraft) return;
+  localStorage.setItem(webBriefingStorageKey(), JSON.stringify(webBriefingDraft));
+}
+
+function renderWebBriefingUI() {
+  const titleEl = document.getElementById("web-briefing-title");
+  const textEl = document.getElementById("web-briefing-content");
+  const statusEl = document.getElementById("web-briefing-status");
+  if (!textEl) return;
+  if (webBriefingDraft && webBriefingDraft.content) {
+    if (titleEl) titleEl.value = webBriefingDraft.title || '';
+    textEl.value = webBriefingDraft.content;
+    if (statusEl) statusEl.textContent = `${webBriefingDraft.date} 기준 초안 (${webBriefingDraft.content.length}자) -- 아직 웹사이트에 게시되지 않았습니다.`;
+  } else {
+    if (titleEl) titleEl.value = '';
+    textEl.value = '';
+    if (statusEl) statusEl.textContent = '아직 생성된 브리핑이 없습니다. "오늘의 브리핑 생성" 버튼을 눌러주세요.';
+  }
+}
+
+function syncWebBriefingEdit() {
+  const title = document.getElementById("web-briefing-title").value;
+  const content = document.getElementById("web-briefing-content").value;
+  webBriefingDraft = { date: todayDateKey(), title, content };
+  persistWebBriefingDraft();
+  const statusEl = document.getElementById("web-briefing-status");
+  if (statusEl) statusEl.textContent = `${webBriefingDraft.date} 기준 초안 (${content.length}자) -- 아직 웹사이트에 게시되지 않았습니다.`;
+}
+
+async function generateWebBriefing() {
+  const btn = document.getElementById("web-briefing-generate-btn");
+  const statusEl = document.getElementById("web-briefing-status");
+  if (webBriefingDraft && webBriefingDraft.content) {
+    if (!confirm("이미 작성된 오늘의 브리핑이 있습니다. 새로 생성하면 지금까지 수정한 내용은 사라집니다. 계속하시겠습니까?")) return;
+  }
+
+  if (btn) btn.disabled = true;
+  setKakaoBriefingBusy(true, "네이버 화제 뉴스 불러오는 중...");
+  try {
+    const trending = await fetchNaverTrending();
+    if (trending.length === 0) throw new Error("오늘의 화제 뉴스를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+
+    const newsListText = trending.slice(0, 20).map((t, i) => `${i + 1}. ${t.title}`).join('\n');
+    const todayLabel = new Date().toLocaleDateString("ko-KR", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+    const prompt = `
+아래는 오늘(${todayLabel}) 네이버 랭킹 뉴스 기준 화제가 된 뉴스 제목 목록입니다. 이를 바탕으로 바이칼 뉴스 웹사이트에 게시할 "3분 뉴스 브리핑" 글을 작성하십시오. 이것은 카카오톡 알림톡처럼 글자수 제한이 있는 짧은 글이 아니라, 웹페이지에 그대로 게시되는 정식 기사 형태의 글입니다.
+
+[오늘의 화제 뉴스 제목 목록]
+${newsListText}
+
+[작성 지침]
+- 전체를 천천히 읽어도 3분 내외(공백 포함 1,300~1,800자 정도)에 읽을 수 있는 분량으로 작성하십시오.
+- 오늘의 주요 뉴스를 5~8개 정도 선별해, 각 소식마다 소제목(굵은 문장 형태)과 2~4문장의 설명을 붙여 정리하십시오. 제목만으로 알 수 없는 내용은 추측하지 말고 명백한 사실 위주로 작성하십시오.
+- 문체는 정중한 뉴스 문체("~습니다/합니다")를 사용하십시오.
+- 광고성 문구나 특정 상품·서비스 홍보는 포함하지 마십시오.
+- 마크다운 문법(#, **, - 등) 없이 일반 텍스트와 줄바꿈만으로 작성하십시오. 소제목은 별도 줄에 작성하고 그 다음 줄부터 설명을 이어가십시오.
+- 글 전체의 제목이 될 한 줄을 가장 먼저 "[제목] " 접두사와 함께 작성하십시오 (예: "[제목] 7월 29일, 오늘의 3분 뉴스"). 이 줄 다음에 본문을 이어가십시오.
+- 다른 설명 없이, 제목 줄과 본문만 출력하십시오.`;
+
+    const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 정중한 뉴스 문체로, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
+
+    setKakaoBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
+    let resultText = (await callGeminiTextApi(prompt, systemInstruction)).trim();
+
+    let title = `${todayLabel} 3분 뉴스 브리핑`;
+    const titleMatch = resultText.match(/^\[제목\]\s*(.+)$/m);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+      resultText = resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim();
+    }
+
+    webBriefingDraft = { date: todayDateKey(), title, content: resultText };
+    persistWebBriefingDraft();
+    renderWebBriefingUI();
+  } catch (err) {
+    console.error("웹 브리핑 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("브리핑 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    setKakaoBriefingBusy(false);
+  }
+}
+
+async function publishWebBriefing() {
+  const title = document.getElementById("web-briefing-title").value.trim();
+  const content = document.getElementById("web-briefing-content").value.trim();
+  if (!title || !content) {
+    alert("제목과 본문을 모두 입력해 주세요.");
+    return;
+  }
+  if (!window.SupabaseAdapter || !window.SupabaseAdapter.isConfigured()) {
+    alert("Supabase가 설정되지 않아 게시할 수 없습니다.");
+    return;
+  }
+
+  const btn = document.getElementById("web-briefing-publish-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "게시 중..."; }
+  try {
+    const date = todayDateKey();
+    await window.SupabaseAdapter.saveNewsBriefing({ date, title, content });
+    webBriefingDraft = { date, title, content };
+    persistWebBriefingDraft();
+    const statusEl = document.getElementById("web-briefing-status");
+    if (statusEl) statusEl.textContent = `${date} 브리핑이 웹사이트에 게시되었습니다. (${content.length}자)`;
+    alert("웹사이트에 게시되었습니다.");
+  } catch (err) {
+    console.error("웹 브리핑 게시 실패:", err);
+    alert("게시 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "웹사이트에 게시"; }
+  }
 }
 
 // ==========================================

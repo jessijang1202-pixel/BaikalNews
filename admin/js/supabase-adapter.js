@@ -834,6 +834,48 @@
     },
 
     // ==========================================
+    // 3분 뉴스 브리핑 (웹사이트 게시용, briefing.html 아카이브)
+    // ==========================================
+    fetchNewsBriefings: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('news_briefings')
+              .select('*')
+              .order('briefing_date', { ascending: false });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              date: row.briefing_date,
+              title: row.title,
+              content: row.content
+            }));
+          } catch (err) {
+            console.error("Supabase fetchNewsBriefings error:", err);
+          }
+        }
+      }
+      return [];
+    },
+
+    saveNewsBriefing: async function(briefing) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const dbRow = {
+        briefing_date: briefing.date,
+        title: briefing.title,
+        content: briefing.content
+      };
+      const { error } = await client
+        .from('news_briefings')
+        .upsert(dbRow, { onConflict: 'briefing_date' });
+      if (error) throw error;
+      return true;
+    },
+
+    // ==========================================
     // 숏폼(Shorts) Projects
     // ==========================================
     fetchShorts: async function() {

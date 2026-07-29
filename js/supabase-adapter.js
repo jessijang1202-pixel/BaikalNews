@@ -497,24 +497,27 @@
       return true;
     },
 
-    // 카카오톡 3분 뉴스 signup from the homepage form. Same shape as
-    // subscribeNewsletter -- collects the phone number now; actual sending
-    // happens later via a 카카오톡 채널, not automated from here yet.
-    subscribeKakao: async function(phone) {
+    // 3분 뉴스 브리핑 아카이브 (공개 페이지 briefing.html) -- 관리자 페이지에서
+    // 생성/게시한 내용을 최신순으로 가져온다.
+    fetchNewsBriefings: async function() {
       const client = this.getClient();
-      if (!client) {
-        throw new Error("신청 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+      if (!client) return [];
+      try {
+        const { data, error } = await client
+          .from('news_briefings')
+          .select('*')
+          .order('briefing_date', { ascending: false });
+        if (error) throw error;
+        return (data || []).map(row => ({
+          id: row.id,
+          date: row.briefing_date,
+          title: row.title,
+          content: row.content
+        }));
+      } catch (err) {
+        console.error("Supabase fetchNewsBriefings error:", err);
+        return [];
       }
-
-      const { error } = await client.from('kakao_subscribers').insert({ phone });
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error("이미 신청된 전화번호입니다.");
-        }
-        console.error("Supabase subscribeKakao error:", error);
-        throw new Error("신청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
-      }
-      return true;
     }
   };
 
