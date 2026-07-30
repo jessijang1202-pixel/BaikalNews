@@ -185,6 +185,7 @@ ${newsListText}
       title = titleMatch[1].trim();
       resultText = resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim();
     }
+    title = `▩ ${title}`;
 
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {
       method: 'POST',
