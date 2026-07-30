@@ -249,20 +249,22 @@
           return;
         }
 
-        // fetchNewsBriefings() already sorts newest-first -- only the
-        // latest two days show up front; anything older sits behind a
-        // "지난 뉴스 보기" button so the page doesn't grow unbounded as
-        // the archive fills up day by day.
-        const RECENT_COUNT = 2;
-        const recent = briefings.slice(0, RECENT_COUNT);
-        const older = briefings.slice(RECENT_COUNT);
+        // Only today's (KST) briefing shows expanded -- everything else,
+        // including yesterday's, sits behind "지난 기사 보기" so the page
+        // doesn't grow unbounded as the archive fills up day by day.
+        const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+        const recent = briefings.filter(b => b.date === todayKey);
+        const older = briefings.filter(b => b.date !== todayKey);
 
-        let html = recent.map(renderBriefingEntry).join('');
+        let html = recent.length > 0
+          ? recent.map(renderBriefingEntry).join('')
+          : '<div class="briefing-empty">오늘의 브리핑이 아직 게시되지 않았습니다.</div>';
+
         if (older.length > 0) {
           html += `
             <div id="briefing-older-list" style="display:none;">${older.map(renderBriefingEntry).join('')}</div>
             <div class="briefing-load-more-wrap">
-              <button type="button" class="btn briefing-load-more-btn" id="briefing-load-more-btn" onclick="showOlderBriefings()">지난 뉴스 보기</button>
+              <button type="button" class="btn briefing-load-more-btn" id="briefing-load-more-btn" onclick="showOlderBriefings()">지난 기사 보기</button>
             </div>
           `;
         }
