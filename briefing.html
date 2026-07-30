@@ -111,13 +111,55 @@
       <span>3분 뉴스 브리핑</span>
     </div>
 
-    <article class="policy-page" style="padding-top: 24px;">
-      <h1>3분 뉴스 브리핑</h1>
-      <div class="policy-meta-info">바쁜 하루, 3분이면 오늘의 뉴스를 따라잡을 수 있습니다</div>
-    </article>
+    <div class="grid-main-sidebar">
 
-    <div class="briefing-archive" id="briefing-archive-list">
-      <div class="briefing-empty">브리핑을 불러오는 중입니다...</div>
+      <div>
+        <div class="category-intro">
+          <h1>3분 뉴스 브리핑</h1>
+          <p>바쁜 하루, 3분이면 오늘의 뉴스를 따라잡을 수 있습니다</p>
+        </div>
+
+        <div class="briefing-archive" id="briefing-archive-list">
+          <div class="briefing-empty">브리핑을 불러오는 중입니다...</div>
+        </div>
+      </div>
+
+      <!-- Sidebar Area (다른 카테고리 페이지와 동일한 구성) -->
+      <aside>
+        <!-- Real-time ranking widget -->
+        <div class="ranking-widget">
+          <div class="section-header">
+            <h2 class="section-title">실시간 인기기사</h2>
+          </div>
+          <div id="briefing-ranking-container">
+            <!-- Dynamically populated ranked list -->
+          </div>
+        </div>
+
+        <!-- Compact KakaoTalk 3-min news signup -->
+        <div class="newsletter-block compact kakao-block">
+          <div class="newsletter-copy">
+            <h3>카카오톡 3분 뉴스</h3>
+            <p>매일, 3분 뉴스 브리핑을 카카오톡으로 받아보세요.</p>
+          </div>
+          <div class="newsletter-form">
+            <button type="button" class="btn" id="kakao-submit-btn" onclick="openKakaoSignupModal()">카카오로 뉴스 받기</button>
+          </div>
+        </div>
+
+        <!-- Compact newsletter signup -->
+        <div class="newsletter-block compact">
+          <div class="newsletter-copy">
+            <h3>바이칼뉴스 뉴스레터</h3>
+            <p>월 2회, 엄선한 주요 뉴스를 이메일로 받아보세요.</p>
+          </div>
+          <form class="newsletter-form" onsubmit="handleNewsletterSubscribe(event)">
+            <input type="email" id="newsletter-email" placeholder="이메일 주소" class="newsletter-input" required aria-label="이메일 주소">
+            <button type="submit" class="btn btn-primary" id="newsletter-submit-btn">구독하기</button>
+          </form>
+        </div>
+      </aside>
+
     </div>
 
   </main>
@@ -157,11 +199,38 @@
     </div>
   </footer>
 
+  <!-- 회원가입 화면 (index.html/category.html과 동일) -->
+  <div class="kakao-signup-modal-overlay" id="kakao-signup-modal" style="display:none;">
+    <div class="kakao-signup-modal">
+      <button type="button" class="kakao-signup-modal-close" onclick="closeKakaoSignupModal()" aria-label="닫기">&times;</button>
+      <h3>회원가입</h3>
+      <h4>필수 회원정보</h4>
+      <div class="signup-form-field">
+        <label for="signup-field-name">이름</label>
+        <input type="text" id="signup-field-name" placeholder="카카오 계정에서 자동으로 제공됩니다" readonly>
+      </div>
+      <div class="signup-form-field">
+        <label for="signup-field-phone">휴대폰 번호</label>
+        <input type="text" id="signup-field-phone" placeholder="카카오 계정에서 자동으로 제공됩니다" readonly>
+      </div>
+      <div class="signup-collection-notice">
+        <strong>수집 항목:</strong> 이름, 휴대폰 번호<br>
+        <strong>수집 목적:</strong> 카카오톡 3분 뉴스 브리핑 발송 및 회원 식별<br>
+        <strong>보유 기간:</strong> 회원 탈퇴 시까지
+      </div>
+      <button type="button" id="kakao-signup-modal-continue" onclick="confirmKakaoSignup()">
+        <span class="kakao-signup-btn-icon">💬</span> 카카오로 회원가입
+      </button>
+      <p class="kakao-signup-modal-note">회원가입 시 <a href="privacy-policy.html">개인정보처리방침</a> 및 <a href="terms.html">이용약관</a>에 동의하게 됩니다.</p>
+    </div>
+  </div>
+
   <!-- Scripts (deferred so they don't block HTML parsing/rendering) -->
   <script src="js/supabase-config.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/supabase-adapter.js" defer></script>
   <script src="js/articles.js" defer></script>
+  <script src="https://developers.kakao.com/sdk/js/kakao.js" defer></script>
   <script src="js/main.js" defer></script>
   <script defer>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -201,6 +270,17 @@
       } catch (err) {
         console.error('브리핑 아카이브 로드 실패:', err);
         listEl.innerHTML = '<div class="briefing-empty">브리핑을 불러오는 중 오류가 발생했습니다.</div>';
+      }
+
+      // 다른 카테고리 페이지와 동일한 사이드바 실시간 인기기사 위젯 --
+      // window.ARTICLES는 main.js의 DOMContentLoaded 핸들러(등록 순서상
+      // 이 스크립트보다 먼저 실행됨)가 채워둔다.
+      const rankingContainer = document.getElementById('briefing-ranking-container');
+      if (rankingContainer && window.ARTICLES && typeof getOrderedPopularArticles === 'function') {
+        const curation = JSON.parse(localStorage.getItem('baikal_curation')) || { popularReadsIds: [] };
+        const published = window.ARTICLES.filter(a => isArticleLive(a));
+        const rankingItems = getOrderedPopularArticles(published, curation, null, 5);
+        rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
       }
     });
 
