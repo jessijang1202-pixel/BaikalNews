@@ -869,6 +869,20 @@
           <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
             기사 1개를 선택하면 30초 세로형(9:16) 숏폼 대본을 자동 생성합니다. 구성: 0:00~0:08 영상(첫 3초 강력한 후킹 포함) + 0:08~0:30 이미지 컷 22초(기본 5개). 영상/이미지는 API로 자동 생성(숏폼 자동 생성)하거나, 비용 절약을 위해 Gemini에서 직접 만들어 업로드(숏폼 수동 생성)할 수 있습니다. 대본을 검토·수정한 뒤 승인해야 다음 단계(미디어 생성)로 진행됩니다.
           </p>
+
+          <!-- 비용 절감 테스트 모드 + 로컬 파일 복구 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; background: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; margin-bottom: 16px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="shorts-veo-cost-saving-mode" style="width:auto;" checked onchange="setShortsVeoCostSavingMode(this.checked)">
+              <label for="shorts-veo-cost-saving-mode" style="margin:0; font-size:0.85rem;">비용 절감 테스트 모드 (Veo Lite/Fast 모델만 사용)</label>
+            </div>
+            <button type="button" class="btn-admin btn-admin-secondary" onclick="renderShortsMediaRecoveryPanel()">저장 안 된 로컬 파일 찾기</button>
+          </div>
+          <div id="shorts-recovery-panel" style="display:none; margin-bottom:16px;">
+            <div class="help-text" style="margin-bottom:8px;">현재 진행 중인 숏폼 초안과 연결되지 않은 채 이 브라우저(IndexedDB)에 남아있는 파일 목록입니다. 재생성(재과금)하기 전에 먼저 확인해 보세요.</div>
+            <div id="shorts-recovery-list"></div>
+          </div>
+
           <div class="admin-table-wrapper">
             <table class="admin-table">
               <thead>

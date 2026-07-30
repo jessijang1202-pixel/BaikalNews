@@ -3686,6 +3686,99 @@ async function idbDeleteByPrefix(prefix) {
   });
 }
 
+// 로컬 미디어 복구 -- IndexedDB에 실제로 남아있는 모든 키를 나열해,
+// 어떤 초안에도 연결되지 않은(=이미 생성 비용은 지불했지만 추적이
+// 끊긴) 파일을 찾아내 바로 다운로드할 수 있게 한다. 대본/초안 메타데이터가
+// localStorage에서 손상되거나 지워져도 실제 이미지/영상/나레이션 Blob은
+// IndexedDB에 그대로 남아있는 경우가 있어, 재생성(=재과금) 전에 먼저
+// 확인할 수 있는 안전장치다.
+async function listAllShortsMediaKeys() {
+  const db = await openShortsMediaDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHORTS_IDB_STORE, 'readonly');
+    const store = tx.objectStore(SHORTS_IDB_STORE);
+    const items = [];
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        const blob = cursor.value;
+        items.push({ key: String(cursor.key), size: blob ? blob.size : 0, type: blob ? blob.type : '' });
+        cursor.continue();
+      } else {
+        resolve(items);
+      }
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getKnownShortsMediaKeys() {
+  const known = new Set();
+  getShortsLocalDrafts().forEach(d => {
+    if (d.hasFront) known.add(`${d.localDraftId}:front`);
+    if (d.hasFinal) known.add(`${d.localDraftId}:final`);
+    if (d.hasHookNarration) known.add(`${d.localDraftId}:narration:hook`);
+    (d.imageCuts || []).forEach(c => {
+      if (c.imageKey) known.add(c.imageKey);
+      if (c.narrationKey) known.add(c.narrationKey);
+    });
+  });
+  return known;
+}
+
+async function renderShortsMediaRecoveryPanel() {
+  const panel = document.getElementById("shorts-recovery-panel");
+  const listEl = document.getElementById("shorts-recovery-list");
+  if (!panel || !listEl) return;
+  panel.style.display = "block";
+  listEl.innerHTML = '<div class="help-text">로컬 저장소를 확인하는 중...</div>';
+
+  try {
+    const [allKeys, known] = await Promise.all([listAllShortsMediaKeys(), Promise.resolve(getKnownShortsMediaKeys())]);
+    const orphaned = allKeys.filter(item => !known.has(item.key));
+
+    if (orphaned.length === 0) {
+      listEl.innerHTML = '<div class="help-text">현재 진행 중인 숏폼과 연결되지 않은 파일은 없습니다.</div>';
+      return;
+    }
+
+    listEl.innerHTML = orphaned.map(item => `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 14px; border:1px solid var(--admin-border); border-radius:8px; margin-bottom:8px;">
+        <div style="font-size:0.8rem; word-break:break-all;">
+          <div style="font-weight:600;">${item.key}</div>
+          <div class="help-text">${item.type || '알 수 없는 형식'} · ${(item.size / 1024 / 1024).toFixed(2)}MB</div>
+        </div>
+        <button type="button" class="btn-admin btn-admin-secondary" style="white-space:nowrap;" onclick="downloadOrphanedShortsMedia('${item.key.replace(/'/g, "\\'")}')">다운로드</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error("로컬 미디어 스캔 실패:", err);
+    listEl.innerHTML = `<div class="help-text" style="color:#ef4444;">스캔 실패: ${err.message}</div>`;
+  }
+}
+
+async function downloadOrphanedShortsMedia(key) {
+  try {
+    const blob = await idbGetBlob(key);
+    if (!blob) {
+      alert("이 파일을 찾을 수 없습니다 (이미 삭제되었을 수 있습니다).");
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = key.replace(/[:]/g, '_');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) {
+    console.error("로컬 파일 다운로드 실패:", err);
+    alert("다운로드 실패: " + err.message);
+  }
+}
+
 function saveShortsDraftLocally() {
   if (!currentShortsProject) return;
   ensureShortsLocalDraftId();
@@ -3867,6 +3960,9 @@ function deleteShortsStyleTemplate() {
 async function renderShortsList() {
   const tbody = document.getElementById("shorts-list-body");
   if (!tbody) return;
+
+  const costSavingEl = document.getElementById("shorts-veo-cost-saving-mode");
+  if (costSavingEl) costSavingEl.checked = getShortsVeoCostSavingMode();
 
   const [archivedList, articles] = await Promise.all([
     window.SupabaseAdapter.fetchShorts(),
@@ -5348,12 +5444,28 @@ async function callGeminiTextApi(prompt, systemInstruction = "") {
   }
 }
 
+// 비용 절감 테스트 모드 -- 켜져 있으면(기본값 ON) Veo의 lite/fast 계열
+// 모델만 골라 쓴다 (풀 모델 대비 훨씬 저렴). 실제 동작 확인만 필요한
+// 테스트 단계에서 켜두고, 실제 발행용 고품질 영상이 필요해지면 관리자가
+// 직접 꺼서 풀 모델(veo-3)로 되돌릴 수 있다.
+function getShortsVeoCostSavingMode() {
+  return localStorage.getItem("baikal_shorts_veo_cost_saving") !== "false";
+}
+
+function setShortsVeoCostSavingMode(enabled) {
+  localStorage.setItem("baikal_shorts_veo_cost_saving", enabled ? "true" : "false");
+}
+
 // Resolves a Veo (video generation) capable model for this API key.
 // NOTE: Veo access requires separate enablement/billing beyond a plain Gemini
 // text/image key -- resolveVeoModel throws a clear message if none is found.
 async function resolveVeoModel(apiKey) {
-  const cacheKey = "baikal_veo_model";
-  const cacheTimeKey = "baikal_veo_model_cached_at";
+  const costSaving = getShortsVeoCostSavingMode();
+  // 절감 모드와 풀 모드가 서로 다른 모델을 가리켜야 하므로 캐시 키를
+  // 분리한다 -- 안 그러면 토글을 바꿔도 하루 동안 예전 모드의 캐시된
+  // 모델명을 계속 재사용하게 된다.
+  const cacheKey = "baikal_veo_model_" + (costSaving ? "lite" : "full");
+  const cacheTimeKey = cacheKey + "_cached_at";
   const cached = localStorage.getItem(cacheKey);
   const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
   const oneDayMs = 24 * 60 * 60 * 1000;
@@ -5370,7 +5482,12 @@ async function resolveVeoModel(apiKey) {
     throw new Error("이 API 키로 사용 가능한 Veo 영상 생성 모델을 찾지 못했습니다. Google AI Studio/Cloud 콘솔에서 Veo 접근 권한(별도 결제 활성화)이 있는지 확인해 주세요.");
   }
 
-  const chosen = models.find(m => /veo-3/i.test(m.name)) || models[0];
+  // "lite"/"fast" 계열 모델명은 Google 쪽 네이밍이 바뀔 수 있어 정확한
+  // 모델 ID를 하드코딩하지 않고 패턴으로 찾는다 -- 못 찾으면 기존 veo-3
+  // 우선순위로 자연스럽게 대체(fallback)된다.
+  const chosen = costSaving
+    ? (models.find(m => /lite/i.test(m.name)) || models.find(m => /fast/i.test(m.name)) || models.find(m => /veo-3/i.test(m.name)) || models[0])
+    : (models.find(m => /veo-3/i.test(m.name)) || models[0]);
   const modelName = chosen.name.replace(/^models\//, '');
   localStorage.setItem(cacheKey, modelName);
   localStorage.setItem(cacheTimeKey, String(Date.now()));
@@ -5401,8 +5518,10 @@ async function generateVeoVideo(promptText, onStatus) {
   if (!startRes.ok) {
     const errText = await startRes.text();
     if (startRes.status === 404) {
-      localStorage.removeItem("baikal_veo_model");
-      localStorage.removeItem("baikal_veo_model_cached_at");
+      localStorage.removeItem("baikal_veo_model_lite");
+      localStorage.removeItem("baikal_veo_model_lite_cached_at");
+      localStorage.removeItem("baikal_veo_model_full");
+      localStorage.removeItem("baikal_veo_model_full_cached_at");
     }
     throw new Error(`Veo 영상 생성 요청 실패 (HTTP ${startRes.status}, 모델: ${model}): ${errText}`);
   }
