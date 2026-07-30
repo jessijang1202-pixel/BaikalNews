@@ -7689,7 +7689,6 @@ ${newsListText}
       title = titleMatch[1].trim();
       resultText = resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim();
     }
-    title = `▩ ${title}`;
 
     webBriefingDraft = { date: todayDateKey(), title, content: resultText, status: 'draft' };
     persistWebBriefingDraft();
