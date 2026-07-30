@@ -642,6 +642,13 @@
   white-space: pre-line;
 }
 
+.briefing-entry-content .briefing-item-heading {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
 .briefing-empty {
   text-align: center;
   padding: 80px 0;

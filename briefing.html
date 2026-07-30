@@ -186,7 +186,7 @@
             <div class="briefing-entry" id="briefing-${b.date}">
               <div class="briefing-entry-date">${dateLabel}</div>
               <h2 class="briefing-entry-title">${escapeBriefingHtml(b.title)}</h2>
-              <div class="briefing-entry-content">${escapeBriefingHtml(b.content)}</div>
+              <div class="briefing-entry-content">${renderBriefingContent(b.content)}</div>
             </div>
           `;
         }).join('');
@@ -200,6 +200,18 @@
       const div = document.createElement('div');
       div.textContent = str || '';
       return div.innerHTML;
+    }
+
+    // Each news item's subheading line starts with "▩ " (plain text, no
+    // markdown, since the same content also has to read fine as a raw
+    // AlimTalk/Kakao message elsewhere) -- bold just those lines here so
+    // the website version gets real visual emphasis instead of the bare
+    // symbol.
+    function renderBriefingContent(content) {
+      return (content || '').split('\n').map(line => {
+        const escaped = escapeBriefingHtml(line);
+        return line.trim().startsWith('▩') ? `<strong class="briefing-item-heading">${escaped}</strong>` : escaped;
+      }).join('\n');
     }
   </script>
 </body>
