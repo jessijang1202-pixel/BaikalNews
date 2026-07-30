@@ -563,7 +563,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'ai-writer', 'ai-training', 'shorts', 'letter-send', 'subscribers', 'curation', 'expenses', 'settings'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'web-briefing', 'ai-writer', 'ai-training', 'shorts', 'letter-send', 'subscribers', 'curation', 'expenses', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -648,6 +648,7 @@ async function switchTab(tabName) {
     dashboard: "뉴스룸 현황 대시보드",
     articles: "기사 통합 데스크 관리",
     'article-editor': "새 기사 작성 / 편집",
+    'web-briefing': "3분 뉴스 브리핑 (웹사이트 게시용)",
     'ai-writer': "AI 어시스턴트 집필실",
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
@@ -673,6 +674,9 @@ async function switchTab(tabName) {
   } else if (tabName === 'articles') {
     await syncScheduledArticlesToPublished();
     await renderArticlesList();
+  } else if (tabName === 'web-briefing') {
+    loadGeminiApiKey();
+    await loadOrGenerateWebBriefing();
   } else if (tabName === 'ai-writer') {
     loadGeminiApiKey();
     loadClaudeApiKey();
@@ -689,8 +693,10 @@ async function switchTab(tabName) {
     await loadOrGenerateNewsletterDraft();
     loadGeminiApiKey();
     renderKakaoSendModeUI();
-    await loadOrGenerateKakaoBriefing();
+    // 카카오 압축은 웹사이트 원문을 소스로 쓰므로, 이 탭에 웹 브리핑
+    // 패널이 더는 없어도 최신 webBriefingDraft를 미리 로드해 둔다.
     await loadOrGenerateWebBriefing();
+    await loadOrGenerateKakaoBriefing();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
     await renderKakaoSubscriberBriefing();
@@ -7550,6 +7556,17 @@ function findNewsletterArticleById(id) {
 // ==========================================
 let webBriefingDraft = null; // { date: 'YYYY-MM-DD', title: '...', content: '...', status: 'draft'|'published' }
 
+// Own busy banner (separate element from kakao-briefing-busy-banner) since
+// "+ 3분 뉴스 브리핑" is now its own sidebar tab, not nested inside 기사
+// 레터 발송 -- a banner living in a hidden sibling tab's DOM wouldn't be
+// visible while this tab is active.
+function setWebBriefingBusy(active, text) {
+  const banner = document.getElementById("web-briefing-busy-banner");
+  const textEl = document.getElementById("web-briefing-busy-text");
+  if (textEl && text) textEl.textContent = text;
+  if (banner) banner.classList.toggle("is-active", active);
+}
+
 function webBriefingStorageKey() {
   return `baikal_web_briefing_${todayDateKey()}`;
 }
@@ -7635,7 +7652,7 @@ async function generateWebBriefing() {
   }
 
   if (btn) btn.disabled = true;
-  setKakaoBriefingBusy(true, "네이버 화제 뉴스 불러오는 중...");
+  setWebBriefingBusy(true, "네이버 화제 뉴스 불러오는 중...");
   try {
     const trending = await fetchNaverTrending();
     if (trending.length === 0) throw new Error("오늘의 화제 뉴스를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
@@ -7663,7 +7680,7 @@ ${newsListText}
 
     const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 도입부는 정중한 뉴스 문체로 쓰되, 각 뉴스 항목은 '▩ ' 소제목과 음슴체로 끝나는 짧은 설명으로 간결하게 작성하고, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
 
-    setKakaoBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
+    setWebBriefingBusy(true, "AI가 3분 브리핑 작성 중...");
     let resultText = (await callGeminiTextApi(prompt, systemInstruction)).trim();
 
     let title = `${todayLabel} 3분 뉴스 브리핑`;
@@ -7694,7 +7711,7 @@ ${newsListText}
     alert("브리핑 생성 실패: " + err.message);
   } finally {
     if (btn) btn.disabled = false;
-    setKakaoBriefingBusy(false);
+    setWebBriefingBusy(false);
   }
 }
 
