@@ -54,7 +54,7 @@ function parseNaverTrendingFromMarkdown(markdown) {
       seen.add(title);
       unique.push(title);
     }
-    if (unique.length >= 15) break;
+    if (unique.length >= 30) break;
   }
   return unique;
 }
@@ -88,7 +88,7 @@ async function fetchNaverTrendingTitles() {
       seen.add(title);
       unique.push(title);
     }
-    if (unique.length >= 15) break;
+    if (unique.length >= 30) break;
   }
   if (unique.length === 0) throw new Error('네이버 랭킹 뉴스 목록을 파싱하지 못했습니다.');
   return unique;
@@ -155,7 +155,7 @@ module.exports = async (req, res) => {
     }
 
     const titles = await fetchNaverTrendingTitles();
-    const newsListText = titles.slice(0, 20).map((t, i) => `${i + 1}. ${t}`).join('\n');
+    const newsListText = titles.slice(0, 30).map((t, i) => `${i + 1}. ${t}`).join('\n');
     const todayLabel = new Date().toLocaleDateString('ko-KR', {
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul'
     });
@@ -168,8 +168,8 @@ ${newsListText}
 
 [작성 지침]
 - 맨 처음에 독자에게 인사를 건네는 짧은 도입 문장 1~2개를 정중한 뉴스 문체("~습니다/합니다")로 작성하십시오.
-- 전체를 천천히 읽어도 3분 내외(도입부 포함, 공백 포함 1,300~1,800자 정도)에 읽을 수 있는 분량으로 작성하십시오.
-- 오늘의 주요 뉴스를 10~14개 정도 선별하십시오 (적은 소식을 길게 쓰기보다, 많은 소식을 짧고 간결하게 다루는 것이 목표입니다).
+- 전체를 천천히 읽어도 3분 정도(도입부 포함, 공백 포함 2,600~3,600자 정도)에 읽을 수 있는 분량으로 작성하십시오.
+- 오늘의 주요 뉴스를 18~22개 정도 선별하십시오 (적은 소식을 길게 쓰기보다, 많은 소식을 짧고 간결하게 다루는 것이 목표입니다).
 - 각 뉴스 항목은 반드시 "▩ "로 시작하는 소제목 한 줄을 쓰고, 그 다음 줄에 설명을 1문장(최대 2문장)으로 짧게 압축해 작성하십시오. "▩ "는 웹사이트에서 굵게 강조되어 표시되므로 반드시 포함해야 합니다.
 - 각 항목의 설명 문장은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "발표했습니다" → "발표함"). 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
 - 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
