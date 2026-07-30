@@ -656,6 +656,22 @@
   font-size: 0.95rem;
 }
 
+.briefing-load-more-wrap {
+  text-align: center;
+  padding-top: 32px;
+}
+
+.briefing-load-more-btn {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-medium);
+}
+
+.briefing-load-more-btn:hover {
+  background-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
 /* Boxed sections, matching the About page's value/team cards */
 .policy-section {
   margin-bottom: 32px;

@@ -180,21 +180,47 @@
           return;
         }
 
-        listEl.innerHTML = briefings.map(b => {
-          const dateLabel = new Date(b.date + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-          return `
-            <div class="briefing-entry" id="briefing-${b.date}">
-              <div class="briefing-entry-date">${dateLabel}</div>
-              <h2 class="briefing-entry-title">${escapeBriefingHtml(b.title)}</h2>
-              <div class="briefing-entry-content">${renderBriefingContent(b.content)}</div>
+        // fetchNewsBriefings() already sorts newest-first -- only the
+        // latest two days show up front; anything older sits behind a
+        // "지난 뉴스 보기" button so the page doesn't grow unbounded as
+        // the archive fills up day by day.
+        const RECENT_COUNT = 2;
+        const recent = briefings.slice(0, RECENT_COUNT);
+        const older = briefings.slice(RECENT_COUNT);
+
+        let html = recent.map(renderBriefingEntry).join('');
+        if (older.length > 0) {
+          html += `
+            <div id="briefing-older-list" style="display:none;">${older.map(renderBriefingEntry).join('')}</div>
+            <div class="briefing-load-more-wrap">
+              <button type="button" class="btn briefing-load-more-btn" id="briefing-load-more-btn" onclick="showOlderBriefings()">지난 뉴스 보기</button>
             </div>
           `;
-        }).join('');
+        }
+        listEl.innerHTML = html;
       } catch (err) {
         console.error('브리핑 아카이브 로드 실패:', err);
         listEl.innerHTML = '<div class="briefing-empty">브리핑을 불러오는 중 오류가 발생했습니다.</div>';
       }
     });
+
+    function renderBriefingEntry(b) {
+      const dateLabel = new Date(b.date + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+      return `
+        <div class="briefing-entry" id="briefing-${b.date}">
+          <div class="briefing-entry-date">${dateLabel}</div>
+          <h2 class="briefing-entry-title">${escapeBriefingHtml(b.title)}</h2>
+          <div class="briefing-entry-content">${renderBriefingContent(b.content)}</div>
+        </div>
+      `;
+    }
+
+    function showOlderBriefings() {
+      const olderList = document.getElementById('briefing-older-list');
+      const btn = document.getElementById('briefing-load-more-btn');
+      if (olderList) olderList.style.display = 'block';
+      if (btn) btn.remove();
+    }
 
     function escapeBriefingHtml(str) {
       const div = document.createElement('div');
