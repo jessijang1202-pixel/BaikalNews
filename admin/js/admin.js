@@ -563,7 +563,7 @@ async function applyHashRoute() {
 
   const raw = currentHash.replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
-  const validTabs = ['dashboard', 'articles', 'article-editor', 'web-briefing', 'ai-writer', 'ai-training', 'shorts', 'letter-send', 'subscribers', 'curation', 'expenses', 'settings'];
+  const validTabs = ['dashboard', 'articles', 'article-editor', 'web-briefing', 'ai-writer', 'ai-training', 'shorts', 'letter-send', 'sns', 'subscribers', 'curation', 'expenses', 'settings'];
   const tab = validTabs.includes(parts[0]) ? parts[0] : 'dashboard';
 
   suppressHashUpdate = true;
@@ -653,6 +653,7 @@ async function switchTab(tabName) {
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
     'letter-send': "기사 레터 발송",
+    sns: "SNS 관리",
     subscribers: "구독자 현황",
     curation: "홈화면 큐레이션 통제",
     expenses: "비용 관리",
@@ -697,6 +698,8 @@ async function switchTab(tabName) {
     // 패널이 더는 없어도 최신 webBriefingDraft를 미리 로드해 둔다.
     await loadOrGenerateWebBriefing();
     await loadOrGenerateKakaoBriefing();
+  } else if (tabName === 'sns') {
+    await populateSnsArticleSelect();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
     await renderKakaoSubscriberBriefing();
@@ -8089,6 +8092,131 @@ async function copyKakaoBriefingText() {
   try {
     await navigator.clipboard.writeText(textEl.value);
     alert("클립보드에 복사했습니다. 카카오톡 채널 관리자센터에 붙여넣고 오전 8시로 예약 발송해 주세요.");
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
+}
+
+// ==========================================
+// SNS 관리 -- 리드 문단 + 대표 이미지 + 기사 링크를 채널별 형식에 맞게
+// 구성한다. 페이스북/인스타그램/스레드는 공식 API로 원클릭 발행이
+// 가능하지만(Meta 개발자 앱/페이지-계정 연동 필요), 지금은 연동 전이라
+// 전 채널이 "복사해서 직접 게시" 방식으로 동작한다. X는 API는 있지만
+// 2026-02부터 게시글 건당 과금(링크 포함 시 $0.20)이라 별도 확인이
+// 필요하고, 유튜브 커뮤니티는 공식 API에 게시 기능 자체가 없어 항상
+// 복사 방식만 가능하다.
+// ==========================================
+let snsArticlesCache = [];
+const SNS_PLATFORMS = ['facebook', 'instagram', 'threads', 'x', 'youtube'];
+
+async function populateSnsArticleSelect() {
+  const select = document.getElementById("sns-article-select");
+  if (!select) return;
+
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  const published = articles.filter(a => a.status === 'published');
+  const byDateDesc = published.slice().sort((a, b) => {
+    const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+    const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
+    return bTime - aTime;
+  });
+  snsArticlesCache = byDateDesc.slice(0, 30);
+
+  select.innerHTML = `<option value="">-- 기사를 선택하세요 --</option>` +
+    snsArticlesCache.map(a => `<option value="${a.id}">${a.date} · ${a.title}</option>`).join('');
+
+  if (snsArticlesCache.length > 0) {
+    select.value = String(snsArticlesCache[0].id);
+    loadSnsArticlePreview();
+  } else {
+    renderSnsEmptyState();
+  }
+}
+
+function findSnsArticleById(id) {
+  return snsArticlesCache.find(a => a.id === id);
+}
+
+function renderSnsEmptyState() {
+  SNS_PLATFORMS.forEach(p => {
+    const el = document.getElementById(`sns-text-${p}`);
+    if (el) el.value = '';
+  });
+  const img = document.getElementById("sns-preview-image");
+  if (img) img.style.display = 'none';
+}
+
+// 채널별 본문 구성 -- 인스타그램은 캡션 속 링크가 클릭되지 않는다는 점,
+// X는 280자 제한(링크는 t.co로 짧아지지만 실제 카운트는 별도 예산으로
+// 미리 확보)을 반영한다.
+function buildSnsPostText(article, platform) {
+  const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
+  const lead = (article.lead || article.subtitle || '').trim();
+  const title = article.title || '';
+  const tag = article.categoryLabel ? `#${article.categoryLabel.replace(/[·\s]/g, '')}` : '';
+  const hashtags = `#바이칼뉴스${tag ? ' ' + tag : ''}`;
+
+  if (platform === 'facebook') {
+    return `${title}\n\n${lead}\n\n${url}\n\n${hashtags}`;
+  }
+  if (platform === 'instagram') {
+    return `${title}\n\n${lead}\n\n📎 기사 원문은 프로필 링크를 통해 확인해 주세요.\n(참고용 링크: ${url})\n\n${hashtags}`;
+  }
+  if (platform === 'threads') {
+    return `${title}\n\n${lead}\n\n${url}`;
+  }
+  if (platform === 'x') {
+    const LINK_BUDGET = 26; // t.co 단축 링크 + 줄바꿈 여유분
+    const maxTextLen = 280 - LINK_BUDGET;
+    let text = `${title} - ${lead}`.trim();
+    if (text.length > maxTextLen) {
+      text = text.slice(0, Math.max(0, maxTextLen - 1)).trim() + '…';
+    }
+    return `${text}\n${url}`;
+  }
+  if (platform === 'youtube') {
+    return `${title}\n\n${lead}\n\n${url}`;
+  }
+  return '';
+}
+
+function loadSnsArticlePreview() {
+  const select = document.getElementById("sns-article-select");
+  const id = select ? parseInt(select.value, 10) : NaN;
+  const article = findSnsArticleById(id);
+  if (!article) {
+    renderSnsEmptyState();
+    return;
+  }
+
+  const img = document.getElementById("sns-preview-image");
+  if (img) {
+    if (article.image) {
+      img.src = article.image;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  }
+
+  SNS_PLATFORMS.forEach(p => {
+    const el = document.getElementById(`sns-text-${p}`);
+    if (el) el.value = buildSnsPostText(article, p);
+  });
+}
+
+async function copySnsText(platform) {
+  const el = document.getElementById(`sns-text-${platform}`);
+  if (!el || !el.value.trim()) {
+    alert("복사할 내용이 없습니다. 먼저 기사를 선택해 주세요.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(el.value);
+    alert("클립보드에 복사했습니다.");
   } catch (err) {
     console.error("클립보드 복사 실패:", err);
     alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
