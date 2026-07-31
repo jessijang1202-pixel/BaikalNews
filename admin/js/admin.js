@@ -6700,7 +6700,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
     recorder.start();
   }
 
-  await new Promise((resolve) => {
+  await new Promise(async (resolve) => {
     // Schedule every narration clip up front, each starting exactly when its
     // matching visual segment starts -- sample-accurate via the shared audio
     // clock, so there's nothing left to drift out of sync.
@@ -6748,49 +6748,79 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
       if (playPromise && playPromise.catch) playPromise.catch(() => {});
     }
 
-    const startTime = performance.now();
-
+    // A video element that hasn't decoded a frame yet (readyState < 2,
+    // HAVE_CURRENT_DATA) throws if drawImage() is called on it in some
+    // engines. That exception happening inside a requestAnimationFrame
+    // callback is silently swallowed by the browser (nothing left to
+    // catch it), which killed the whole loop after the very first frame --
+    // the canvas stayed on its black fillRect() forever with no visible
+    // error, looking exactly like "미리보기가 안 된다" with nothing in the
+    // console pointing at why. Wrapping the frame body means a single bad
+    // frame just gets skipped (leaving the black background for that
+    // frame) instead of ending the entire preview/recording.
     function step() {
-      const elapsed = (performance.now() - startTime) / 1000;
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, W, H);
+      try {
+        const elapsed = (performance.now() - startTime) / 1000;
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, W, H);
 
-      if (elapsed < frontDuration) {
-        if (assets.front.type === 'video') {
-          ctx.drawImage(assets.front.el, 0, 0, W, H);
+        if (elapsed < frontDuration) {
+          if (assets.front.type === 'video') {
+            if (assets.front.el.readyState >= 2) {
+              ctx.drawImage(assets.front.el, 0, 0, W, H);
+            }
+          } else {
+            drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
+          }
+          if (elapsed < hookCaptionDuration) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
         } else {
-          drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
+          let t = elapsed - frontDuration;
+          let idx = 0;
+          while (idx < assets.images.length - 1 && t > cutDurations[idx]) {
+            t -= cutDurations[idx];
+            idx++;
+          }
+          const cut = assets.images[idx];
+          if (cut) {
+            drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H);
+            // caption2 (if present) takes over for the back half of the cut --
+            // two short captions shown one after another rather than one long
+            // one. Falls back to caption alone for the whole duration when
+            // caption2 is empty (uploaded cuts, or cuts written before this).
+            const halfDuration = (cutDurations[idx] || 1) / 2;
+            const activeCaption = (cut.caption2 && t >= halfDuration) ? cut.caption2 : cut.caption;
+            drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
+          }
         }
-        if (elapsed < hookCaptionDuration) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
-      } else {
-        let t = elapsed - frontDuration;
-        let idx = 0;
-        while (idx < assets.images.length - 1 && t > cutDurations[idx]) {
-          t -= cutDurations[idx];
-          idx++;
-        }
-        const cut = assets.images[idx];
-        if (cut) {
-          drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H);
-          // caption2 (if present) takes over for the back half of the cut --
-          // two short captions shown one after another rather than one long
-          // one. Falls back to caption alone for the whole duration when
-          // caption2 is empty (uploaded cuts, or cuts written before this).
-          const halfDuration = (cutDurations[idx] || 1) / 2;
-          const activeCaption = (cut.caption2 && t >= halfDuration) ? cut.caption2 : cut.caption;
-          drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
-        }
-      }
-      drawShortsTopBar(ctx, project, W);
+        drawShortsTopBar(ctx, project, W);
 
-      if (elapsed >= totalDuration) {
-        if (assets.front.type === 'video') assets.front.el.pause();
-        scheduledSources.forEach(src => { try { src.stop(); } catch (err) {} });
-        resolve();
-        return;
+        if (elapsed >= totalDuration) {
+          if (assets.front.type === 'video') assets.front.el.pause();
+          scheduledSources.forEach(src => { try { src.stop(); } catch (err) {} });
+          resolve();
+          return;
+        }
+      } catch (err) {
+        console.error("숏폼 미리보기 프레임 렌더링 중 오류(이 프레임만 건너뜁니다):", err);
       }
       requestAnimationFrame(step);
     }
+
+    // 비디오가 실제로 프레임 데이터를 준비하기 전에 첫 프레임을 그리려
+    // 하면 위 readyState 체크 때문에 그냥 넘어가긴 하지만, 그래도 재생
+    // 시작 자체가 늦어지면 처음 1~2초가 통째로 비어 보일 수 있다. 재생
+    // 가능 상태가 될 때까지 잠깐(최대 2초) 기다렸다가 타이머를 시작한다.
+    async function waitForFrontVideoReady() {
+      if (assets.front.type !== 'video') return;
+      const el = assets.front.el;
+      if (el.readyState >= 2) return;
+      await Promise.race([
+        new Promise(r => el.addEventListener('canplay', r, { once: true })),
+        new Promise(r => setTimeout(r, 2000))
+      ]);
+    }
+    await waitForFrontVideoReady();
+    const startTime = performance.now();
     requestAnimationFrame(step);
   });
 
