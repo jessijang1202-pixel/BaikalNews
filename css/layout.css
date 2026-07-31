@@ -354,24 +354,30 @@ footer {
   color: oklch(74% 0.09 210);
 }
 
-/* SNS 채널 링크 -- footer-links와 색/호버는 같지만, footer-brand(왼쪽
-   정렬 컬럼) 안에 놓이므로 flex-end 대신 flex-start로 정렬한다. */
-.footer-social-links {
+/* SNS 채널 아이콘 링크 -- 푸터(footer-right, footer-links 바로 아래)와
+   홈페이지 본문 "팔로우" 섹션에서 공통으로 쓰는 아이콘 배지. 순수 텍스트
+   링크보다 눈에 띄도록 브랜드 색상 원형 배지 + 심볼로 구성했다. */
+.sns-icon-row {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 8px 16px;
-  margin-top: 12px;
-  padding: 0;
+  align-items: center;
+  gap: 12px;
 }
 
-.footer-social-links a {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.82rem;
+.sns-icon-link {
+  display: inline-flex;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-.footer-social-links a:hover {
-  color: oklch(74% 0.09 210);
+.sns-icon-link:hover {
+  transform: translateY(-2px);
+  opacity: 0.85;
+}
+
+.sns-icon-svg {
+  width: 32px;
+  height: 32px;
+  display: block;
 }
 
 .footer-bottom {

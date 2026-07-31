@@ -566,6 +566,38 @@
   width: 100%;
 }
 
+/* 홈페이지 본문 맨 아래 "팔로우하세요" 섹션 -- 푸터의 작은 아이콘과
+   별개로, 본문에서 눈에 확 띄도록 크게 배치한다. */
+.sns-follow-section {
+  text-align: center;
+  padding: 56px 0 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.sns-follow-section h2 {
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.sns-follow-section p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+}
+
+.sns-follow-section .sns-icon-row {
+  justify-content: center;
+  gap: 22px;
+}
+
+.sns-follow-section .sns-icon-svg {
+  width: 52px;
+  height: 52px;
+}
+
 /* KakaoTalk 3-min news signup -- same layout as the newsletter block, just
    re-tinted to Kakao's actual brand yellow (#FEE500) so it reads as "the
    Kakao one" at a glance, positioned above the newsletter block so readers
