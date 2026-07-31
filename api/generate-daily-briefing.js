@@ -30,6 +30,23 @@ function todayKstDate() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
 }
 
+// AI가 지침을 어기고 "독자 여러분, 안녕하십니까..." 같은 인사말을
+// 첫 줄에 슬쩍 넣는 경우에 대비한 방어적 백스톱 (admin.js의 동일 함수와
+// 동작을 맞춘다 -- 이 서버 함수는 admin.js를 import할 수 없어 중복 유지).
+function stripLeakedWebBriefingGreeting(text) {
+  const lines = text.split('\n');
+  if (lines.length === 0) return text;
+  const firstLine = lines[0].trim();
+  if (firstLine.startsWith('▩')) return text;
+
+  const looksLikeGreeting = /안녕하십니까|독자 여러분|반갑습니다|찾아뵙|전달해 드립니다|브리핑입니다/.test(firstLine);
+  if (!looksLikeGreeting) return text;
+
+  const blankIdx = lines.findIndex((l, i) => i > 0 && l.trim() === '');
+  const rest = blankIdx === -1 ? [] : lines.slice(blankIdx + 1);
+  return rest.join('\n').replace(/^\n+/, '');
+}
+
 async function briefingExistsForDate(date) {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}&select=id`,
@@ -167,26 +184,26 @@ module.exports = async (req, res) => {
 ${newsListText}
 
 [작성 지침]
-- 맨 처음에 독자에게 인사를 건네는 짧은 도입 문장 1~2개를 정중한 뉴스 문체("~습니다/합니다")로 작성하십시오.
-- 전체를 천천히 읽어도 3분 정도(도입부 포함, 공백 포함 2,600~3,600자 정도)에 읽을 수 있는 분량으로 작성하십시오.
+- 전체를 천천히 읽어도 3분 정도(공백 포함 2,600~3,600자 정도)에 읽을 수 있는 분량으로 작성하십시오.
 - 오늘의 주요 뉴스를 18~22개 정도 선별하십시오 (적은 소식을 길게 쓰기보다, 많은 소식을 짧고 간결하게 다루는 것이 목표입니다).
 - 각 뉴스 항목은 반드시 "▩ "로 시작하는 소제목 한 줄을 쓰고, 그 다음 줄에 설명을 1문장(최대 2문장)으로 짧게 압축해 작성하십시오. "▩ "는 웹사이트에서 굵게 강조되어 표시되므로 반드시 포함해야 합니다.
 - 각 항목의 설명 문장은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "발표했습니다" → "발표함"). 제목만으로 알 수 없는 내용은 추측하지 말고, 명백한 사실 위주로 작성하십시오.
 - 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
 - 광고성 문구나 특정 상품·서비스 홍보는 포함하지 마십시오.
 - 마크다운 문법(#, **, - 등)은 사용하지 마십시오. "▩ "와 줄바꿈만으로 구조를 표현하십시오.
-- 글 전체의 제목이 될 한 줄을 가장 먼저 "[제목] " 접두사와 함께 작성하십시오 (예: "[제목] 7월 29일, 오늘의 3분 뉴스"). 이 줄 다음에 도입 문장과 뉴스 항목들을 이어가십시오.
+- (매우 중요) "독자 여러분, 안녕하십니까" 같은 인사말이나 도입 문장, 마무리 인사를 절대 넣지 마십시오. 첫 줄부터 바로 "▩ "로 시작하는 첫 번째 뉴스 항목으로 시작하십시오.
+- 글 전체의 제목이 될 한 줄을 가장 먼저 "[제목] " 접두사와 함께 작성하십시오 (예: "[제목] 7월 29일, 오늘의 3분 뉴스"). 이 줄 다음에 바로 뉴스 항목들을 이어가십시오.
 - 다른 설명 없이, 제목 줄과 본문만 출력하십시오.`;
 
-    const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 도입부는 정중한 뉴스 문체로 쓰되, 각 뉴스 항목은 '▩ ' 소제목과 음슴체로 끝나는 짧은 설명으로 간결하게 작성하고, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
+    const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 인사말이나 도입 문장 없이 뉴스 항목으로 바로 시작하며, 각 뉴스 항목은 '▩ ' 소제목과 음슴체로 끝나는 짧은 설명으로 간결하게 작성하고, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
 
-    let resultText = (await callGeminiText(apiKey, prompt, systemInstruction)).trim();
+    let resultText = stripLeakedWebBriefingGreeting((await callGeminiText(apiKey, prompt, systemInstruction)).trim());
 
     let title = `${todayLabel} 3분 뉴스 브리핑`;
     const titleMatch = resultText.match(/^\[제목\]\s*(.+)$/m);
     if (titleMatch) {
       title = titleMatch[1].trim();
-      resultText = resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim();
+      resultText = stripLeakedWebBriefingGreeting(resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim());
     }
 
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {

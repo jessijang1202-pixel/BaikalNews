@@ -249,16 +249,15 @@
           return;
         }
 
-        // Only today's (KST) briefing shows expanded -- everything else,
-        // including yesterday's, sits behind "지난 기사 보기" so the page
-        // doesn't grow unbounded as the archive fills up day by day.
-        const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-        const recent = briefings.filter(b => b.date === todayKey);
-        const older = briefings.filter(b => b.date !== todayKey);
+        // Always show the single most recently published entry expanded --
+        // if today's hasn't been generated/published yet (auto-generation
+        // failure, or still awaiting review), this naturally falls back to
+        // showing yesterday's instead of a "nothing today" dead end.
+        // Everything older than that sits behind "지난 기사 보기".
+        const recent = briefings.slice(0, 1);
+        const older = briefings.slice(1);
 
-        let html = recent.length > 0
-          ? recent.map(renderBriefingEntry).join('')
-          : '<div class="briefing-empty">오늘의 브리핑이 아직 게시되지 않았습니다.</div>';
+        let html = recent.map(renderBriefingEntry).join('');
 
         if (older.length > 0) {
           html += `
