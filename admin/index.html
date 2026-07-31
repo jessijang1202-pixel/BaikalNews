@@ -1494,30 +1494,42 @@
         <div class="panel" style="padding:24px; margin-bottom:20px;">
           <div class="panel-header">
             <h3 class="panel-title">페이스북 <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('facebook')">복사</button>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('facebook')">복사</button>
+              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('facebook')">발행</button>
+            </div>
           </div>
           <p class="help-text" style="margin-bottom:12px;">Graph API로 원클릭 발행 가능한 채널입니다. 페이스북 페이지/Meta 개발자 앱 연동 전까지는 복사해서 직접 게시해 주세요.</p>
           <textarea id="sns-text-facebook" class="form-control-admin" style="min-height:140px; font-family:inherit;"></textarea>
+          <div class="help-text" id="sns-status-facebook" style="margin-top:8px;"></div>
         </div>
 
         <!-- Instagram -->
         <div class="panel" style="padding:24px; margin-bottom:20px;">
           <div class="panel-header">
             <h3 class="panel-title">인스타그램 <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('instagram')">복사</button>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('instagram')">복사</button>
+              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('instagram')">발행</button>
+            </div>
           </div>
           <p class="help-text" style="margin-bottom:12px;">비즈니스/크리에이터 계정 + 페이스북 페이지 연결이 필요합니다. 캡션 속 링크는 클릭되지 않으니 프로필 링크를 활용하세요. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
           <textarea id="sns-text-instagram" class="form-control-admin" style="min-height:160px; font-family:inherit;"></textarea>
+          <div class="help-text" id="sns-status-instagram" style="margin-top:8px;"></div>
         </div>
 
         <!-- Threads -->
         <div class="panel" style="padding:24px; margin-bottom:20px;">
           <div class="panel-header">
             <h3 class="panel-title">스레드 <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('threads')">복사</button>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('threads')">복사</button>
+              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('threads')">발행</button>
+            </div>
           </div>
           <p class="help-text" style="margin-bottom:12px;">2024년 출시된 공식 Threads API로 자동 발행이 가능합니다. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
           <textarea id="sns-text-threads" class="form-control-admin" style="min-height:120px; font-family:inherit;"></textarea>
+          <div class="help-text" id="sns-status-threads" style="margin-top:8px;"></div>
         </div>
 
         <!-- X -->

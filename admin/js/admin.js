@@ -8297,6 +8297,49 @@ async function publishSnsAllAutomatable() {
   if (btn) { btn.disabled = false; btn.textContent = "페이스북·인스타그램·스레드 한꺼번에 발행"; }
 }
 
+// 채널 하나만 개별 발행 -- 한꺼번에 발행과 같은 엔드포인트를 쓰지만,
+// 다른 채널은 건드리지 않고 이 채널의 결과만 그 패널 아래 상태줄에 표시한다.
+async function publishSnsOne(platform) {
+  const select = document.getElementById("sns-article-select");
+  const id = select ? parseInt(select.value, 10) : NaN;
+  const article = findSnsArticleById(id);
+  if (!article) {
+    alert("먼저 발행할 기사를 선택해 주세요.");
+    return;
+  }
+
+  const label = SNS_PLATFORM_LABELS[platform] || platform;
+  const textEl = document.getElementById(`sns-text-${platform}`);
+  const text = textEl ? textEl.value.trim() : '';
+  if (!text) {
+    alert("발행할 내용이 없습니다.");
+    return;
+  }
+  if (!confirm(`${label}에 지금 바로 발행합니다. 계속하시겠습니까?`)) return;
+
+  const statusEl = document.getElementById(`sns-status-${platform}`);
+  if (statusEl) statusEl.textContent = "발행 중...";
+
+  try {
+    const res = await fetch(SNS_PUBLISH_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform, text, imageUrl: article.image || null })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (statusEl) { statusEl.textContent = `✅ 발행 완료`; statusEl.style.color = 'var(--color-green-deep)'; }
+    } else if (data.error === 'not_configured') {
+      if (statusEl) { statusEl.textContent = `⚠ 아직 연동되지 않았습니다.`; statusEl.style.color = ''; }
+    } else {
+      if (statusEl) { statusEl.textContent = `❌ 실패 -- ${data.error}`; statusEl.style.color = '#ef4444'; }
+    }
+  } catch (err) {
+    console.error(`${label} 발행 요청 실패:`, err);
+    if (statusEl) { statusEl.textContent = `❌ 요청 실패 -- ${err.message}`; statusEl.style.color = '#ef4444'; }
+  }
+}
+
 function renderNewsletterDraftUI() {
   renderNewsletterSlotGroup('newsletter-latest-slots', 'latestIds');
   renderNewsletterSlotGroup('newsletter-popular-slots', 'popularIds');
