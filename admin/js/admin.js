@@ -8171,12 +8171,41 @@ function renderSnsEmptyState() {
 // 채널별 본문 구성 -- 인스타그램은 캡션 속 링크가 클릭되지 않는다는 점,
 // X는 280자 제한(링크는 t.co로 짧아지지만 실제 카운트는 별도 예산으로
 // 미리 확보)을 반영한다.
+// 채널별 해시태그 전략 -- 플랫폼마다 해시태그의 역할/문화가 달라서 개수와
+// 구성을 다르게 한다.
+// - 페이스북: 해시태그가 검색/도달에 거의 영향이 없고 많으면 스팸처럼
+//   보이므로 브랜드 태그 하나만.
+// - 인스타그램: 해시태그가 실제 발견(탐색 피드) 도달에 중요한 채널이라
+//   브랜드+카테고리+일반 뉴스 태그까지 여러 개.
+// - 스레드: 트위터보다 더 캐주얼한 대화형 문화라 해시태그를 거의 안 씀 --
+//   브랜드 태그 하나 정도만, 그마저 없어도 자연스러움.
+// - X: 검색/트렌드 문화라 1~2개 정도의 간결한 태그가 적당.
+// - 유튜브 커뮤니티: 영상 해시태그처럼 몇 개의 주제 태그를 붙이는 게 흔함.
+function buildSnsHashtags(article, platform) {
+  const tag = article.categoryLabel ? `#${article.categoryLabel.replace(/[·\s]/g, '')}` : '';
+  if (platform === 'facebook') {
+    return '#바이칼뉴스';
+  }
+  if (platform === 'instagram') {
+    return ['#바이칼뉴스', tag, '#오늘의뉴스', '#뉴스', '#속보'].filter(Boolean).join(' ');
+  }
+  if (platform === 'threads') {
+    return '#바이칼뉴스';
+  }
+  if (platform === 'x') {
+    return ['#바이칼뉴스', tag].filter(Boolean).join(' ');
+  }
+  if (platform === 'youtube') {
+    return ['#바이칼뉴스', tag, '#뉴스'].filter(Boolean).join(' ');
+  }
+  return '#바이칼뉴스';
+}
+
 function buildSnsPostText(article, platform) {
   const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
   const lead = (article.lead || article.subtitle || '').trim();
   const title = article.title || '';
-  const tag = article.categoryLabel ? `#${article.categoryLabel.replace(/[·\s]/g, '')}` : '';
-  const hashtags = `#바이칼뉴스${tag ? ' ' + tag : ''}`;
+  const hashtags = buildSnsHashtags(article, platform);
 
   if (platform === 'facebook') {
     return `${title}\n\n${lead}\n\n${url}\n\n${hashtags}`;
@@ -8185,19 +8214,20 @@ function buildSnsPostText(article, platform) {
     return `${title}\n\n${lead}\n\n📎 기사 원문은 프로필 링크를 통해 확인해 주세요.\n(참고용 링크: ${url})\n\n${hashtags}`;
   }
   if (platform === 'threads') {
-    return `${title}\n\n${lead}\n\n${url}`;
+    return `${title}\n\n${lead}\n\n${url}\n\n${hashtags}`;
   }
   if (platform === 'x') {
     const LINK_BUDGET = 26; // t.co 단축 링크 + 줄바꿈 여유분
-    const maxTextLen = 280 - LINK_BUDGET;
+    const tagBudget = hashtags.length + 1; // 해시태그 줄 + 줄바꿈
+    const maxTextLen = 280 - LINK_BUDGET - tagBudget;
     let text = `${title} - ${lead}`.trim();
     if (text.length > maxTextLen) {
       text = text.slice(0, Math.max(0, maxTextLen - 1)).trim() + '…';
     }
-    return `${text}\n${url}`;
+    return `${text}\n${url}\n${hashtags}`;
   }
   if (platform === 'youtube') {
-    return `${title}\n\n${lead}\n\n${url}`;
+    return `${title}\n\n${lead}\n\n${url}\n\n${hashtags}`;
   }
   return '';
 }

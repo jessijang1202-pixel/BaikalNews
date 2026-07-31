@@ -354,6 +354,26 @@ footer {
   color: oklch(74% 0.09 210);
 }
 
+/* SNS 채널 링크 -- footer-links와 색/호버는 같지만, footer-brand(왼쪽
+   정렬 컬럼) 안에 놓이므로 flex-end 대신 flex-start로 정렬한다. */
+.footer-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 16px;
+  margin-top: 12px;
+  padding: 0;
+}
+
+.footer-social-links a {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+}
+
+.footer-social-links a:hover {
+  color: oklch(74% 0.09 210);
+}
+
 .footer-bottom {
   display: flex;
   justify-content: space-between;
