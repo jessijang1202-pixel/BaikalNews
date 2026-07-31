@@ -43,6 +43,30 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Threads (like Instagram's Content Publishing API) needs a short beat
+    // to actually finish processing the container -- publishing immediately
+    // after create() reliably 404s with "Media Not Found" (error_subcode
+    // 4279009). Poll the container's status until it's FINISHED (or give up
+    // after ~20s) instead of publishing blind.
+    // Kept short (max ~6s of waiting) since Vercel's default serverless
+    // function timeout is 10s on lower tiers -- better to report "still
+    // processing" gracefully than get killed mid-request.
+    let status = 'IN_PROGRESS';
+    for (let attempt = 0; attempt < 4 && status === 'IN_PROGRESS'; attempt++) {
+      await new Promise(r => setTimeout(r, 1500));
+      const statusRes = await fetch(`https://graph.threads.net/v1.0/${createData.id}?fields=status,error_message&access_token=${encodeURIComponent(token)}`);
+      const statusData = await statusRes.json();
+      status = statusData.status || 'IN_PROGRESS';
+      if (status === 'ERROR') {
+        res.status(500).json({ step: 'container_status', error: statusData });
+        return;
+      }
+    }
+    if (status !== 'FINISHED') {
+      res.status(500).json({ step: 'container_status', error: { message: `컨테이너가 시간 내에 완료되지 않았습니다 (마지막 상태: ${status})` } });
+      return;
+    }
+
     const publishRes = await fetch(`https://graph.threads.net/v1.0/${meData.id}/threads_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
