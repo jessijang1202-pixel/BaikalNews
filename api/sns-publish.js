@@ -73,17 +73,39 @@ async function publishThreads(text, imageUrl) {
   return { ok: true, postId: publishData.id };
 }
 
+// A System User token works directly for Instagram, but posting straight
+// to /{page-id}/photos with it reliably fails with a stale, misleading
+// "(#200) publish_actions ... deprecated" error. Facebook Page posting
+// actually wants the PAGE-scoped token that /me/accounts hands back for
+// that specific page (distinct from the System User's own token), so
+// fetch that first and post with it instead.
+async function getPageAccessToken(pageId, systemUserToken) {
+  const res = await fetch(`https://graph.facebook.com/v21.0/me/accounts?access_token=${encodeURIComponent(systemUserToken)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || '페이지 목록 조회 실패');
+  const page = (data.data || []).find(p => p.id === pageId);
+  if (!page) throw new Error('이 토큰이 접근 가능한 페이지 중 FACEBOOK_PAGE_ID와 일치하는 페이지가 없습니다.');
+  return page.access_token;
+}
+
 async function publishFacebook(text, imageUrl) {
   const pageId = process.env.FACEBOOK_PAGE_ID;
-  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-  if (!pageId || !token) return { ok: false, error: 'not_configured' };
+  const systemUserToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  if (!pageId || !systemUserToken) return { ok: false, error: 'not_configured' };
+
+  let pageToken;
+  try {
+    pageToken = await getPageAccessToken(pageId, systemUserToken);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 
   const endpoint = imageUrl
     ? `https://graph.facebook.com/v21.0/${pageId}/photos`
     : `https://graph.facebook.com/v21.0/${pageId}/feed`;
   const params = imageUrl
-    ? { url: imageUrl, caption: text, access_token: token }
-    : { message: text, access_token: token };
+    ? { url: imageUrl, caption: text, access_token: pageToken }
+    : { message: text, access_token: pageToken };
 
   const res = await fetch(endpoint, {
     method: 'POST',
