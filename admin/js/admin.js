@@ -1814,6 +1814,56 @@ function repairJsonControlCharsInStrings(text) {
   return result;
 }
 
+// 두 번째로 흔한 파손 패턴: 대본 안에 따옴표로 인용한 말("이건 사기다"
+// 같은)이 있을 때, 모델이 그 안쪽 따옴표를 \"로 이스케이프하지 않고
+// 그대로 두는 경우. repairJsonControlCharsInStrings()의 단순 토글
+// 방식으로는 이 안쪽 따옴표에서 문자열이 끝난 것으로 잘못 판단해버려서
+// (그 결과 나머지 글자가 JSON 구조 바깥의 날텍스트로 취급되어) "Expected
+// ',' or '}' after property value" 에러가 난다. 따옴표를 만날 때마다
+// 그 다음 의미있는 문자가 , } ] : 중 하나(=진짜 문자열 종료)인지 아니면
+// 글자/숫자 등(=이스케이프 누락)인지 미리 살펴봐서 판단한다. 제어 문자
+// 이스케이프도 같은 문자열 상태 추적을 공유해야 정확하므로 한 번에
+// 처리한다.
+function repairJsonStringIssues(text) {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        result += ch;
+        escaped = false;
+      } else if (ch === '\\') {
+        result += ch;
+        escaped = true;
+      } else if (ch === '"') {
+        let j = i + 1;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        const next = text[j];
+        if (next === undefined || next === ',' || next === '}' || next === ']' || next === ':') {
+          result += ch;
+          inString = false;
+        } else {
+          result += '\\"';
+        }
+      } else if (ch === '\n') {
+        result += '\\n';
+      } else if (ch === '\r') {
+        result += '\\r';
+      } else if (ch === '\t') {
+        result += '\\t';
+      } else {
+        result += ch;
+      }
+    } else {
+      if (ch === '"') inString = true;
+      result += ch;
+    }
+  }
+  return result;
+}
+
 function parseAiJsonResponse(resultText) {
   const cleanedText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
   try {
@@ -1822,8 +1872,12 @@ function parseAiJsonResponse(resultText) {
     try {
       return JSON.parse(repairJsonControlCharsInStrings(cleanedText));
     } catch (err2) {
-      console.error("AI output parsing failed. Raw text:", resultText);
-      throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
+      try {
+        return JSON.parse(repairJsonStringIssues(cleanedText));
+      } catch (err3) {
+        console.error("AI output parsing failed. Raw text:", resultText);
+        throw new Error("AI 응답 결과 파싱에 실패했습니다: " + err.message);
+      }
     }
   }
 }
