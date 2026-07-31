@@ -8181,24 +8181,61 @@ function renderSnsEmptyState() {
 //   브랜드 태그 하나 정도만, 그마저 없어도 자연스러움.
 // - X: 검색/트렌드 문화라 1~2개 정도의 간결한 태그가 적당.
 // - 유튜브 커뮤니티: 영상 해시태그처럼 몇 개의 주제 태그를 붙이는 게 흔함.
+// 조사(은/는/이/가/을/를 등)가 붙은 한국어 어절에서 조사를 대략 떼어내
+// 순수 키워드에 가깝게 만든다. 형태소 분석기가 아니라 정규식 기반의
+// 근사치라 완벽하진 않지만, 해시태그 용도로는 이 정도로 충분하다.
+const SNS_HASHTAG_PARTICLE_SUFFIX = /(으로써|으로서|이라고|이지만|이었다|하는데|이라는|들의|들은|들이|들을|에게서|에서|부터|까지|보다|께서|이나|라도|마저|조차|밖에|이다|입니다|하며|이며|라고|지만|였다|한다|하는|했다|된다|되는|됐다|는데|은데|라는|와|과|의|에|을|를|은|는|이|가|도|만|로)$/;
+
+const SNS_HASHTAG_STOPWORDS = new Set([
+  '오늘', '어제', '내일', '이번', '관련', '이후', '한편', '그러나', '하지만',
+  '결국', '역시', '지금', '현재', '것으로', '것이다', '전했다', '밝혔다',
+  '말했다', '있는', '없는', '했던', '위해', '통해', '대한', '기자', '뉴스'
+]);
+
+// 제목과 리드 문단에서 눈에 띄는 어절(고유명사/사건명일 확률이 높은
+// 것들)을 추출한다 -- 제목 쪽을 먼저 훑고, 부족하면 리드에서 채운다.
+function extractSnsKeywords(text, maxCount) {
+  const cleaned = (text || '').replace(/["""''.,!?()\[\]{}%·\-–—:;…‥]/g, ' ');
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const seen = new Set();
+  const keywords = [];
+  for (const raw of tokens) {
+    const word = raw.replace(SNS_HASHTAG_PARTICLE_SUFFIX, '');
+    if (word.length < 2 || /^[0-9]+$/.test(word) || SNS_HASHTAG_STOPWORDS.has(word) || seen.has(word)) continue;
+    seen.add(word);
+    keywords.push(word);
+    if (keywords.length >= maxCount) break;
+  }
+  return keywords;
+}
+
+// 브랜드(#바이칼뉴스)+카테고리는 모든 채널 공통 기본값이고, 그 위에
+// 기사 제목/리드에서 뽑은 실제 키워드를 채널별로 다른 개수만큼 얹는다.
+// 어느 채널이든 최소 5개 이상은 되도록 구성 (인스타그램/유튜브는 더 많이).
 function buildSnsHashtags(article, platform) {
   const tag = article.categoryLabel ? `#${article.categoryLabel.replace(/[·\s]/g, '')}` : '';
-  if (platform === 'facebook') {
-    return '#바이칼뉴스';
-  }
+  const base = ['#바이칼뉴스', tag].filter(Boolean);
+
+  const titleKeywords = extractSnsKeywords(article.title, 8);
+  const leadKeywords = extractSnsKeywords(article.lead || article.subtitle || '', 8)
+    .filter(k => !titleKeywords.includes(k));
+  const contentKeywords = [...titleKeywords, ...leadKeywords];
+
   if (platform === 'instagram') {
-    return ['#바이칼뉴스', tag, '#오늘의뉴스', '#뉴스', '#속보'].filter(Boolean).join(' ');
-  }
-  if (platform === 'threads') {
-    return '#바이칼뉴스';
-  }
-  if (platform === 'x') {
-    return ['#바이칼뉴스', tag].filter(Boolean).join(' ');
+    const picked = contentKeywords.slice(0, 8).map(k => `#${k}`);
+    return [...base, ...picked, '#오늘의뉴스', '#뉴스', '#속보'].join(' ');
   }
   if (platform === 'youtube') {
-    return ['#바이칼뉴스', tag, '#뉴스'].filter(Boolean).join(' ');
+    const picked = contentKeywords.slice(0, 5).map(k => `#${k}`);
+    return [...base, ...picked, '#뉴스'].join(' ');
   }
-  return '#바이칼뉴스';
+  if (platform === 'x') {
+    const picked = contentKeywords.slice(0, 3).map(k => `#${k}`);
+    return [...base, ...picked].join(' ');
+  }
+  // facebook, threads 등 -- 브랜드/카테고리 2개 + 키워드 3개 = 5개 이상
+  const picked = contentKeywords.slice(0, 3).map(k => `#${k}`);
+  return [...base, ...picked].join(' ');
 }
 
 function buildSnsPostText(article, platform) {
