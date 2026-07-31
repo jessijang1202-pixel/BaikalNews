@@ -8242,6 +8242,61 @@ async function copySnsText(platform) {
   }
 }
 
+// api/sns-publish.js는 baikalnews.com에서 서빙되고, 관리자 화면은
+// editor815.baikalnews.com에서 열리는 다른 오리진이라 절대경로로
+// 호출해야 한다 (그 함수가 CORS 헤더를 붙여준다).
+const SNS_PUBLISH_ENDPOINT = "https://baikalnews.com/api/sns-publish";
+const SNS_AUTOMATABLE_PLATFORMS = ['facebook', 'instagram', 'threads'];
+const SNS_PLATFORM_LABELS = { facebook: '페이스북', instagram: '인스타그램', threads: '스레드' };
+
+async function publishSnsAllAutomatable() {
+  const select = document.getElementById("sns-article-select");
+  const id = select ? parseInt(select.value, 10) : NaN;
+  const article = findSnsArticleById(id);
+  if (!article) {
+    alert("먼저 발행할 기사를 선택해 주세요.");
+    return;
+  }
+  if (!confirm("페이스북, 인스타그램, 스레드 중 연동된 채널에 지금 바로 발행합니다. 계속하시겠습니까?")) return;
+
+  const btn = document.getElementById("sns-publish-all-btn");
+  const resultsEl = document.getElementById("sns-publish-all-results");
+  if (btn) { btn.disabled = true; btn.textContent = "발행 중..."; }
+  if (resultsEl) resultsEl.innerHTML = '<div class="help-text">발행 진행 중...</div>';
+
+  const lines = [];
+  for (const platform of SNS_AUTOMATABLE_PLATFORMS) {
+    const label = SNS_PLATFORM_LABELS[platform];
+    const textEl = document.getElementById(`sns-text-${platform}`);
+    const text = textEl ? textEl.value.trim() : '';
+    if (!text) {
+      lines.push(`<div style="color: var(--status-review);">⚠ ${label}: 내용이 비어있어 건너뛰었습니다.</div>`);
+      continue;
+    }
+    try {
+      const res = await fetch(SNS_PUBLISH_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, text, imageUrl: article.image || null })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        lines.push(`<div style="color: var(--color-green-deep);">✅ ${label}: 발행 완료</div>`);
+      } else if (data.error === 'not_configured') {
+        lines.push(`<div class="help-text">⚠ ${label}: 아직 연동되지 않았습니다.</div>`);
+      } else {
+        lines.push(`<div style="color: #ef4444;">❌ ${label}: 실패 -- ${data.error}</div>`);
+      }
+    } catch (err) {
+      console.error(`${label} 발행 요청 실패:`, err);
+      lines.push(`<div style="color: #ef4444;">❌ ${label}: 요청 실패 -- ${err.message}</div>`);
+    }
+  }
+
+  if (resultsEl) resultsEl.innerHTML = lines.join('');
+  if (btn) { btn.disabled = false; btn.textContent = "페이스북·인스타그램·스레드 한꺼번에 발행"; }
+}
+
 function renderNewsletterDraftUI() {
   renderNewsletterSlotGroup('newsletter-latest-slots', 'latestIds');
   renderNewsletterSlotGroup('newsletter-popular-slots', 'popularIds');
