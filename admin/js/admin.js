@@ -2185,18 +2185,18 @@ async function generateTrendingDraft() {
     sourceText = "";
   }
 
-  // Gemini로 배경 자료 보강 -- 원문 스크랩은 CORS 프록시에 의존해 실패하기 쉬우므로,
-  // 성공 여부와 무관하게 Gemini의 배경지식으로 맥락을 추가 수집해 둔다. 글쓰기 자체는
-  // 그대로 Claude가 담당한다.
-  setAiLoaderText("Gemini로 배경 자료를 수집하는 중...");
+  // Claude로 배경 자료 보강 -- 원문 스크랩은 CORS 프록시에 의존해 실패하기 쉬우므로,
+  // 성공 여부와 무관하게 배경지식으로 맥락을 추가 수집해 둔다. 글쓰기 자체도
+  // 그대로 Claude가 담당한다 (예전엔 이 조사 단계만 Gemini였으나 Claude로 통일).
+  setAiLoaderText("Claude로 배경 자료를 수집하는 중...");
   let researchNotes = "";
   try {
-    researchNotes = await callGeminiTextApi(
+    researchNotes = await callClaudeApi(
       `"${selectedTrendingArticle.title}"라는 오늘의 화제 뉴스 제목에 대해, 이 사안의 배경, 관련 맥락, 일반적으로 알려진 사실관계를 한국어로 5~8문장으로 정리해 주십시오. 확실하지 않은 내용은 추측하지 말고, 알려진 배경 정보 위주로 작성하십시오.`,
       "당신은 신속하게 뉴스 배경 자료를 조사해 정리하는 리서치 어시스턴트입니다."
     );
   } catch (err) {
-    console.warn("Gemini 자료수집 실패, 스크랩 원문만 사용합니다:", err);
+    console.warn("Claude 자료수집 실패, 스크랩 원문만 사용합니다:", err);
   }
 
   if (!sourceText || sourceText.length < 50) {
