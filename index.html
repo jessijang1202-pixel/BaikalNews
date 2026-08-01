@@ -190,7 +190,7 @@
             <p>매일 하루 1회, 그날 꼭 알아야 할 뉴스를 3분 안에 정리해 카카오톡으로 보내드립니다. 지금 신청해두시면 카카오톡 채널 개설과 동시에 발송을 시작합니다.</p>
           </div>
           <div class="newsletter-form">
-            <button type="button" class="btn" id="kakao-submit-btn" onclick="openKakaoSignupModal()">카카오로 뉴스 받아보기</button>
+            <button type="button" class="btn" id="kakao-submit-btn" onclick="startKakaoSubscribe()">카카오로 뉴스 받아보기</button>
           </div>
           <p class="newsletter-disclaimer">회원가입 시 카카오 계정 동의 화면에서 전화번호 제공에 동의하게 되며, 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>과 <a href="terms.html">이용약관</a>이 함께 적용됩니다.</p>
         </div>
@@ -337,35 +337,6 @@
       </div>
     </div>
   </footer>
-
-  <!-- 회원가입 화면: 일반적인 "SNS 간편 회원가입" 폼 레이아웃 (필수 회원정보를
-       입력란 형태로 보여준 뒤, 하단에 SNS 가입 버튼) -- 카카오 심사에서 요구한
-       "회원가입 화면" 예시와 같은 구조. 실제 값은 카카오 로그인 동의 후
-       자동으로 채워지므로 입력란은 읽기 전용으로 둠. -->
-  <div class="kakao-signup-modal-overlay" id="kakao-signup-modal" style="display:none;">
-    <div class="kakao-signup-modal">
-      <button type="button" class="kakao-signup-modal-close" onclick="closeKakaoSignupModal()" aria-label="닫기">&times;</button>
-      <h3>회원가입</h3>
-      <h4>필수 회원정보</h4>
-      <div class="signup-form-field">
-        <label for="signup-field-name">이름</label>
-        <input type="text" id="signup-field-name" placeholder="카카오 계정에서 자동으로 제공됩니다" readonly>
-      </div>
-      <div class="signup-form-field">
-        <label for="signup-field-phone">휴대폰 번호</label>
-        <input type="text" id="signup-field-phone" placeholder="카카오 계정에서 자동으로 제공됩니다" readonly>
-      </div>
-      <div class="signup-collection-notice">
-        <strong>수집 항목:</strong> 이름, 휴대폰 번호<br>
-        <strong>수집 목적:</strong> 카카오톡 3분 뉴스 브리핑 발송 및 회원 식별<br>
-        <strong>보유 기간:</strong> 회원 탈퇴 시까지
-      </div>
-      <button type="button" id="kakao-signup-modal-continue" onclick="confirmKakaoSignup()">
-        <span class="kakao-signup-btn-icon">💬</span> 카카오로 회원가입
-      </button>
-      <p class="kakao-signup-modal-note">회원가입 시 <a href="privacy-policy.html">개인정보처리방침</a> 및 <a href="terms.html">이용약관</a>에 동의하게 됩니다.</p>
-    </div>
-  </div>
 
   <!-- Scripts (deferred so they don't block HTML parsing/rendering) -->
   <script src="js/supabase-config.js" defer></script>

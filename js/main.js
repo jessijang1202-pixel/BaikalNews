@@ -317,26 +317,6 @@ function startKakaoSubscribe() {
   });
 }
 
-// 회원가입 안내 모달 -- 실제 카카오 동의 화면으로 넘어가기 전, 우리 사이트
-// 자체에서 무엇을 수집하는지 먼저 보여준다. Kakao.Auth.authorize()가 아직
-// 비활성화(KAKAO_SUBSCRIBE_ENABLED = false)라도 이 모달 자체는 항상 볼 수
-// 있어서, 카카오 동의항목 재심사에 필요한 "회원가입 화면" 캡처를 지금
-// 바로 찍을 수 있다.
-function openKakaoSignupModal() {
-  const modal = document.getElementById("kakao-signup-modal");
-  if (modal) modal.style.display = "flex";
-}
-
-function closeKakaoSignupModal() {
-  const modal = document.getElementById("kakao-signup-modal");
-  if (modal) modal.style.display = "none";
-}
-
-function confirmKakaoSignup() {
-  closeKakaoSignupModal();
-  startKakaoSubscribe();
-}
-
 // 2. Dynamic Override for Static Policy Pages
 function initStaticPageOverrides() {
   const pathname = window.location.pathname;
