@@ -296,10 +296,9 @@ const KAKAO_JS_KEY = "62e9094018b0cc5e533d637fbe93542b";
 // kakao-callback.html with a ?status= param for the final message.
 const KAKAO_SUBSCRIBE_REDIRECT_URI = "https://baikalnews.com/api/kakao-oauth-callback";
 
-// 카카오 로그인의 전화번호 동의항목이 아직 심사 중이라, 지금 버튼을 누르면
-// 카카오 쪽 오류 화면(KOE205)으로 이어짐 -- 승인 나기 전까지는 클릭해도
-// 아무 일도 일어나지 않도록 꺼둠. 승인되면 이 값만 true로 바꾸면 됨.
-const KAKAO_SUBSCRIBE_ENABLED = false;
+// 카카오 로그인의 전화번호 동의항목 심사 승인 완료 (2026-08-01) --
+// 실제 카카오 인증 화면으로 넘어가도록 켬.
+const KAKAO_SUBSCRIBE_ENABLED = true;
 
 function startKakaoSubscribe() {
   if (!KAKAO_SUBSCRIBE_ENABLED) {

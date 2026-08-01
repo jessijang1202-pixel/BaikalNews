@@ -694,6 +694,7 @@ async function switchTab(tabName) {
     await loadOrGenerateNewsletterDraft();
     loadGeminiApiKey();
     renderKakaoSendModeUI();
+    await loadKakaoSendModeFromServer();
     // 카카오 압축은 웹사이트 원문을 소스로 쓰므로, 이 탭에 웹 브리핑
     // 패널이 더는 없어도 최신 webBriefingDraft를 미리 로드해 둔다.
     await loadOrGenerateWebBriefing();
@@ -7985,18 +7986,42 @@ function kakaoBriefingStorageKey() {
   return `baikal_kakao_briefing_${todayDateKey()}`;
 }
 
-// Send-mode toggle -- purely a status record/preference right now, not a
-// real switch, since "자동" has nothing to actually trigger until the
-// Aligo integration (API key/templateCode/Vercel Cron) exists. Once that's
-// built, flipping this to 'auto' will be what turns the real automated
-// send path on.
+// Send-mode toggle -- Aligo 연동 완료 후에는 실제 자동 발송 여부를 가르는
+// 진짜 스위치다 (api/send-kakao-briefing.js 크론이 매일 8시 15분에 이 값을
+// app_settings에서 읽어 'auto'일 때만 발송함). localStorage는 즉시 반영되는
+// 로컬 캐시/오프라인 대비용일 뿐, 실제 기준값은 Supabase의 app_settings
+// 테이블 -- 여러 관리자 기기 간에 이 설정이 어긋나면 "발송될 줄 알았는데
+// 안 됐다" 같은 사고로 이어지므로 서버 값을 진실의 원천으로 둔다.
 function getKakaoSendMode() {
   return localStorage.getItem('baikal_kakao_send_mode') || 'manual';
 }
 
-function setKakaoSendMode(mode) {
+async function setKakaoSendMode(mode) {
   localStorage.setItem('baikal_kakao_send_mode', mode);
   renderKakaoSendModeUI();
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    try {
+      await window.SupabaseAdapter.setAppSetting('kakao_send_mode', mode);
+    } catch (err) {
+      console.error("발송 방식 서버 저장 실패 (로컬에는 반영됨):", err);
+      alert("발송 방식이 이 기기에는 반영되었지만, 서버 저장에 실패했습니다: " + err.message);
+    }
+  }
+}
+
+// 탭을 열 때 서버(app_settings)의 실제 값으로 로컬 캐시를 맞춘다 -- 다른
+// 관리자 기기에서 바꾼 설정도 여기서 반영되도록.
+async function loadKakaoSendModeFromServer() {
+  if (!window.SupabaseAdapter || !window.SupabaseAdapter.isConfigured()) return;
+  try {
+    const serverMode = await window.SupabaseAdapter.getAppSetting('kakao_send_mode');
+    if (serverMode === 'manual' || serverMode === 'auto') {
+      localStorage.setItem('baikal_kakao_send_mode', serverMode);
+      renderKakaoSendModeUI();
+    }
+  } catch (err) {
+    console.warn("발송 방식 서버 조회 실패, 로컬 값 유지:", err);
+  }
 }
 
 function renderKakaoSendModeUI() {
@@ -8017,7 +8042,7 @@ function renderKakaoSendModeUI() {
     badge.style.background = 'var(--color-green-deep)';
     badge.style.color = '#ffffff';
     if (descEl) {
-      descEl.innerHTML = '매일 오전 8시, 알리고 API를 통해 신청자 전체에게 자동으로 발송됩니다. <strong style="color: var(--status-review);">⚠ 아직 알리고 연동이 완료되지 않았습니다 -- 연동 전까지는 이 모드를 선택해도 실제로는 발송되지 않으니, 그동안은 수동 발송을 이용해 주세요.</strong>';
+      descEl.innerHTML = '매일 오전 8시 15분, 알리고 API를 통해 신청자 전체에게 자동으로 발송됩니다 (오전 8시에 브리핑 내용이 먼저 자동 생성된 뒤 발송). <strong style="color: var(--status-review);">⚠ 실제로 발송되는 모드이니, 발송 전에 반드시 아래 내용을 검토해 주세요.</strong>';
     }
   } else {
     badge.textContent = '수동 발송';
@@ -8029,7 +8054,27 @@ function renderKakaoSendModeUI() {
   }
 }
 
+// Checks Supabase first (not just localStorage) so this device picks up
+// today's 카카오 초안 even if it was created elsewhere -- either the 8am
+// 자동 생성 크론, or "오늘의 브리핑 생성" clicked from a different admin
+// browser. Falls back to localStorage only if Supabase has nothing yet
+// (mirrors loadOrGenerateWebBriefing() above).
 async function loadOrGenerateKakaoBriefing() {
+  const today = todayDateKey();
+  if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+    try {
+      const remote = await window.SupabaseAdapter.fetchNewsBriefingByDate(today);
+      if (remote && remote.kakaoContent) {
+        kakaoBriefingDraft = { date: today, content: remote.kakaoContent };
+        persistKakaoBriefingDraft();
+        renderKakaoBriefingUI();
+        return;
+      }
+    } catch (err) {
+      console.warn("오늘 카카오 브리핑 원격 조회 실패, 로컬 저장본으로 대체합니다:", err);
+    }
+  }
+
   const saved = localStorage.getItem(kakaoBriefingStorageKey());
   if (saved) {
     try {
@@ -8173,8 +8218,28 @@ ${extra || ''}`;
     persistKakaoBriefingDraft();
     renderKakaoBriefingUI();
 
-    if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
-      alert(`⚠ 재생성에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자)을 초과했습니다. 이 상태로는 알림톡 발송이 불가능하니, 직접 내용을 줄여 주세요.`);
+    // Best-effort -- localStorage는 여전히 관리자 UI의 최종 백업이므로,
+    // 여기서 실패해도 생성 자체를 막지 않는다 (다른 비필수 Supabase 저장과
+    // 동일한 관용 패턴). 단, 재시도에도 글자수 제한을 넘긴 경우는
+    // kakao_status를 'draft'가 아니라 'error'로 저장한다 -- 그렇지 않으면
+    // 자동 발송 모드일 때 api/send-kakao-briefing.js 크론이 이 초과분을
+    // 그대로 알리고에 보내려다 실패하는 낭비가 생긴다 (관리자가 직접
+    // 다시 생성/수정할 때까지 발송 대상에서 제외되도록 미리 막아둔다).
+    const overLimit = resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT;
+    if (window.SupabaseAdapter && window.SupabaseAdapter.isConfigured()) {
+      try {
+        if (overLimit) {
+          await window.SupabaseAdapter.saveKakaoBriefingContent(todayDateKey(), resultText, 'error');
+        } else {
+          await window.SupabaseAdapter.saveKakaoBriefingContent(todayDateKey(), resultText);
+        }
+      } catch (saveErr) {
+        console.error("카카오 브리핑 원격 저장 실패 (로컬에는 저장됨):", saveErr);
+      }
+    }
+
+    if (overLimit) {
+      alert(`⚠ 재생성에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자)을 초과했습니다. 이 상태로는 알림톡 발송이 불가능하니, 직접 내용을 줄여 주세요. (자동 발송 모드에서는 이 상태의 브리핑을 건너뜁니다.)`);
     }
   } catch (err) {
     console.error("카카오 브리핑 생성 실패:", err);

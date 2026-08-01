@@ -47,14 +47,18 @@ function stripLeakedWebBriefingGreeting(text) {
   return rest.join('\n').replace(/^\n+/, '');
 }
 
-async function briefingExistsForDate(date) {
+// select=id,content,kakao_content 이유: 존재 여부뿐 아니라, 이미 존재하는
+// 행이라면 그 웹 브리핑 본문(카카오 압축의 소스)과 카카오 브리핑이 이미
+// 채워져 있는지까지 한 번에 알아야 아래 카카오 생성 단계에서 또 조회하지
+// 않아도 된다.
+async function fetchBriefingRowForDate(date) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}&select=id`,
+    `${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}&select=id,content,kakao_content,kakao_status`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   );
   if (!res.ok) throw new Error(`Supabase existence check failed: ${res.status}`);
   const rows = await res.json();
-  return rows.length > 0;
+  return rows.length > 0 ? rows[0] : null;
 }
 
 // Same [title](url) markdown-link extraction as admin.js's
@@ -154,6 +158,109 @@ async function callGeminiText(apiKey, prompt, systemInstruction) {
   return text;
 }
 
+// 카카오 알림톡 변수(#{brief}) 자리에 들어갈 압축판 -- admin.js의
+// generateKakaoBriefing()과 완전히 동일한 프롬프트/재시도 로직을 서버
+// 함수에도 그대로 포팅한다 (이 크론은 admin.js를 import할 수 없어 중복
+// 유지). 650자를 넘기면 알림톡 발송 자체가 불가능한 기술적 제한이라,
+// 한 번 더 짧게 재시도하고 그래도 넘으면 절대 발송용으로 저장하지 않는다.
+const KAKAO_BRIEFING_VAR_CHAR_LIMIT = 650;
+const KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN = 550;
+
+function stripLeakedKakaoBriefingHeader(text) {
+  const lines = text.split('\n');
+  if (lines.length > 1) {
+    const firstLine = lines[0].trim();
+    const looksLikeHeader = /^[☀️🌅📰🔔]/.test(firstLine) || (/브리핑/.test(firstLine) && /\d{4}년|\d+월|\d+일/.test(firstLine));
+    if (looksLikeHeader) {
+      return lines.slice(1).join('\n').replace(/^\n+/, '');
+    }
+  }
+  return text;
+}
+
+function buildKakaoBriefingPrompt(sourceContent, extra) {
+  return `
+아래는 오늘 바이칼 뉴스 웹사이트에 게시된 "3분 뉴스 브리핑"의 원문입니다. 같은 뉴스를 다시 수집하지 말고, 이 원문에 담긴 소식만을 바탕으로 카카오톡 "알림톡"으로 발송할 압축판 본문을 작성하십시오.
+
+[웹사이트 게시용 브리핑 원문]
+${sourceContent}
+
+[작성 지침 -- 반드시 모두 지킬 것]
+- 원문에 담긴 뉴스 항목을 빠짐없이 다루되, 각 항목을 짧은 한 문장(또는 이어지는 두 문장)으로 압축하십시오. 원문에 없는 새로운 사실을 추가하거나 추측하지 마십시오.
+- 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
+- (매우 중요) 각 뉴스 항목은 "▩ "로 시작하십시오 (번호 대신 이 기호를 사용하십시오). "제목 줄"과 "설명 줄"을 따로 나누지 말고, 하나의 문장으로 바로 핵심 사실을 전달하십시오. 예를 들어 "▩ 밭일하던 100세 할머니 숨진 채 발견\n밭일을 하던 100세 할머니가 숨진 채 발견되었습니다." 처럼 제목을 쓰고 그 아래 줄에서 같은 내용을 다시 풀어 쓰는 방식은 같은 내용이 중복되어 글자를 낭비하므로 절대 금지합니다. 대신 "▩ 밭일하던 100세 할머니 숨진 채 발견됨, 당시 체온 42.2도로 측정돼 폭염 주의 당부됨"처럼 "▩ " 뒤에 바로 한 줄로 이어서 쓰십시오. 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
+- 문장 종결은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "별세했습니다" → "별세함", "비판했습니다" → "비판함"). 음슴체는 문장이 짧아져 글자수 예산도 더 아낄 수 있습니다.
+- 이 메시지는 카카오 "알림톡"(정보성 메시지)으로 발송되므로, 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)를 절대 포함하지 마십시오. 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하십시오.
+- (매우 중요) 인사말, 헤더, 마무리 문구, 날짜, "☀" 같은 장식적 이모지 타이틀을 절대 넣지 마십시오 -- 이미 승인된 고정 템플릿에 별도로 포함되어 있어, 여기서 또 넣으면 중복되고 글자 예산만 낭비됩니다. 첫 줄부터 바로 "▩ "로 시작하는 첫 번째 뉴스 항목으로 시작하십시오.
+- 마크다운 문법(#, **, - 등) 없이 "▩ "와 줄바꿈만으로 구성하십시오.
+- 다른 설명 없이, 뉴스 요약 본문 그 자체만 출력하십시오.
+${extra || ''}`;
+}
+
+async function generateKakaoBriefingText(apiKey, sourceContent) {
+  const systemInstruction = "당신은 웹사이트에 이미 게시된 3분 뉴스 브리핑 원문을 카카오 알림톡(정보성 메시지) 발송용으로 압축·재구성하는 편집자입니다. 원문에 없는 내용을 추가하지 말고, 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 주어진 글자수 범위를 반드시 지키십시오.";
+
+  let resultText = stripLeakedKakaoBriefingHeader(
+    (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent), systemInstruction)).trim()
+  );
+
+  // 기술적 제한(650자) 초과 시 한 번 더 짧게, 너무 짧으면(550자 미만)
+  // 한 번 더 채워서 재시도 -- admin.js의 generateKakaoBriefing()과 동일하게
+  // 재시도는 각 방향으로 딱 한 번만.
+  if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
+    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
+    resultText = stripLeakedKakaoBriefingHeader(
+      (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent, retryExtra), systemInstruction)).trim()
+    );
+  } else if (resultText.length < KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN) {
+    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
+    resultText = stripLeakedKakaoBriefingHeader(
+      (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent, retryExtra), systemInstruction)).trim()
+    );
+  }
+
+  return resultText;
+}
+
+async function upsertKakaoBriefingFields(date, fields) {
+  const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({ briefing_date: date, ...fields })
+  });
+  if (!upsertRes.ok) {
+    const errText = await upsertRes.text();
+    throw new Error(`Supabase news_briefings kakao upsert failed: ${errText}`);
+  }
+}
+
+// 웹 브리핑 생성/저장이 이미 성공한 뒤 호출되는 별도 단계 -- 이 함수
+// 내부에서 실패가 나도 (자체 try/catch로) 절대 throw하지 않는다. 이미
+// 저장된 웹 브리핑 응답까지 500으로 날려버리면 안 되기 때문.
+async function generateAndSaveKakaoIfNeeded(apiKey, date, sourceContent) {
+  try {
+    const resultText = await generateKakaoBriefingText(apiKey, sourceContent);
+
+    if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
+      console.error(`${date} 카카오 브리핑: 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
+      await upsertKakaoBriefingFields(date, { kakao_status: 'error', kakao_error: 'char_limit_exceeded_after_retry' });
+      return { ok: false, reason: 'char_limit_exceeded_after_retry', length: resultText.length };
+    }
+
+    await upsertKakaoBriefingFields(date, { kakao_content: resultText, kakao_status: 'draft' });
+    console.log(`${date} 카카오 브리핑 자동 생성 완료 (초안 상태, ${resultText.length}자).`);
+    return { ok: true, length: resultText.length };
+  } catch (err) {
+    console.error(`${date} 카카오 브리핑 자동 생성 실패:`, err);
+    return { ok: false, reason: err.message };
+  }
+}
+
 module.exports = async (req, res) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -165,9 +272,23 @@ module.exports = async (req, res) => {
   const today = todayKstDate();
 
   try {
-    if (await briefingExistsForDate(today)) {
-      console.log(`${today} 브리핑이 이미 존재합니다 (수동 생성 또는 이전 크론 실행). 건너뜁니다.`);
-      res.status(200).json({ skipped: true, reason: 'already_exists', date: today });
+    const existingRow = await fetchBriefingRowForDate(today);
+
+    if (existingRow) {
+      // 웹 브리핑은 이미 있음(수동 생성 또는 이전 크론 실행) -- 이 행을
+      // 덮어쓰지 않는다. 다만 카카오 압축본은 아직 없을 수 있으므로
+      // (예: 관리자가 웹 브리핑만 수동 생성하고 카카오 탭은 안 연 경우),
+      // kakao_content가 비어 있을 때만 그 기존 웹 본문을 소스로 카카오
+      // 생성을 이어서 시도한다 -- 이미 있으면(관리자가 직접 수정했을 수도
+      // 있으므로) 그대로 둔다.
+      console.log(`${today} 브리핑이 이미 존재합니다 (수동 생성 또는 이전 크론 실행). 웹 브리핑 생성은 건너뜁니다.`);
+      let kakaoResult = { skipped: 'already_has_kakao_content' };
+      if (!existingRow.kakao_content) {
+        kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, existingRow.content);
+      } else {
+        console.log(`${today} 카카오 브리핑도 이미 존재합니다. 건너뜁니다.`);
+      }
+      res.status(200).json({ skipped: true, reason: 'already_exists', date: today, kakao: kakaoResult });
       return;
     }
 
@@ -223,7 +344,13 @@ ${newsListText}
     }
 
     console.log(`${today} 브리핑 자동 생성 완료 (초안 상태, ${resultText.length}자).`);
-    res.status(200).json({ ok: true, date: today, length: resultText.length });
+
+    // 웹 브리핑은 이미 저장이 끝난 뒤이므로, 카카오 생성이 실패해도 이미
+    // 성공한 웹 브리핑 응답을 절대 막지 않는다 (generateAndSaveKakaoIfNeeded는
+    // 자체적으로 에러를 삼키고 결과 객체를 반환함).
+    const kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, resultText);
+
+    res.status(200).json({ ok: true, date: today, length: resultText.length, kakao: kakaoResult });
   } catch (err) {
     console.error('일일 브리핑 자동 생성 실패:', err);
     res.status(500).json({ error: err.message });

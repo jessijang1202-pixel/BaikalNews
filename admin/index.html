@@ -1412,12 +1412,10 @@
           </div>
 
           <!-- 발송 방식 토글 -- 카카오톡 발송(알리고 알림톡 연동)에 관한
-               설정이라 카카오톡 발송용 패널 바로 위에 둔다. 실제 발송
-               동작을 바꾸는 스위치가 아니라(자동 발송은 아직 알리고 연동
-               전이라 실제로 아무것도 트리거하지 않음), 지금 이 브리핑을
-               어떤 방식으로 내보내고 있는지를 관리자가 헷갈리지 않도록
-               기록·표시해두는 용도. 연동 완료 후에는 이 토글이 실제 자동
-               발송 경로를 켜고 끄는 스위치가 됨. -->
+               설정이라 카카오톡 발송용 패널 바로 위에 둔다. 알리고 연동이
+               완료되어, 이제 이 토글이 실제 자동 발송 경로(api/send-kakao-briefing.js
+               크론, 매일 8시 15분)를 켜고 끄는 진짜 스위치임 -- 'auto'로
+               두면 신청자 전체에게 실제로 발송됨. -->
           <div class="panel" style="padding: 20px 24px; margin-bottom: 20px;">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
               <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">

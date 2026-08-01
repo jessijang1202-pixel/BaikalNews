@@ -851,7 +851,11 @@
               date: row.briefing_date,
               title: row.title,
               content: row.content,
-              status: row.status
+              status: row.status,
+              kakaoContent: row.kakao_content,
+              kakaoStatus: row.kakao_status,
+              kakaoSentAt: row.kakao_sent_at,
+              kakaoError: row.kakao_error
             }));
           } catch (err) {
             console.error("Supabase fetchNewsBriefings error:", err);
@@ -880,7 +884,11 @@
               date: data.briefing_date,
               title: data.title,
               content: data.content,
-              status: data.status
+              status: data.status,
+              kakaoContent: data.kakao_content,
+              kakaoStatus: data.kakao_status,
+              kakaoSentAt: data.kakao_sent_at,
+              kakaoError: data.kakao_error
             };
           } catch (err) {
             console.error("Supabase fetchNewsBriefingByDate error:", err);
@@ -902,6 +910,61 @@
       const { error } = await client
         .from('news_briefings')
         .upsert(dbRow, { onConflict: 'briefing_date' });
+      if (error) throw error;
+      return true;
+    },
+
+    // 카카오 알림톡용 브리핑 본문만 별도로 저장 -- title/content/status(웹
+    // 게시용 컬럼)는 건드리지 않는다. upsert에 kakao_* 컬럼만 담아 보내면
+    // 기존 행의 다른 컬럼은 그대로 유지된다 (saveNewsBriefing과 동일한
+    // upsert-onConflict 방식).
+    saveKakaoBriefingContent: async function(date, content, status) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const dbRow = {
+        briefing_date: date,
+        kakao_content: content,
+        kakao_status: status || 'draft'
+      };
+      const { error } = await client
+        .from('news_briefings')
+        .upsert(dbRow, { onConflict: 'briefing_date' });
+      if (error) throw error;
+      return true;
+    },
+
+    // ==========================================
+    // app_settings -- 소소한 전역 설정 키/값 저장소 (지금은 카카오 발송
+    // 모드 하나뿐). kakao_subscribers/expenses와 같은 anon-key permissive
+    // RLS 패턴 -- 민감 정보가 아니라 단순 토글 값이라 sns_connections 같은
+    // service-role 전용 패턴을 쓸 필요는 없음.
+    // ==========================================
+    getAppSetting: async function(key) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('app_settings')
+              .select('value')
+              .eq('key', key)
+              .maybeSingle();
+            if (error) throw error;
+            return data ? data.value : null;
+          } catch (err) {
+            console.error("Supabase getAppSetting error:", err);
+          }
+        }
+      }
+      return null;
+    },
+
+    setAppSetting: async function(key, value) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
+      const { error } = await client
+        .from('app_settings')
+        .upsert({ key, value }, { onConflict: 'key' });
       if (error) throw error;
       return true;
     },
