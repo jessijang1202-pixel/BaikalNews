@@ -6279,7 +6279,7 @@ function renderShortsMediaPreview() {
   if (currentShortsProject.veoVideoUrl) {
     items.push(`
       <div class="shorts-media-thumb">
-        <video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline></video>
+        <video src="${currentShortsProject.veoVideoUrl}" controls muted playsinline preload="auto"></video>
         <div class="shorts-media-thumb-actions">
           <a href="${currentShortsProject.veoVideoUrl}" download="shorts-front.mp4" title="다운로드">⬇</a>
           <button type="button" onclick="toggleShortsVeoPromptEditor()" title="프롬프트 수정">✎</button>
