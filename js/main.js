@@ -253,6 +253,24 @@ function initCommonFeatures() {
     if (sidebarTempValEl) sidebarTempValEl.textContent = formattedTemp;
     if (sidebarTempDescEl) sidebarTempDescEl.textContent = desc;
   }
+
+  applyKakaoSubscriberHeaderState();
+}
+
+// 카카오 3분 뉴스 가입에 성공하면 kakao-callback.html이 이름을 localStorage에
+// 남겨둔다 (KAKAO_SUBSCRIBER_NAME_KEY). 이후 어느 페이지를 보든 헤더 우상단의
+// "구독하기" 링크를 "{이름}님 감사합니다"로 바꿔, 이미 가입한 사람에게
+// 매번 구독 유도 문구를 반복해서 보여주지 않는다.
+const KAKAO_SUBSCRIBER_NAME_KEY = "baikal_kakao_subscriber_name";
+
+function applyKakaoSubscriberHeaderState() {
+  const name = localStorage.getItem(KAKAO_SUBSCRIBER_NAME_KEY);
+  if (!name) return;
+  document.querySelectorAll(".utility-subscribe").forEach(link => {
+    link.textContent = `${name}님 감사합니다`;
+    link.removeAttribute("href");
+    link.style.cursor = "default";
+  });
 }
 
 // Newsletter signup form (homepage #newsletter section)
@@ -311,9 +329,12 @@ function startKakaoSubscribe() {
   if (!Kakao.isInitialized()) {
     Kakao.init(KAKAO_JS_KEY);
   }
+  // plusfriends(카카오톡 채널 추가)는 선택 동의라 사용자가 체크 해제해도
+  // 로그인 자체는 그대로 진행됨 -- phone_number/name과 달리 없어도 가입은
+  // 성공한다.
   Kakao.Auth.authorize({
     redirectUri: KAKAO_SUBSCRIBE_REDIRECT_URI,
-    scope: "phone_number,name"
+    scope: "phone_number,name,plusfriends"
   });
 }
 

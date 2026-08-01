@@ -22,9 +22,9 @@ const SUPABASE_URL = "https://iyxzwrsgivvsgeqclchw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHp3cnNnaXZ2c2dlcWNsY2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MzE5NzQsImV4cCI6MjA5OTMwNzk3NH0.PsS7tHy14d22KKWBHOi9TkZLTdVYfqolgMHcYJ2gkow";
 const REDIRECT_URI = "https://baikalnews.com/api/kakao-oauth-callback";
 
-function toStatusPage(res, status, reason) {
-  const qs = reason ? `?status=${status}&reason=${encodeURIComponent(reason)}` : `?status=${status}`;
-  res.writeHead(302, { Location: `/kakao-callback.html${qs}` });
+function toStatusPage(res, status, extra) {
+  const params = new URLSearchParams({ status, ...(extra || {}) });
+  res.writeHead(302, { Location: `/kakao-callback.html?${params.toString()}` });
   res.end();
 }
 
@@ -39,10 +39,10 @@ module.exports = async (req, res) => {
   const { code, error: kakaoError } = req.query;
 
   if (kakaoError) {
-    return toStatusPage(res, 'error', kakaoError);
+    return toStatusPage(res, 'error', { reason: kakaoError });
   }
   if (!code) {
-    return toStatusPage(res, 'error', 'no_code');
+    return toStatusPage(res, 'error', { reason: 'no_code' });
   }
 
   try {
@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok || !tokenData.access_token) {
       console.error('Kakao token exchange failed:', tokenData);
-      return toStatusPage(res, 'error', 'token_exchange_failed');
+      return toStatusPage(res, 'error', { reason: 'token_exchange_failed' });
     }
 
     const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
@@ -80,8 +80,17 @@ module.exports = async (req, res) => {
 
     if (!kakaoUserId || !phone) {
       console.error('Kakao user info missing id/phone_number:', userData);
-      return toStatusPage(res, 'error', 'no_phone_number');
+      return toStatusPage(res, 'error', { reason: 'no_phone_number' });
     }
+
+    // 이미 가입된 계정인지 upsert 전에 먼저 확인 -- 재가입 시 kakao-callback.html이
+    // "신청 완료"가 아니라 "이미 신청하셨습니다"로 다르게 안내할 수 있도록.
+    const existingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/kakao_subscribers?kakao_user_id=eq.${kakaoUserId}&select=id`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    const existingRows = existingRes.ok ? await existingRes.json() : [];
+    const alreadySubscribed = existingRows.length > 0;
 
     // Upsert on kakao_user_id -- this is a membership record now, so the
     // same Kakao account signing up again should update its info rather
@@ -100,12 +109,15 @@ module.exports = async (req, res) => {
     if (!insertRes.ok) {
       const errText = await insertRes.text();
       console.error('Supabase kakao_subscribers upsert failed:', errText);
-      return toStatusPage(res, 'error', 'save_failed');
+      return toStatusPage(res, 'error', { reason: 'save_failed' });
     }
 
-    return toStatusPage(res, 'success');
+    return toStatusPage(res, 'success', {
+      name: name || '',
+      already: alreadySubscribed ? '1' : '0'
+    });
   } catch (err) {
     console.error('Kakao OAuth callback error:', err);
-    return toStatusPage(res, 'error', 'server_error');
+    return toStatusPage(res, 'error', { reason: 'server_error' });
   }
 };

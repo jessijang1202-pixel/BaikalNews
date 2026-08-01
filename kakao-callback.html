@@ -117,6 +117,8 @@
     const params = new URLSearchParams(location.search);
     const status = params.get('status');
     const reason = params.get('reason');
+    const subscriberName = params.get('name');
+    const alreadySubscribed = params.get('already') === '1';
     const titleEl = document.getElementById('kakao-callback-title');
     const messageEl = document.getElementById('kakao-callback-message');
     const iconEl = document.getElementById('kakao-callback-icon');
@@ -135,8 +137,18 @@
     if (status === 'success') {
       iconEl.classList.add('is-success');
       iconEl.innerHTML = successIcon;
-      titleEl.textContent = '3분 뉴스 신청이 완료되었습니다';
-      messageEl.textContent = '카카오톡 채널을 통해 매일 아침 3분 뉴스 브리핑을 보내드리겠습니다.';
+      // 헤더의 "구독하기" 링크가 다음 방문부터 "{이름}님 감사합니다"로
+      // 바뀌도록 저장 (js/main.js의 applyKakaoSubscriberHeaderState()가 읽음).
+      if (subscriberName) {
+        localStorage.setItem('baikal_kakao_subscriber_name', subscriberName);
+      }
+      if (alreadySubscribed) {
+        titleEl.textContent = '이미 신청하셨습니다';
+        messageEl.textContent = '이미 카카오 3분 뉴스 브리핑을 신청하셨습니다. 매일 아침 카카오톡 채널로 계속 보내드리고 있습니다.';
+      } else {
+        titleEl.textContent = '3분 뉴스 신청이 완료되었습니다';
+        messageEl.textContent = '카카오톡 채널을 통해 매일 아침 3분 뉴스 브리핑을 보내드리겠습니다.';
+      }
     } else {
       iconEl.classList.add('is-error');
       iconEl.innerHTML = errorIcon;
