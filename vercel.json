@@ -9,6 +9,31 @@
         }
       ],
       "destination": "/admin/:path*"
+    },
+    {
+      "source": "/article.html",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": { "pre": "facebookexternalhit" } }
+      ],
+      "destination": "/api/article-og"
+    },
+    {
+      "source": "/article.html",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": { "pre": "Twitterbot" } }
+      ],
+      "destination": "/api/article-og"
+    },
+    {
+      "source": "/article.html",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": { "pre": "Slackbot" } }
+      ],
+      "destination": "/api/article-og"
+    },
+    {
+      "source": "/article.html",
+      "destination": "/article-app.html"
     }
   ],
   "crons": [
