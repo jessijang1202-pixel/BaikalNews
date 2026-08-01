@@ -1443,6 +1443,19 @@
             </p>
             <div class="help-text" id="kakao-briefing-status" style="margin-bottom: 10px;"></div>
             <textarea id="kakao-briefing-content" class="form-control-admin" style="min-height: 300px; font-family: inherit; line-height: 1.6;" placeholder="아직 생성된 브리핑이 없습니다. 위 &quot;오늘의 브리핑 생성&quot; 버튼을 눌러주세요." oninput="syncKakaoBriefingEdit()"></textarea>
+
+            <!-- 알리고 연동 점검용 1건 테스트 발송 -- 잔액 충전 전에
+                 API 키/발신프로필/템플릿 코드가 맞는지 확인하는 용도. -->
+            <hr style="border: none; border-top: 1px solid var(--admin-border); margin: 20px 0;">
+            <h4 style="margin-bottom: 8px; font-size: 0.9rem;">알림톡 발송 테스트 (1건)</h4>
+            <p class="help-text" style="margin-bottom: 12px;">
+              알리고의 <strong>testMode</strong>로 위 본문(비어 있으면 기본 테스트 문구)을 내 번호 한 곳에만 보내 연동이 정상인지 확인합니다. testMode는 <strong>실제 요금이 나가지 않는 것으로 추정</strong>되지만, 알리고 공식 문서에 testMode의 동작이 상세히 명시되어 있지 않아 100% 보장할 수는 없습니다. 발송 결과의 code/message 값에 실제 결과(성공 / 잔액부족 / 템플릿 불일치 등)가 그대로 표시됩니다.
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <input type="tel" id="kakao-test-send-phone" class="form-control-admin" style="max-width: 220px;" placeholder="010-1234-5678">
+              <button type="button" id="kakao-test-send-btn" class="btn-admin btn-admin-secondary" onclick="testKakaoSend()">테스트 발송 (알리고 testMode)</button>
+            </div>
+            <div class="help-text" id="kakao-test-send-status" style="margin-top: 10px;"></div>
           </div>
         </div>
       </section>

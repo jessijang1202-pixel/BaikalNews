@@ -8266,6 +8266,58 @@ async function copyKakaoBriefingText() {
   }
 }
 
+// 알리고 연동 점검용 1건 테스트 발송 -- api/test-kakao-send.js는
+// baikalnews.com에서 서빙되고 관리자 화면은 editor815.baikalnews.com이라
+// 절대경로로 호출한다 (그 함수가 CORS 헤더를 붙여준다).
+const KAKAO_TEST_SEND_ENDPOINT = "https://baikalnews.com/api/test-kakao-send";
+
+async function testKakaoSend() {
+  const phoneEl = document.getElementById("kakao-test-send-phone");
+  const phone = phoneEl ? phoneEl.value.trim() : '';
+  if (!phone) {
+    alert("테스트 발송할 전화번호를 입력해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("kakao-test-send-btn");
+  const statusEl = document.getElementById("kakao-test-send-status");
+  const textEl = document.getElementById("kakao-briefing-content");
+  const content = textEl ? textEl.value.trim() : '';
+
+  // 본문이 비어 있으면 content 자체를 안 보내고, 엔드포인트의 기본 테스트
+  // 문구를 쓰게 한다.
+  const payload = content ? { phone, content } : { phone };
+
+  if (btn) { btn.disabled = true; btn.textContent = "발송 중..."; }
+  if (statusEl) { statusEl.textContent = "발송 중..."; statusEl.style.color = ''; }
+
+  try {
+    const res = await fetch(KAKAO_TEST_SEND_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.code === 0) {
+      if (statusEl) { statusEl.textContent = `✅ 성공 (code: 0) -- ${data.message || ''}`; statusEl.style.color = 'var(--color-green-deep)'; }
+      alert(`테스트 발송 성공입니다 (code: 0).\n${data.message || ''}`);
+    } else {
+      // 알리고의 message를 그대로 보여준다 -- "잔액이 부족합니다" 같은
+      // 원문이 원인 파악에 가장 중요한 신호다.
+      const detail = data.message || data.error || JSON.stringify(data);
+      if (statusEl) { statusEl.textContent = `❌ 실패 (code: ${data.code !== undefined ? data.code : '-'}) -- ${detail}`; statusEl.style.color = '#ef4444'; }
+      alert(`테스트 발송 실패 (code: ${data.code !== undefined ? data.code : '-'})\n${detail}`);
+    }
+  } catch (err) {
+    console.error("알림톡 테스트 발송 요청 실패:", err);
+    if (statusEl) { statusEl.textContent = `❌ 요청 실패 -- ${err.message}`; statusEl.style.color = '#ef4444'; }
+    alert("테스트 발송 요청에 실패했습니다: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "테스트 발송 (알리고 testMode)"; }
+  }
+}
+
 // ==========================================
 // SNS 관리 -- 리드 문단 + 대표 이미지 + 기사 링크를 채널별 형식에 맞게
 // 구성한다. 페이스북/인스타그램/스레드는 공식 API로 원클릭 발행이
