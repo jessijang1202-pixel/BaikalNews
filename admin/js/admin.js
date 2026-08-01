@@ -9087,11 +9087,19 @@ async function callClaudeApi(prompt, systemInstruction = "") {
   }
 
   const data = await response.json();
-  if (data.content && data.content[0] && data.content[0].text) {
-    return data.content[0].text;
-  } else {
-    throw new Error("Claude API가 올바른 응답 양식을 반환하지 않았습니다.");
+  // content[0]이 항상 텍스트 블록이라고 가정하지 않는다 -- 확장 사고
+  // (extended thinking) 등이 켜져 있으면 텍스트보다 먼저 다른 타입의
+  // 블록이 올 수 있어, 배열 전체에서 실제 텍스트 블록을 찾는다. 못 찾은
+  // 경우에도 원인 파악이 가능하도록 실제 응답을 콘솔에 남기고 에러
+  // 메시지에도 일부를 포함시킨다 (기존엔 "형식이 이상하다"고만 하고
+  // 무엇이 왔는지 전혀 알려주지 않았음).
+  const textBlock = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'text' && b.text) : null;
+  if (textBlock) {
+    return textBlock.text;
   }
+  console.error("Claude API 응답 형식이 예상과 다릅니다:", data);
+  const stopReasonNote = data.stop_reason ? ` (stop_reason: ${data.stop_reason})` : '';
+  throw new Error("Claude API가 올바른 응답 양식을 반환하지 않았습니다" + stopReasonNote + ": " + JSON.stringify(data).slice(0, 300));
 }
 
 // Learning style loop
