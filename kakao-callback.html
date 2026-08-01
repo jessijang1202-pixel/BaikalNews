@@ -21,33 +21,93 @@
       justify-content: center;
       padding: 24px;
       text-align: center;
+      background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
     }
     .kakao-callback-card {
-      max-width: 460px;
-      background: var(--bg-secondary, #f7f7f5);
-      border-radius: 16px;
-      padding: 40px 32px;
+      max-width: 440px;
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      padding: 44px 36px 36px;
+      box-shadow: 0 24px 60px oklch(30% 0.02 230 / 0.1);
+    }
+    .kakao-callback-logo {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .kakao-callback-logo img {
+      height: 26px;
+      width: auto;
+      display: block;
+    }
+    .kakao-callback-logo span {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: var(--accent-cyan);
+    }
+    .kakao-callback-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kakao-callback-icon.is-success {
+      background: oklch(85% 0.08 150 / 0.35);
+    }
+    .kakao-callback-icon.is-error {
+      background: oklch(85% 0.08 30 / 0.35);
+    }
+    .kakao-callback-icon svg {
+      width: 30px;
+      height: 30px;
     }
     .kakao-callback-card h1 {
       font-family: var(--font-serif);
-      font-size: 1.4rem;
+      font-size: 1.35rem;
+      font-weight: 700;
       margin-bottom: 12px;
+      color: var(--text-primary);
     }
-    .kakao-callback-card p {
+    .kakao-callback-card p#kakao-callback-message {
       color: var(--text-secondary);
-      line-height: 1.6;
-      margin-bottom: 8px;
+      line-height: 1.7;
+      font-size: 0.95rem;
+      margin-bottom: 28px;
     }
-    .kakao-callback-card a {
-      color: var(--accent-cyan);
+    .kakao-callback-home-btn {
+      display: inline-block;
+      background-color: var(--accent-cyan);
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 13px 28px;
+      border-radius: 8px;
+      transition: var(--transition-smooth);
+    }
+    .kakao-callback-home-btn:hover {
+      background-color: var(--accent-blue-hover);
     }
   </style>
 </head>
 <body>
   <div class="kakao-callback-card" id="kakao-callback-card">
+    <div class="kakao-callback-logo">
+      <img src="images/logo-mark-new.png" alt="바이칼뉴스">
+      <span>BAIKAL NEWS</span>
+    </div>
+    <div class="kakao-callback-icon" id="kakao-callback-icon"></div>
     <h1 id="kakao-callback-title">확인 중입니다...</h1>
     <p id="kakao-callback-message"></p>
-    <p><a href="index.html">바이칼 뉴스 홈으로 돌아가기</a></p>
+    <a class="kakao-callback-home-btn" href="index.html">바이칼 뉴스 홈으로 돌아가기</a>
   </div>
   <script>
     // api/kakao-oauth-callback.js가 실제 처리(토큰 교환, 전화번호 저장)를
@@ -59,6 +119,7 @@
     const reason = params.get('reason');
     const titleEl = document.getElementById('kakao-callback-title');
     const messageEl = document.getElementById('kakao-callback-message');
+    const iconEl = document.getElementById('kakao-callback-icon');
 
     const reasonMessages = {
       no_code: '카카오 인증 정보를 받지 못했습니다.',
@@ -68,10 +129,17 @@
       server_error: '일시적인 서버 오류가 발생했습니다.'
     };
 
+    const successIcon = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="oklch(55% 0.13 150)" stroke-width="1.6"/><path d="M7.5 12.5l3 3 6-6.5" stroke="oklch(45% 0.14 150)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const errorIcon = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="oklch(58% 0.16 30)" stroke-width="1.6"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="oklch(50% 0.17 30)" stroke-width="2" stroke-linecap="round"/></svg>';
+
     if (status === 'success') {
+      iconEl.classList.add('is-success');
+      iconEl.innerHTML = successIcon;
       titleEl.textContent = '3분 뉴스 신청이 완료되었습니다';
       messageEl.textContent = '카카오톡 채널을 통해 매일 아침 3분 뉴스 브리핑을 보내드리겠습니다.';
     } else {
+      iconEl.classList.add('is-error');
+      iconEl.innerHTML = errorIcon;
       titleEl.textContent = '신청을 완료하지 못했습니다';
       messageEl.textContent = reasonMessages[reason] || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
     }
