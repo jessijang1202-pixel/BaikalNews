@@ -7338,18 +7338,32 @@ function renderKakaoTrendChart(subscribers) {
   `;
 }
 
+// js/main.js의 KAKAO_CATEGORY_OPTIONS와 동일한 라벨 -- 관리자 페이지는
+// js/main.js를 로드하지 않는 별개 앱이라 여기 따로 둔다 (admin.js/api/*.js
+// 사이에서 이미 쓰이는 상수 중복 패턴과 동일).
+const KAKAO_CATEGORY_LABELS = {
+  all: '모두', politics: '정치', economy: '경제', stock: '주식', world: '국제',
+  society: '사회', culture: '문화·연예', sports: '스포츠', tech: 'IT·과학'
+};
+
+function formatKakaoSubscriberCategories(categories) {
+  const list = (categories && categories.length > 0) ? categories : ['all'];
+  return list.map(id => KAKAO_CATEGORY_LABELS[id] || id).join(', ');
+}
+
 function renderKakaoSubscribersList(subscribers) {
   const tbody = document.getElementById("kakao-subscribers-list");
   if (!tbody) return;
 
   if (subscribers.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--admin-text-muted); padding: 20px 0;">아직 신청자가 없습니다.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--admin-text-muted); padding: 20px 0;">아직 신청자가 없습니다.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = subscribers.map(s => `
     <tr>
       <td>${s.phone}</td>
+      <td>${formatKakaoSubscriberCategories(s.categories)}</td>
       <td style="white-space: nowrap;">${s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString("ko-KR") : ''}</td>
       <td><a onclick="deleteKakaoSubscriberRow(${s.id})" style="color: var(--status-review); cursor: pointer;">삭제</a></td>
     </tr>

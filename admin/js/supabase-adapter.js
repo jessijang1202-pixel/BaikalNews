@@ -730,7 +730,8 @@
             return (data || []).map(row => ({
               id: row.id,
               phone: row.phone,
-              subscribedAt: row.subscribed_at
+              subscribedAt: row.subscribed_at,
+              categories: row.categories || ['all']
             }));
           } catch (err) {
             console.error("Supabase fetchKakaoSubscribers error:", err);
