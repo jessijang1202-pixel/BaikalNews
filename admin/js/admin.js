@@ -7208,10 +7208,14 @@ function renderNewsletterTrendLineChart() {
   if (!container) return;
 
   const [year, month] = newsletterTrendSelectedMonth.split('-').map(Number);
-  // 이번 달이라도 오늘까지만 그리지 않고 그 달 전체 일수를 다 보여준다 --
-  // 아직 안 지난 날짜는 누적치가 오늘 값에서 그대로 평평하게 이어진다
-  // (미래에 새 구독자가 없으니 필터 결과가 자연히 오늘 값과 같게 나옴).
+  // x축(날짜 라벨)은 그 달 전체 일수를 다 보여주되, 실제 선은 오늘까지만
+  // 그린다 -- 아직 안 지난 날짜까지 평평한 선을 그리면 마치 예측인 것처럼
+  // 보여서, 데이터가 없는 구간은 아예 비워둔다.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const lastDay = new Date(year, month, 0).getDate();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+  const lastDataDay = isCurrentMonth ? today.getDate() : lastDay;
 
   // 정렬된 구독일 목록에서, 특정 날짜까지 누적된 구독자 수를 센다 --
   // 선택한 달 이전에 가입한 사람도 그대로 누적에 포함된다 (달이 바뀌어도
@@ -7227,13 +7231,14 @@ function renderNewsletterTrendLineChart() {
     const cumulative = subscribedDates.filter(d => d <= endOfDay).length;
     points.push({ day, cumulative });
   }
+  const dataPoints = points.filter(p => p.day <= lastDataDay);
 
-  if (points.length === 0 || points[points.length - 1].cumulative === 0) {
+  if (dataPoints.length === 0 || dataPoints[dataPoints.length - 1].cumulative === 0) {
     container.innerHTML = `<div class="help-text">이 달에는 누적 구독자가 없습니다.</div>`;
     return;
   }
 
-  const maxVal = Math.max(1, ...points.map(p => p.cumulative));
+  const maxVal = Math.max(1, ...dataPoints.map(p => p.cumulative));
   const vbW = 640;
   const vbH = 220;
   const padL = 36;
@@ -7243,10 +7248,13 @@ function renderNewsletterTrendLineChart() {
   const plotW = vbW - padL - padR;
   const plotH = vbH - padT - padB;
 
-  const xFor = i => padL + (points.length === 1 ? plotW : (i / (points.length - 1)) * plotW);
+  // 날짜(day)를 기준으로 x좌표를 고정한다 -- 실제 선(dataPoints)이 그 달
+  // 끝까지 안 가더라도, 라벨은 그 달 전체 일수(points) 기준 위치에 그대로
+  // 남아있어야 해서 인덱스가 아니라 day 자체로 계산한다.
+  const xFor = day => padL + (lastDay === 1 ? plotW : ((day - 1) / (lastDay - 1)) * plotW);
   const yFor = v => padT + plotH - (v / maxVal) * plotH;
 
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i).toFixed(1)},${yFor(p.cumulative).toFixed(1)}`).join(' ');
+  const linePath = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(p.day).toFixed(1)},${yFor(p.cumulative).toFixed(1)}`).join(' ');
 
   // Y축 눈금 4단계 (0 포함), 깔끔한 값으로 반올림
   const tickCount = 4;
@@ -7255,19 +7263,23 @@ function renderNewsletterTrendLineChart() {
     const y = yFor(v);
     return `
       <line x1="${padL}" y1="${y}" x2="${vbW - padR}" y2="${y}" stroke="var(--admin-border)" stroke-width="1"></line>
-      <text x="${padL - 8}" y="${y + 3}" font-size="10" text-anchor="end" fill="var(--admin-text-muted)">${v.toLocaleString('ko-KR')}</text>
+      <text x="${padL - 8}" y="${y + 3}" font-size="9" text-anchor="end" fill="var(--admin-text-muted)">${v.toLocaleString('ko-KR')}</text>
     `;
   }).join('');
 
   // 라벨은 5일 간격 + 첫날/마지막날만 -- 30개 넘는 날짜를 다 표시하면 겹친다.
-  const dateLabels = points.map((p, i) => {
-    const showLabel = p.day === 1 || p.day === lastDay || p.day % 5 === 0;
-    if (!showLabel) return '';
-    return `<text x="${xFor(i)}" y="${vbH - 8}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${p.day}일</text>`;
+  // 5일 간격 라벨이 마지막 날 라벨과 너무 가까우면(예: 30일과 31일) 겹치니
+  // 그 경우는 건너뛰어 마지막 날 라벨만 남긴다.
+  const dateLabels = points.map(p => {
+    const isFirst = p.day === 1;
+    const isLast = p.day === lastDay;
+    const isFiveStep = p.day % 5 === 0 && Math.abs(p.day - lastDay) > 2;
+    if (!isFirst && !isLast && !isFiveStep) return '';
+    return `<text x="${xFor(p.day)}" y="${vbH - 8}" font-size="9" text-anchor="middle" fill="var(--admin-text-muted)">${p.day}일</text>`;
   }).join('');
 
-  const lastPoint = points[points.length - 1];
-  const endLabel = `<text x="${xFor(points.length - 1)}" y="${yFor(lastPoint.cumulative) - 10}" font-size="12" font-weight="700" text-anchor="end" fill="var(--admin-text-primary)">${lastPoint.cumulative.toLocaleString('ko-KR')}명</text>`;
+  const lastPoint = dataPoints[dataPoints.length - 1];
+  const endLabel = `<text x="${xFor(lastPoint.day)}" y="${yFor(lastPoint.cumulative) - 10}" font-size="12" font-weight="700" text-anchor="end" fill="var(--admin-text-primary)">${lastPoint.cumulative.toLocaleString('ko-KR')}명</text>`;
 
   container.innerHTML = `
     <svg id="newsletter-trend-svg" viewBox="0 0 ${vbW} ${vbH}" style="width:100%; height:auto; display:block;">
@@ -7282,13 +7294,14 @@ function renderNewsletterTrendLineChart() {
     <div id="newsletter-trend-tooltip" style="position:fixed; display:none; pointer-events:none; background:var(--admin-bg-panel, #1c2333); border:1px solid var(--admin-border); border-radius:6px; padding:6px 10px; font-size:11px; color:var(--admin-text-primary); box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:50;"></div>
   `;
 
-  attachNewsletterTrendHover(points, xFor, yFor, year, month);
+  attachNewsletterTrendHover(dataPoints, xFor, yFor, year, month);
 }
 
 // 크로스헤어 + 툴팁 -- 포인터가 어디 있든 가장 가까운 날짜를 스냅해서
 // 보여준다 (데이터비즈 가이드의 라인차트 호버 규칙: "크로스헤어가 X를
-// 찾는다", 포인터가 선 위에 정확히 있을 필요 없음).
-function attachNewsletterTrendHover(points, xFor, yFor, year, month) {
+// 찾는다", 포인터가 선 위에 정확히 있을 필요 없음). dataPoints만 받아서
+// 아직 선이 그려지지 않은(미래) 구간에서는 크로스헤어가 뜨지 않는다.
+function attachNewsletterTrendHover(dataPoints, xFor, yFor, year, month) {
   const svg = document.getElementById("newsletter-trend-svg");
   const hoverArea = document.getElementById("newsletter-trend-hover-area");
   const dot = document.getElementById("newsletter-trend-hover-dot");
@@ -7303,15 +7316,15 @@ function attachNewsletterTrendHover(points, xFor, yFor, year, month) {
     const scale = vbW / rect.width;
     const svgX = (clientX - rect.left) * scale;
 
-    let nearest = 0;
+    let nearest = dataPoints[0];
     let bestDist = Infinity;
-    points.forEach((p, i) => {
-      const dist = Math.abs(xFor(i) - svgX);
-      if (dist < bestDist) { bestDist = dist; nearest = i; }
+    dataPoints.forEach(p => {
+      const dist = Math.abs(xFor(p.day) - svgX);
+      if (dist < bestDist) { bestDist = dist; nearest = p; }
     });
 
-    const p = points[nearest];
-    const px = xFor(nearest);
+    const p = nearest;
+    const px = xFor(p.day);
     const py = yFor(p.cumulative);
 
     dot.setAttribute('cx', px);
