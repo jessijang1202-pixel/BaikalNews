@@ -7634,6 +7634,10 @@ function switchLetterSubTab(key, btnEl) {
   document.querySelectorAll(".letter-subtab-content").forEach(el => { el.style.display = "none"; });
   const target = document.getElementById("letter-subtab-" + key);
   if (target) target.style.display = "block";
+
+  // 카카오 서브탭을 열 때마다 카테고리별 변형 목록을 최신 상태로 불러온다
+  // (다른 관리자가 방금 생성했거나, 크론이 자동 실행됐을 수 있으므로).
+  if (key === 'kakao') renderKakaoBriefingVariantsList();
 }
 
 function switchExpenseSubTab(key, btnEl) {
@@ -8553,6 +8557,151 @@ async function testKakaoSend() {
     alert("테스트 발송 요청에 실패했습니다: " + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "테스트 발송 (알리고 testMode)"; }
+  }
+}
+
+// ==========================================
+// 카테고리별 알림톡 변형 (Phase 2 서버 파이프라인) -- 위 kakaoBriefingDraft
+// (클라이언트에서 Gemini를 직접 호출하는 무필터 단일 본문, "수동 발송"
+// 복사-붙여넣기용)와는 완전히 별개의 데이터 흐름이다. 여기서는
+// api/generate-daily-briefing.js를 서버에서 호출해 오늘 브리핑을 카테고리별로
+// 분류하고, 실제 구독자들이 신청한 카테고리 조합마다 kakao_briefing_variants에
+// 저장된 결과를 조회/발송 트리거만 한다 -- 이 두 함수는 baikalnews.com에서
+// 서빙되고 관리자 화면은 editor815.baikalnews.com이라 절대경로로 호출한다
+// (그 함수들이 CORS 헤더를 붙여준다, api/test-kakao-send.js와 동일한 이유).
+// ==========================================
+const KAKAO_GENERATE_BRIEFING_ENDPOINT = "https://baikalnews.com/api/generate-daily-briefing";
+const KAKAO_SEND_BRIEFING_ENDPOINT = "https://baikalnews.com/api/send-kakao-briefing";
+
+// textarea에 innerHTML 문자열로 본문을 직접 넣으면 "</textarea>"나 "&" 같은
+// 문자가 우연히 섞였을 때 마크업이 깨질 수 있어, 구조만 innerHTML로 만들고
+// 각 textarea의 실제 내용은 .value 프로퍼티로 따로 채운다 (renderKakaoBriefingUI가
+// 위 단일 textarea에 하는 것과 같은 방식).
+async function renderKakaoBriefingVariantsList() {
+  const listEl = document.getElementById("kakao-variants-list");
+  if (!listEl) return;
+
+  const variants = await window.SupabaseAdapter.fetchKakaoBriefingVariants(todayDateKey());
+  if (variants.length === 0) {
+    listEl.innerHTML = `<p class="help-text">아직 생성된 변형이 없습니다.</p>`;
+    return;
+  }
+
+  const statusBadge = (status) => {
+    if (status === 'sent') return `<span class="badge badge-approved">발송됨</span>`;
+    if (status === 'error') return `<span class="badge badge-rejected">오류</span>`;
+    return `<span class="badge badge-draft">초안</span>`;
+  };
+
+  listEl.innerHTML = variants.map(v => `
+    <div class="panel" style="padding: 14px 16px; margin-bottom: 12px; border: 1px solid var(--admin-border);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 8px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <strong style="font-size:0.9rem;">${v.categoryKey}</strong>
+          ${statusBadge(v.status)}
+          <span class="help-text">${(v.content || '').length}자</span>
+        </div>
+        ${v.sentAt ? `<span class="help-text">발송: ${new Date(v.sentAt).toLocaleString('ko-KR')}</span>` : ''}
+      </div>
+      ${v.error ? `<div class="help-text" style="color: var(--status-rejected); margin-bottom: 8px;">오류: ${v.error}</div>` : ''}
+      <textarea id="kakao-variant-content-${v.id}" class="form-control-admin" readonly style="min-height: 140px; font-family: inherit; line-height: 1.6;"></textarea>
+    </div>
+  `).join('');
+
+  variants.forEach(v => {
+    const ta = document.getElementById(`kakao-variant-content-${v.id}`);
+    if (ta) ta.value = v.content || '';
+  });
+}
+
+// "카테고리별 변형 생성" 버튼 -- api/generate-daily-briefing.js를 호출한다.
+// 이 엔드포인트는 요청 본문이 필요 없고(GET/POST 모두 처리 가능, 메서드로
+// 분기하지 않음) 이미 오늘 웹 브리핑이 있으면 그 부분만 건너뛰고 카카오
+// 변형 생성은 이어서 시도하는 멱등 동작이라, 몇 번을 눌러도 안전하다.
+async function generateKakaoBriefingVariants() {
+  const btn = document.getElementById("kakao-variants-generate-btn");
+  if (btn) btn.disabled = true;
+  setKakaoBriefingBusy(true, "서버에서 카테고리별 변형 생성 중... (시간이 걸릴 수 있습니다)");
+  try {
+    const res = await fetch(KAKAO_GENERATE_BRIEFING_ENDPOINT, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(`카테고리별 변형 생성 요청 실패 (status ${res.status})\n${data.error || JSON.stringify(data)}`);
+      return;
+    }
+
+    // 이 엔드포인트의 JSON 응답에는 카테고리별 변형 생성 결과가 구조화되어
+    // 담겨 있지 않다 (kakao 필드는 무필터 'all' 본문 결과만 나타냄) --
+    // 그래서 응답을 파싱해서 요약하려 하지 말고, 호출이 끝난 뒤 실제
+    // 저장된 행을 아래 목록에서 다시 불러와 보여준다.
+    const kakao = data.kakao || {};
+    const lines = [];
+    lines.push(data.skipped
+      ? `웹 브리핑: 이미 오늘 브리핑이 있어 새로 생성하지 않았습니다.`
+      : `웹 브리핑: 새로 생성 완료 (${data.length || 0}자).`);
+    if (kakao.skipped) {
+      lines.push(`카카오(전체 무필터): 건너뜀 -- ${kakao.skipped}`);
+    } else if (kakao.ok) {
+      lines.push(`카카오(전체 무필터): 생성 완료 (${kakao.length || 0}자).`);
+    } else if (kakao.reason) {
+      lines.push(`카카오(전체 무필터): 실패 -- ${kakao.reason}`);
+    }
+    lines.push('카테고리별 변형은 서버에서 함께 처리되었습니다. 아래 목록에서 실제 생성 결과를 확인해 주세요.');
+    alert(lines.join('\n'));
+  } catch (err) {
+    console.error("카테고리별 변형 생성 요청 실패:", err);
+    alert("카테고리별 변형 생성 요청에 실패했습니다: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    setKakaoBriefingBusy(false);
+    await renderKakaoBriefingVariantsList();
+  }
+}
+
+// "지금 카카오 발송" 버튼 -- api/send-kakao-briefing.js를 호출한다. 이
+// 함수 자체가 kakao_send_mode 게이트를 지키므로(수동이면 발송 없이
+// {skipped:'manual_mode'} 반환), 여기서는 그 게이트를 우회하지 않고 결과를
+// 있는 그대로 보여주기만 한다.
+async function sendKakaoBriefingNow() {
+  if (!confirm("지금 카카오 알림톡을 발송 요청하시겠습니까?\n(발송 방식이 '자동'일 때만 실제로 발송됩니다.)")) return;
+
+  const btn = document.getElementById("kakao-variants-send-btn");
+  if (btn) btn.disabled = true;
+  setKakaoBriefingBusy(true, "카카오 알림톡 발송 요청 중...");
+  try {
+    const res = await fetch(KAKAO_SEND_BRIEFING_ENDPOINT, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(`발송 요청 실패 (status ${res.status})\n${data.error || JSON.stringify(data)}`);
+      return;
+    }
+    if (data.skipped === 'manual_mode') {
+      alert("발송 방식이 수동이라 발송하지 않았습니다 -- 자동으로 전환 후 다시 시도하세요.");
+      return;
+    }
+    if (data.skipped) {
+      alert(`발송하지 않았습니다 -- 사유: ${data.skipped}`);
+      return;
+    }
+    if (data.ok === false) {
+      alert(`발송 실패 -- ${data.reason || ''}\n${data.message || ''}\n(지금까지 발송된 건수: ${data.sentCount || 0}명)`);
+      return;
+    }
+
+    const skippedIds = data.skippedSubscriberIds || [];
+    const skippedLine = skippedIds.length > 0
+      ? `제외된 구독자 (${skippedIds.length}명, 발송 가능한 콘텐츠 없음): ${skippedIds.join(', ')}`
+      : '제외된 구독자 없음.';
+    alert(`발송 완료.\n발송 건수: ${data.sentCount || 0}명\n사용된 카테고리 조합: ${(data.categoryKeys || []).join(', ') || '없음'}\n${skippedLine}`);
+  } catch (err) {
+    console.error("카카오 발송 요청 실패:", err);
+    alert("카카오 발송 요청에 실패했습니다: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    setKakaoBriefingBusy(false);
+    await renderKakaoBriefingVariantsList();
   }
 }
 

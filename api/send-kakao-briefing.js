@@ -26,6 +26,19 @@
 
 const SUPABASE_URL = "https://iyxzwrsgivvsgeqclchw.supabase.co";
 
+// 관리자 화면(editor815.baikalnews.com)의 "지금 카카오 발송" 버튼이 이
+// 함수를 fetch()로 직접 호출할 수 있도록 CORS 허용 (Vercel Cron 자체는
+// 서버-대-서버 호출이라 CORS의 영향을 받지 않음 -- 브라우저의 교차 출처
+// fetch/XHR에만 적용되는 제약이므로, 이 헤더 추가는 기존 크론 동작에는
+// 아무 영향이 없음). api/test-kakao-send.js와 동일한 패턴.
+const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
+
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', ADMIN_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 function todayKstDate() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
 }
@@ -176,6 +189,9 @@ async function sendAligoChunk(resolvedChunk) {
 }
 
 module.exports = async (req, res) => {
+  setCors(res);
+  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     console.error('SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않았습니다.');

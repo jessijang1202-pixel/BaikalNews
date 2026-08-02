@@ -941,6 +941,36 @@
       return true;
     },
 
+    // 카테고리별 알림톡 변형 (api/generate-daily-briefing.js가 서버에서
+    // 생성해 kakao_briefing_variants에 저장한 행들) -- 관리자 패널의
+    // "카테고리별 변형 생성" 결과를 검토용으로 읽어오는 용도.
+    fetchKakaoBriefingVariants: async function(date) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('kakao_briefing_variants')
+              .select('*')
+              .eq('briefing_date', date)
+              .order('category_key', { ascending: true });
+            if (error) throw error;
+            return (data || []).map(row => ({
+              id: row.id,
+              categoryKey: row.category_key,
+              content: row.content,
+              status: row.status,
+              error: row.error,
+              sentAt: row.sent_at
+            }));
+          } catch (err) {
+            console.error("Supabase fetchKakaoBriefingVariants error:", err);
+          }
+        }
+      }
+      return [];
+    },
+
     // ==========================================
     // app_settings -- 소소한 전역 설정 키/값 저장소 (지금은 카카오 발송
     // 모드 하나뿐). kakao_subscribers/expenses와 같은 anon-key permissive

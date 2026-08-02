@@ -1467,6 +1467,27 @@
             </div>
             <div class="help-text" id="kakao-test-send-status" style="margin-top: 10px;"></div>
           </div>
+
+          <!-- 카테고리별 알림톡 변형 (Phase 2, 서버 크론 파이프라인) -- 위
+               패널과는 완전히 다른 별도 경로: 위는 클라이언트에서 Gemini를
+               직접 호출해 무필터 본문 1개만 만들어 "수동 발송(복사-붙여넣기)"에
+               쓰지만, 아래는 api/generate-daily-briefing.js를 서버에서 호출해
+               오늘 브리핑을 항목별로 분류하고, 실제 구독자들이 고른 카테고리
+               조합마다 별도 본문을 만들어 kakao_briefing_variants에 저장한다
+               (자동 발송 모드에서 구독자 개인화 발송에 쓰이는 소스). -->
+          <div class="panel" style="padding: 24px; margin-top: 20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">카테고리별 알림톡 변형 (자동 발송용, 구독자 맞춤)</h3>
+              <div style="display: flex; gap: 12px;">
+                <button type="button" id="kakao-variants-generate-btn" class="btn-admin btn-admin-secondary" onclick="generateKakaoBriefingVariants()">카테고리별 변형 생성</button>
+                <button type="button" id="kakao-variants-send-btn" class="btn-admin btn-admin-primary" onclick="sendKakaoBriefingNow()">지금 카카오 발송</button>
+              </div>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
+              서버에서 오늘의 브리핑을 카테고리별로 분류해, 실제 구독자들이 신청한 카테고리 조합마다 알림톡 본문을 따로 생성합니다 (위 "카카오톡 발송용" 무필터 본문과는 별개의 결과물입니다). "지금 카카오 발송"은 발송 방식이 <strong>자동</strong>일 때만 실제로 발송되며, 수동일 때는 발송 없이 그 사실만 알려줍니다.
+            </p>
+            <div id="kakao-variants-list"></div>
+          </div>
         </div>
       </section>
 
