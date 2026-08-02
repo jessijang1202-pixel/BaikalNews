@@ -222,20 +222,27 @@ async function generateKakaoBriefingText(apiKey, sourceContent) {
   return resultText;
 }
 
+// PATCH가 아니라 POST(on_conflict) upsert를 썼더니, title/content가 NOT NULL
+// 컬럼이라 kakao_* 필드만 담은 요청이 "그 컬럼들을 NULL로 삽입 시도"로
+// 해석되어 제약조건 위반 에러가 났다 (PostgREST가 INSERT ... ON CONFLICT로
+// 변환하는 과정에서, 본문에 없는 NOT NULL 컬럼도 INSERT 값 구성 단계에서
+// 검증되기 때문 -- ON CONFLICT DO UPDATE로 넘어가기도 전에 실패함). 이
+// 함수가 호출되는 시점엔 이미 해당 날짜의 웹 브리핑 행이 항상 존재하므로
+// (막 새로 만들었거나, existingRow 분기로 들어왔거나), upsert가 아니라
+// 단순 UPDATE(PATCH)면 충분하고 이 문제 자체가 발생하지 않는다.
 async function upsertKakaoBriefingFields(date, fields) {
-  const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {
-    method: 'POST',
+  const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}`, {
+    method: 'PATCH',
     headers: {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates'
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ briefing_date: date, ...fields })
+    body: JSON.stringify(fields)
   });
-  if (!upsertRes.ok) {
-    const errText = await upsertRes.text();
-    throw new Error(`Supabase news_briefings kakao upsert failed: ${errText}`);
+  if (!patchRes.ok) {
+    const errText = await patchRes.text();
+    throw new Error(`Supabase news_briefings kakao update failed: ${errText}`);
   }
 }
 

@@ -918,17 +918,24 @@
     // 게시용 컬럼)는 건드리지 않는다. upsert에 kakao_* 컬럼만 담아 보내면
     // 기존 행의 다른 컬럼은 그대로 유지된다 (saveNewsBriefing과 동일한
     // upsert-onConflict 방식).
+    // PATCH(update)가 아니라 upsert를 쓰면, title/content가 NOT NULL 컬럼이라
+    // kakao_* 필드만 담은 요청이 "그 컬럼들을 NULL로 삽입 시도"로 해석되어
+    // 제약조건 위반 에러가 난다 (INSERT ... ON CONFLICT로 변환되는 과정에서
+    // 본문에 없는 NOT NULL 컬럼도 검증 대상이 되기 때문). 이 함수가 호출되는
+    // 시점엔 이미 해당 날짜의 웹 브리핑 행이 항상 존재하므로(카카오 생성은
+    // webBriefingDraft.content를 전제로 하므로), upsert 대신 단순 update면
+    // 충분하고 이 문제 자체가 발생하지 않는다.
     saveKakaoBriefingContent: async function(date, content, status) {
       const client = this.isConfigured() && this.getClient();
       if (!client) throw new Error("Supabase가 설정되지 않았습니다.");
       const dbRow = {
-        briefing_date: date,
         kakao_content: content,
         kakao_status: status || 'draft'
       };
       const { error } = await client
         .from('news_briefings')
-        .upsert(dbRow, { onConflict: 'briefing_date' });
+        .update(dbRow)
+        .eq('briefing_date', date);
       if (error) throw error;
       return true;
     },
