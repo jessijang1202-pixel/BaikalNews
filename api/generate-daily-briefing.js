@@ -273,10 +273,186 @@ async function generateAndSaveKakaoIfNeeded(apiKey, date, sourceContent) {
 
     await upsertKakaoBriefingFields(date, { kakao_content: resultText, kakao_status: 'draft' });
     console.log(`${date} 카카오 브리핑 자동 생성 완료 (초안 상태, ${resultText.length}자).`);
-    return { ok: true, length: resultText.length };
+    // content도 함께 반환 -- 아래 카테고리별 변형 생성 단계에서 'all' 조합에
+    // 그대로 재사용해, 동일한 무필터 소스로 Gemini를 또 호출하지 않기 위함.
+    return { ok: true, length: resultText.length, content: resultText };
   } catch (err) {
     console.error(`${date} 카카오 브리핑 자동 생성 실패:`, err);
     return { ok: false, reason: err.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: 카테고리별 알림톡 변형 생성
+//
+// 위 generateAndSaveKakaoIfNeeded()는 지금까지처럼 무필터 'all' 조합 하나만
+// news_briefings.kakao_content에 저장한다. 여기서부터는 그 결과를 재사용해
+// 'all' 변형을 kakao_briefing_variants에도 저장하고, 실제 구독자들이 고른
+// 카테고리 조합별로 추가 변형을 생성한다. admin.js와 마찬가지로 이 서버
+// 함수는 다른 api/*.js 파일을 import할 수 없으므로, canonicalCategoryKey()는
+// api/send-kakao-briefing.js에도 byte-identical하게 중복 유지한다.
+function canonicalCategoryKey(categories) {
+  if (!categories || categories.length === 0 || categories.includes('all')) return 'all';
+  return [...categories].sort().join(',');
+}
+
+// 웹 브리핑 원문을 "▩ " 항목 단위로 분리한다 (빈 줄 기준 split). 분류 대상과
+// 카테고리별 재조합의 최소 단위가 된다.
+function parseWebBriefingItems(content) {
+  return content
+    .split(/\n\n+/)
+    .map(block => block.trim())
+    .filter(block => block.startsWith('▩ '));
+}
+
+// 이미 튜닝된 웹 브리핑 생성 프롬프트는 건드리지 않고, 생성된 결과물을
+// 대상으로 별도의 작은 Gemini 호출 하나로 항목별 카테고리만 분류한다.
+async function classifyBriefingItemCategories(apiKey, items) {
+  const numbered = items.map((t, i) => `${i + 1}. ${t.replace(/\n/g, ' ')}`).join('\n');
+  const prompt = `다음은 오늘의 뉴스 브리핑 항목 목록입니다. 각 항목을 아래 카테고리 중 하나로 분류하십시오.
+
+[카테고리 목록]
+politics(정치), economy(경제), stock(증권), world(국제), society(사회), culture(문화), sports(스포츠), tech(기술/IT)
+
+[뉴스 항목 목록]
+${numbered}
+
+다른 설명 없이, 각 항목의 카테고리 id를 순서대로 담은 JSON 배열만 출력하십시오 (항목 개수와 배열 길이가 반드시 같아야 합니다). 예: ["society","economy","world"]`;
+
+  const raw = (await callGeminiText(apiKey, prompt)).trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error(`카테고리 분류 응답에서 JSON 배열을 찾지 못함: ${raw.slice(0, 200)}`);
+    parsed = JSON.parse(match[0]);
+  }
+  if (!Array.isArray(parsed) || parsed.length !== items.length) {
+    throw new Error(`카테고리 분류 결과 개수 불일치 (항목 ${items.length}개, 결과 ${Array.isArray(parsed) ? parsed.length : 'non-array'}개)`);
+  }
+  return parsed;
+}
+
+// 오늘 실제 구독자들의 categories로부터 필요한 조합만 골라낸다 (255개
+// 부분집합 전부가 아니라 실제 존재하는 것만). 'all'은 폴백 대상이기도
+// 하므로 구독자가 없어도 항상 포함시킨다.
+async function fetchNeededCategoryKeys() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/kakao_subscribers?select=categories`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+  });
+  if (!res.ok) throw new Error(`Supabase kakao_subscribers 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  const keys = new Set(['all']);
+  rows.forEach(row => keys.add(canonicalCategoryKey(row.categories)));
+  return keys;
+}
+
+async function fetchExistingVariantMap(date) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/kakao_briefing_variants?briefing_date=eq.${date}&select=category_key,content,status`,
+    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`Supabase kakao_briefing_variants 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  const map = new Map();
+  rows.forEach(r => map.set(r.category_key, r));
+  return map;
+}
+
+// news_briefings와 달리 content/error 모두 nullable 컬럼이라, 부분 필드만
+// 담은 POST upsert(on_conflict)도 NOT NULL 제약에 걸리지 않는다.
+async function upsertKakaoBriefingVariant(date, categoryKey, fields) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/kakao_briefing_variants?on_conflict=briefing_date,category_key`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(Object.assign({ briefing_date: date, category_key: categoryKey }, fields))
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Supabase kakao_briefing_variants upsert 실패 (${categoryKey}): ${errText}`);
+  }
+}
+
+// 웹 브리핑 저장(그리고 'all' 카카오 본문 생성)이 이미 끝난 뒤 호출되는 완전히
+// 별도의 단계 -- 이 함수 전체가 실패해도 절대 throw하지 않는다 (이미 성공한
+// 웹 브리핑 + 'all' 카카오 본문까지 되돌리면 안 되기 때문. 이미
+// generateAndSaveKakaoIfNeeded에 적용된 것과 동일한 격리 원칙).
+async function generateAndSaveCategoryVariants(apiKey, date, sourceContent, allVariantContent) {
+  try {
+    const existingMap = await fetchExistingVariantMap(date);
+
+    // 'all' 조합: 새로 Gemini를 부르지 않고, 위에서 이미 생성된(무필터 소스
+    // 기준) 카카오 본문을 그대로 재사용해 저장한다.
+    const existingAll = existingMap.get('all');
+    if (existingAll && existingAll.content) {
+      console.log(`${date} 카카오 브리핑 변형(all)은 이미 존재합니다. 건너뜁니다.`);
+    } else if (allVariantContent) {
+      await upsertKakaoBriefingVariant(date, 'all', { content: allVariantContent, status: 'draft' });
+      console.log(`${date} 카카오 브리핑 변형(all) 저장 완료 (${allVariantContent.length}자).`);
+    } else {
+      console.warn(`${date} 카카오 브리핑 변형(all): 재사용할 소스가 없어 저장하지 못함 (상위 'all' 생성이 실패했을 가능성).`);
+    }
+
+    const neededKeys = await fetchNeededCategoryKeys();
+    const specificKeys = [...neededKeys].filter(k => k !== 'all');
+    if (specificKeys.length === 0) {
+      console.log(`${date}: 구독자 전원이 'all'이라 카테고리별 추가 변형이 필요 없습니다.`);
+      return;
+    }
+
+    const items = parseWebBriefingItems(sourceContent);
+    if (items.length === 0) {
+      console.warn(`${date}: 웹 브리핑에서 '▩ ' 항목을 파싱하지 못해 카테고리별 변형 생성을 건너뜁니다 (all만 사용 가능).`);
+      return;
+    }
+
+    let categoryOfItem;
+    try {
+      categoryOfItem = await classifyBriefingItemCategories(apiKey, items);
+    } catch (err) {
+      // 분류 실패 시: 잘못 추측/부분 배정하지 않고 카테고리별 변형 생성 전체를
+      // 건너뛴다 (all은 이미 위에서 처리됨).
+      console.error(`${date} 카테고리 분류 실패, 카테고리별 변형 생성을 건너뜁니다:`, err);
+      return;
+    }
+
+    for (const key of specificKeys) {
+      const existing = existingMap.get(key);
+      if (existing && existing.content) {
+        console.log(`${date} 카카오 브리핑 변형(${key})은 이미 존재합니다. 건너뜁니다.`);
+        continue;
+      }
+      try {
+        const wantedCats = new Set(key.split(','));
+        const matchedItems = items.filter((_, i) => wantedCats.has(categoryOfItem[i]));
+        if (matchedItems.length === 0) {
+          console.log(`${date} 카카오 브리핑 변형(${key}): 해당 카테고리의 항목이 오늘 없어 생성을 건너뜁니다 (발송 시 all로 대체됨).`);
+          continue;
+        }
+        const filteredSource = matchedItems.join('\n\n');
+        const resultText = await generateKakaoBriefingText(apiKey, filteredSource);
+
+        if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
+          console.error(`${date} 카카오 브리핑 변형(${key}): 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
+          await upsertKakaoBriefingVariant(date, key, { status: 'error', error: 'char_limit_exceeded_after_retry', content: null });
+          continue;
+        }
+
+        await upsertKakaoBriefingVariant(date, key, { content: resultText, status: 'draft' });
+        console.log(`${date} 카카오 브리핑 변형(${key}) 저장 완료 (${resultText.length}자, 항목 ${matchedItems.length}개).`);
+      } catch (err) {
+        // 한 조합의 실패가 나머지 조합 생성을 막지 않도록 조합별로 개별 격리.
+        console.error(`${date} 카카오 브리핑 변형(${key}) 생성 실패:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`${date} 카테고리별 카카오 브리핑 변형 생성 단계 실패 (웹 브리핑/all 카카오 본문에는 영향 없음):`, err);
   }
 }
 
@@ -307,6 +483,10 @@ module.exports = async (req, res) => {
       } else {
         console.log(`${today} 카카오 브리핑도 이미 존재합니다. 건너뜁니다.`);
       }
+      // 'all' 변형의 소스: 방금 생성했다면 그 결과, 이미 있었다면 기존
+      // kakao_content를 그대로 재사용 (Gemini 중복 호출 방지).
+      const allVariantContent = (kakaoResult.ok && kakaoResult.content) || existingRow.kakao_content || null;
+      await generateAndSaveCategoryVariants(apiKey, today, existingRow.content, allVariantContent);
       res.status(200).json({ skipped: true, reason: 'already_exists', date: today, kakao: kakaoResult });
       return;
     }
@@ -368,6 +548,7 @@ ${newsListText}
     // 성공한 웹 브리핑 응답을 절대 막지 않는다 (generateAndSaveKakaoIfNeeded는
     // 자체적으로 에러를 삼키고 결과 객체를 반환함).
     const kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, resultText);
+    await generateAndSaveCategoryVariants(apiKey, today, resultText, kakaoResult.ok ? kakaoResult.content : null);
 
     res.status(200).json({ ok: true, date: today, length: resultText.length, kakao: kakaoResult });
   } catch (err) {

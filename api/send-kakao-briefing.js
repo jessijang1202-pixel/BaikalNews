@@ -45,6 +45,13 @@ function serviceRoleHeaders(serviceRoleKey, extra) {
   );
 }
 
+// api/generate-daily-briefing.js의 동일 함수와 byte-identical하게 유지 (서로
+// import할 수 없는 별개의 서버리스 함수라 이 코드베이스의 기존 관례대로 중복).
+function canonicalCategoryKey(categories) {
+  if (!categories || categories.length === 0 || categories.includes('all')) return 'all';
+  return [...categories].sort().join(',');
+}
+
 async function getAppSetting(serviceRoleKey, key) {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}&select=value`,
@@ -67,11 +74,64 @@ async function fetchBriefingRowForDate(serviceRoleKey, date) {
 
 async function fetchAllKakaoSubscribers(serviceRoleKey) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/kakao_subscribers?select=id,phone,name`,
+    `${SUPABASE_URL}/rest/v1/kakao_subscribers?select=id,phone,name,categories`,
     { headers: serviceRoleHeaders(serviceRoleKey) }
   );
   if (!res.ok) throw new Error(`Supabase kakao_subscribers 조회 실패: ${res.status}`);
   return res.json();
+}
+
+// 오늘 날짜의 카테고리별 알림톡 변형을 category_key -> 행 맵으로 가져온다.
+async function fetchVariantsForDate(serviceRoleKey, date) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/kakao_briefing_variants?briefing_date=eq.${date}&select=category_key,content,status`,
+    { headers: serviceRoleHeaders(serviceRoleKey) }
+  );
+  if (!res.ok) throw new Error(`Supabase kakao_briefing_variants 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  const map = new Map();
+  rows.forEach(r => map.set(r.category_key, r));
+  return map;
+}
+
+// 구독자 한 명에게 실제로 보낼 콘텐츠를 정한다: 자기 조합의 변형이 있으면
+// 그것을, 없거나(status !== 'draft' 이거나 content가 비어 있어) 쓸 수 없으면
+// 'all' 변형으로 대체한다. 'all'조차 쓸 수 없으면 null(이번 발송에서 제외).
+function resolveSubscriberVariant(sub, variantMap) {
+  const key = canonicalCategoryKey(sub.categories);
+  const own = variantMap.get(key);
+  if (own && own.status === 'draft' && own.content) {
+    return { categoryKey: key, content: own.content };
+  }
+  if (key !== 'all') {
+    console.log(`구독자 ${sub.id}: '${key}' 변형을 사용할 수 없어(${own ? `status=${own.status}` : '없음'}) 'all'로 대체합니다.`);
+  }
+  const all = variantMap.get('all');
+  if (all && all.status === 'draft' && all.content) {
+    return { categoryKey: 'all', content: all.content };
+  }
+  console.log(`구독자 ${sub.id}: 'all' 변형도 사용할 수 없어 이번 발송에서 제외합니다.`);
+  return null;
+}
+
+// 실제로 발송에 쓰인 카테고리 조합들을 'sent'로 표시한다 (실패해도 발송
+// 자체는 이미 끝난 뒤이므로 개별 로그만 남기고 계속 진행).
+async function markVariantsSent(serviceRoleKey, date, categoryKeys) {
+  const now = new Date().toISOString();
+  for (const key of categoryKeys) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/kakao_briefing_variants?briefing_date=eq.${date}&category_key=eq.${encodeURIComponent(key)}`,
+      {
+        method: 'PATCH',
+        headers: serviceRoleHeaders(serviceRoleKey, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ status: 'sent', sent_at: now })
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`카카오 브리핑 변형(${key}) 발송 상태 갱신 실패: ${errText}`);
+    }
+  }
 }
 
 async function updateBriefingKakaoStatus(serviceRoleKey, date, fields) {
@@ -87,9 +147,10 @@ async function updateBriefingKakaoStatus(serviceRoleKey, date, fields) {
 }
 
 // 한 번의 API 호출로 최대 500명까지 -- receiver_N/recvname_N/subject_N/
-// message_N 넘버링 파라미터로 묶어 보낸다 (알리고 API 스펙). message는
-// 모든 수신자에게 동일한 브로드캐스트라 매번 같은 문자열을 반복해서 넣는다.
-async function sendAligoChunk(subscribers, briefingContent) {
+// message_N 넘버링 파라미터로 묶어 보낸다 (알리고 API 스펙). Phase 2부터는
+// 구독자마다 자기 카테고리 조합에 맞는 message_N을 따로 넣는다 (알리고
+// 벌크 발송 API가 같은 요청 안에서 수신자별로 다른 message를 지원함).
+async function sendAligoChunk(resolvedChunk) {
   const params = new URLSearchParams({
     apikey: process.env.ALIGO_API_KEY,
     userid: process.env.ALIGO_USERID,
@@ -97,12 +158,12 @@ async function sendAligoChunk(subscribers, briefingContent) {
     tpl_code: process.env.ALIGO_TEMPLATE_CODE,
     sender: process.env.ALIGO_SENDER_PHONE
   });
-  subscribers.forEach((sub, idx) => {
+  resolvedChunk.forEach((item, idx) => {
     const n = idx + 1;
-    params.set(`receiver_${n}`, sub.phone);
-    if (sub.name) params.set(`recvname_${n}`, sub.name);
+    params.set(`receiver_${n}`, item.sub.phone);
+    if (item.sub.name) params.set(`recvname_${n}`, item.sub.name);
     params.set(`subject_${n}`, '바이칼뉴스 3분 브리핑');
-    params.set(`message_${n}`, briefingContent);
+    params.set(`message_${n}`, item.content);
   });
 
   const res = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
@@ -145,21 +206,17 @@ module.exports = async (req, res) => {
       res.status(200).json({ skipped: 'no_briefing_row', date: today });
       return;
     }
-    if (!row.kakao_content || !row.kakao_content.trim()) {
-      console.log(`${today} 브리핑에 카카오 본문(kakao_content)이 비어 있어 발송을 건너뜁니다.`);
-      res.status(200).json({ skipped: 'no_kakao_content', date: today });
-      return;
-    }
     if (row.kakao_status === 'sent') {
       console.log(`${today} 브리핑은 이미 발송 완료(kakao_status='sent') 상태입니다. 중복 발송 방지를 위해 건너뜁니다.`);
       res.status(200).json({ skipped: 'already_sent', date: today });
       return;
     }
-    if (row.kakao_status === 'error') {
-      console.log(`${today} 브리핑은 kakao_status='error' 상태라 발송을 건너뜁니다 (관리자 확인/수동 재시도 필요).`);
-      res.status(200).json({ skipped: 'kakao_status_error', date: today });
-      return;
-    }
+    // 참고(Phase 2): news_briefings.kakao_content/kakao_status는 이제 'all'
+    // 조합 하나만 나타낸다. 예전에는 이 값이 비어있거나 'error'면 전체
+    // 발송을 건너뛰었지만, 이제는 'all'이 실패해도 각자 카테고리 조합의
+    // 변형이 정상 생성된 구독자에게는 정상 발송해야 하므로, 이 두 조건으로
+    // 전체를 막지 않는다 -- 실제 발송 가능 여부는 아래 구독자별 변형
+    // 매칭(+ all 폴백) 결과로 판단한다.
 
     const subscribers = await fetchAllKakaoSubscribers(serviceRoleKey);
     if (subscribers.length === 0) {
@@ -168,15 +225,34 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const chunks = chunkArray(subscribers, 500);
+    const variantMap = await fetchVariantsForDate(serviceRoleKey, today);
+    const resolved = [];
+    const skippedSubscriberIds = [];
+    subscribers.forEach(sub => {
+      const r = resolveSubscriberVariant(sub, variantMap);
+      if (r) resolved.push({ sub, categoryKey: r.categoryKey, content: r.content });
+      else skippedSubscriberIds.push(sub.id);
+    });
+
+    if (resolved.length === 0) {
+      console.log(`${today}: 발송 가능한 콘텐츠(카테고리 변형 또는 all)가 있는 구독자가 한 명도 없어 발송을 건너뜁니다.`);
+      res.status(200).json({ skipped: 'no_kakao_content', date: today, skippedSubscriberIds });
+      return;
+    }
+    if (skippedSubscriberIds.length > 0) {
+      console.log(`${today}: 콘텐츠가 없어 이번 발송에서 제외된 구독자 ${skippedSubscriberIds.length}명: ${skippedSubscriberIds.join(', ')}`);
+    }
+
+    const chunks = chunkArray(resolved, 500);
     const mids = [];
     let sentCount = 0;
+    const usedCategoryKeys = new Set();
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       let result;
       try {
-        result = await sendAligoChunk(chunk, row.kakao_content);
+        result = await sendAligoChunk(chunk);
       } catch (sendErr) {
         console.error(`알리고 발송 호출 자체가 실패했습니다 (chunk ${i + 1}/${chunks.length}):`, sendErr);
         await updateBriefingKakaoStatus(serviceRoleKey, today, { kakao_status: 'error', kakao_error: `send_request_failed: ${sendErr.message}` });
@@ -192,13 +268,23 @@ module.exports = async (req, res) => {
       }
 
       sentCount += chunk.length;
+      chunk.forEach(item => usedCategoryKeys.add(item.categoryKey));
       if (result.info && result.info.mid) mids.push(result.info.mid);
       console.log(`알리고 발송 성공 (chunk ${i + 1}/${chunks.length}, ${chunk.length}명, mid=${result.info && result.info.mid}).`);
     }
 
+    await markVariantsSent(serviceRoleKey, today, usedCategoryKeys);
+
     await updateBriefingKakaoStatus(serviceRoleKey, today, { kakao_status: 'sent', kakao_sent_at: new Date().toISOString() });
-    console.log(`${today} 카카오 브리핑 발송 완료: 총 ${sentCount}명, ${chunks.length}건.`);
-    res.status(200).json({ ok: true, date: today, sentCount, mid: mids });
+    console.log(`${today} 카카오 브리핑 발송 완료: 총 ${sentCount}명, ${chunks.length}건, 카테고리 조합 ${[...usedCategoryKeys].join(', ')}.`);
+    res.status(200).json({
+      ok: true,
+      date: today,
+      sentCount,
+      mid: mids,
+      categoryKeys: [...usedCategoryKeys],
+      skippedSubscriberIds
+    });
   } catch (err) {
     console.error('카카오 브리핑 발송 처리 중 오류:', err);
     res.status(500).json({ error: err.message });
