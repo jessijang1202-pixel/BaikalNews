@@ -897,11 +897,15 @@ function renderArticlePage() {
     const publishedList = window.ARTICLES.filter(a => isArticleLive(a));
     const related = publishedList
       .filter(a => a.category === article.category && a.id !== article.id)
+      .sort(compareArticlesByDateDesc)
       .slice(0, 3);
 
     if (related.length === 0) {
       // Fallback
-      const other = publishedList.filter(a => a.id !== article.id).slice(0, 3);
+      const other = publishedList
+        .filter(a => a.id !== article.id)
+        .sort(compareArticlesByDateDesc)
+        .slice(0, 3);
       relatedContainer.innerHTML = other.map(a => createArticleCardHTML(a, 'standard')).join('');
     } else {
       relatedContainer.innerHTML = related.map(a => createArticleCardHTML(a, 'standard')).join('');
