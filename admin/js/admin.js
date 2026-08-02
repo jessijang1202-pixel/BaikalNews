@@ -7280,10 +7280,26 @@ async function renderKakaoSubscriberBriefing() {
   renderKakaoCategoryChart(subscribers);
 }
 
+// "모두"는 특정 관심사가 아니라 "필터 없음" 상태라 나머지 8개 카테고리와
+// 같은 채도의 색을 주면 마치 9번째 주제인 것처럼 보인다 -- 회색(중립)으로
+// 구분하고, 나머지 8개는 데이터비즈 스킬 팔레트의 categorical 8색(순서
+// 고정, CVD 검증됨)을 그대로 쓴다.
+const KAKAO_CATEGORY_COLORS = {
+  all: '#898781',
+  politics: '#2a78d6',
+  economy: '#eb6834',
+  stock: '#1baf7a',
+  world: '#eda100',
+  society: '#e87ba4',
+  culture: '#008300',
+  sports: '#4a3aa7',
+  tech: '#e34948'
+};
+
 // 구독자들이 고른 카테고리 분포 -- 한 사람이 여러 개를 고를 수 있어서 합이
 // 구독자 총수보다 클 수 있다 (막대 하나하나가 "그 카테고리를 고른 사람 수").
-// 값 비교가 목적이라 단일 색(신청자수 추이 차트와 같은 amber)의 가로 막대,
-// 많은 순으로 정렬 -- 카테고리 라벨(한글, 길이 제각각)이 가로축에 있는 것보다
+// "모두"는 항목 수 정렬에 섞이지 않고 항상 맨 위 고정, 나머지 8개만 많은
+// 순으로 정렬 -- 카테고리 라벨(한글, 길이 제각각)이 가로축에 있는 것보다
 // 세로로 나열하고 막대를 옆으로 뻗는 게 더 읽기 편하다.
 function renderKakaoCategoryChart(subscribers) {
   const container = document.getElementById("kakao-category-chart-container");
@@ -7296,9 +7312,12 @@ function renderKakaoCategoryChart(subscribers) {
     cats.forEach(id => { if (id in counts) counts[id] += 1; });
   });
 
-  const rows = Object.entries(counts)
+  const allRow = { id: 'all', label: KAKAO_CATEGORY_LABELS.all, count: counts.all };
+  const otherRows = Object.entries(counts)
+    .filter(([id]) => id !== 'all')
     .map(([id, count]) => ({ id, label: KAKAO_CATEGORY_LABELS[id], count }))
     .sort((a, b) => b.count - a.count);
+  const rows = [allRow, ...otherRows];
 
   if (subscribers.length === 0) {
     container.innerHTML = `<div class="help-text">아직 신청자가 없습니다.</div>`;
@@ -7320,7 +7339,7 @@ function renderKakaoCategoryChart(subscribers) {
       <g>
         <title>${r.label}: ${r.count.toLocaleString('ko-KR')}명</title>
         <text x="${labelW - 8}" y="${y + barH / 2 + 4}" font-size="11" text-anchor="end" fill="var(--admin-text-secondary)">${r.label}</text>
-        <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" fill="#b8860b" rx="4"></rect>
+        <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" fill="${KAKAO_CATEGORY_COLORS[r.id] || '#b8860b'}" rx="4"></rect>
         <text x="${labelW + w + 8}" y="${y + barH / 2 + 4}" font-size="11" fill="var(--admin-text-secondary)">${r.count.toLocaleString('ko-KR')}</text>
       </g>
     `;
