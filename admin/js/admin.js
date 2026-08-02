@@ -7208,11 +7208,10 @@ function renderNewsletterTrendLineChart() {
   if (!container) return;
 
   const [year, month] = newsletterTrendSelectedMonth.split('-').map(Number);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
-  const lastDay = isCurrentMonth ? today.getDate() : daysInMonth;
+  // 이번 달이라도 오늘까지만 그리지 않고 그 달 전체 일수를 다 보여준다 --
+  // 아직 안 지난 날짜는 누적치가 오늘 값에서 그대로 평평하게 이어진다
+  // (미래에 새 구독자가 없으니 필터 결과가 자연히 오늘 값과 같게 나옴).
+  const lastDay = new Date(year, month, 0).getDate();
 
   // 정렬된 구독일 목록에서, 특정 날짜까지 누적된 구독자 수를 센다 --
   // 선택한 달 이전에 가입한 사람도 그대로 누적에 포함된다 (달이 바뀌어도
