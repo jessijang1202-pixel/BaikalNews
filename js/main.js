@@ -318,7 +318,7 @@ const KAKAO_SUBSCRIBE_REDIRECT_URI = "https://baikalnews.com/api/kakao-oauth-cal
 // 실제 카카오 인증 화면으로 넘어가도록 켬.
 const KAKAO_SUBSCRIBE_ENABLED = true;
 
-function startKakaoSubscribe() {
+function startKakaoSubscribe(categoriesParam) {
   if (!KAKAO_SUBSCRIBE_ENABLED) {
     return;
   }
@@ -334,8 +334,68 @@ function startKakaoSubscribe() {
   // 성공한다.
   Kakao.Auth.authorize({
     redirectUri: KAKAO_SUBSCRIBE_REDIRECT_URI,
-    scope: "phone_number,name,plusfriends"
+    scope: "phone_number,name,plusfriends",
+    state: categoriesParam
   });
+}
+
+// 관심 카테고리 선택 모달 -- 카카오 동의 화면으로 넘어가기 전, 어떤
+// 카테고리 위주로 브리핑을 받을지 먼저 고르게 한다. 이 단계에서는 선택
+// 값을 저장만 해두고(카테고리별 실제 발송 필터링은 이후 별도 작업), "모두"와
+// 개별 카테고리 8개는 서로 배타적이라 하나를 고르면 다른 쪽이 자동으로
+// 해제된다 -- "모두"가 항상 기본값이라 완전히 빈 선택 상태는 만들지 않는다.
+const KAKAO_CATEGORY_OPTIONS = [
+  { id: 'all', label: '모두' },
+  { id: 'politics', label: '정치' },
+  { id: 'economy', label: '경제' },
+  { id: 'stock', label: '주식' },
+  { id: 'world', label: '국제' },
+  { id: 'society', label: '사회' },
+  { id: 'culture', label: '문화·연예' },
+  { id: 'sports', label: '스포츠' },
+  { id: 'tech', label: 'IT·과학' }
+];
+
+function openKakaoCategoryModal() {
+  const modal = document.getElementById("kakao-category-modal");
+  if (!modal) return;
+  // 모달을 열 때마다 "모두"만 체크된 기본 상태로 리셋
+  modal.querySelectorAll('input[name="kakao-category"]').forEach(cb => {
+    cb.checked = cb.value === 'all';
+  });
+  modal.style.display = "flex";
+}
+
+function closeKakaoCategoryModal() {
+  const modal = document.getElementById("kakao-category-modal");
+  if (modal) modal.style.display = "none";
+}
+
+// "모두" 체크박스와 개별 카테고리 체크박스는 상호 배타적 -- 네이티브
+// radio 대신 onchange로 구현해 시각적으로는 계속 체크박스(다중 선택
+// 가능한 형태)로 보이게 유지한다.
+function handleKakaoCategoryToggle(changedCheckbox) {
+  const modal = changedCheckbox.closest(".kakao-category-modal");
+  if (!modal) return;
+  const allCheckboxes = modal.querySelectorAll('input[name="kakao-category"]');
+  if (changedCheckbox.value === 'all') {
+    if (changedCheckbox.checked) {
+      allCheckboxes.forEach(cb => { if (cb.value !== 'all') cb.checked = false; });
+    }
+  } else if (changedCheckbox.checked) {
+    allCheckboxes.forEach(cb => { if (cb.value === 'all') cb.checked = false; });
+  }
+}
+
+function continueKakaoSubscribeFromModal() {
+  const modal = document.getElementById("kakao-category-modal");
+  const checked = modal
+    ? Array.from(modal.querySelectorAll('input[name="kakao-category"]:checked')).map(cb => cb.value)
+    : [];
+  // 아무것도 체크되지 않은 상태(이론상 발생하면 안 되지만 방어적으로)도 "all"로 처리
+  const categoriesParam = checked.length > 0 ? checked.join(',') : 'all';
+  closeKakaoCategoryModal();
+  startKakaoSubscribe(categoriesParam);
 }
 
 // 2. Dynamic Override for Static Policy Pages

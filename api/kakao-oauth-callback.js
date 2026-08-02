@@ -35,8 +35,27 @@ function normalizeKakaoPhone(raw) {
   return raw.replace(/^\+82\s?/, '0').replace(/\s+/g, '');
 }
 
+// js/main.js의 KAKAO_CATEGORY_OPTIONS와 동일한 id 목록 -- 이 서버리스
+// 함수는 브라우저 스크립트를 import할 수 없어 별도로 복제해 둔다
+// (admin.js/api/*.js 사이에서 이미 쓰이는 것과 같은 상수 중복 패턴).
+const KAKAO_CATEGORY_IDS = ['all', 'politics', 'economy', 'stock', 'world', 'society', 'culture', 'sports', 'tech'];
+
+// state 파라미터(콤마로 join된 카테고리 id 목록)를 검증된 배열로 파싱.
+// 비어있거나, 알 수 없는 값뿐이거나, "all"이 포함된 경우 항상 ['all']로
+// 저장 -- 빈 배열을 절대 저장하지 않아야 "categories에 'all'이 있으면
+// 무필터"라는 규칙이 항상 성립한다.
+function parseKakaoCategories(state) {
+  if (!state) return ['all'];
+  const parsed = String(state)
+    .split(',')
+    .map(s => s.trim())
+    .filter(id => KAKAO_CATEGORY_IDS.includes(id));
+  if (parsed.length === 0 || parsed.includes('all')) return ['all'];
+  return parsed;
+}
+
 module.exports = async (req, res) => {
-  const { code, error: kakaoError } = req.query;
+  const { code, error: kakaoError, state } = req.query;
 
   if (kakaoError) {
     return toStatusPage(res, 'error', { reason: kakaoError });
@@ -95,6 +114,8 @@ module.exports = async (req, res) => {
     // Upsert on kakao_user_id -- this is a membership record now, so the
     // same Kakao account signing up again should update its info rather
     // than fail as a duplicate.
+    const categories = parseKakaoCategories(state);
+
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/kakao_subscribers?on_conflict=kakao_user_id`, {
       method: 'POST',
       headers: {
@@ -103,7 +124,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates'
       },
-      body: JSON.stringify({ kakao_user_id: kakaoUserId, name, phone })
+      body: JSON.stringify({ kakao_user_id: kakaoUserId, name, phone, categories })
     });
 
     if (!insertRes.ok) {
