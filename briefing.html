@@ -284,14 +284,18 @@
         let html = recent.map(renderBriefingEntry).join('');
 
         if (older.length > 0) {
+          // "지난 기사 보기"를 누를 때마다 한 번에 다 펼치지 않고 하루치씩만
+          // 공개한다 -- 각 항목을 처음부터 숨김으로 개별 렌더링해두고,
+          // 클릭할 때마다 다음 하나만 보여준다 (showOlderBriefings 참고).
           html += `
-            <div id="briefing-older-list" style="display:none;">${older.map(renderBriefingEntry).join('')}</div>
+            <div id="briefing-older-list">${older.map(b => `<div class="briefing-older-item" style="display:none;">${renderBriefingEntry(b)}</div>`).join('')}</div>
             <div class="briefing-load-more-wrap">
               <button type="button" class="btn briefing-load-more-btn" id="briefing-load-more-btn" onclick="showOlderBriefings()">지난 기사 보기</button>
             </div>
           `;
         }
         listEl.innerHTML = html;
+        olderBriefingItems = Array.from(document.querySelectorAll('#briefing-older-list .briefing-older-item'));
       } catch (err) {
         console.error('브리핑 아카이브 로드 실패:', err);
         listEl.innerHTML = '<div class="briefing-empty">브리핑을 불러오는 중 오류가 발생했습니다.</div>';
@@ -320,11 +324,18 @@
       `;
     }
 
+    let olderBriefingItems = [];
+    let olderBriefingRevealedCount = 0;
+
     function showOlderBriefings() {
-      const olderList = document.getElementById('briefing-older-list');
-      const btn = document.getElementById('briefing-load-more-btn');
-      if (olderList) olderList.style.display = 'block';
-      if (btn) btn.remove();
+      if (olderBriefingRevealedCount < olderBriefingItems.length) {
+        olderBriefingItems[olderBriefingRevealedCount].style.display = 'block';
+        olderBriefingRevealedCount++;
+      }
+      if (olderBriefingRevealedCount >= olderBriefingItems.length) {
+        const btn = document.getElementById('briefing-load-more-btn');
+        if (btn) btn.remove();
+      }
     }
 
     function escapeBriefingHtml(str) {
