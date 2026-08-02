@@ -8134,6 +8134,13 @@ function syncKakaoBriefingEdit() {
 const KAKAO_BRIEFING_VAR_CHAR_LIMIT = 650;
 const KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN = 550; // 짧게 끝나는 것도 문제라 최소선도 둠
 
+// 발송 직전 본문 끝에 기계적으로 붙이는 구독취소 안내 -- AI가 쓰는 문구가
+// 아니라 생성 후 고정으로 덧붙이므로, 위 두 상수(전체 메시지 기준)에서
+// 이 문구의 글자수만큼 뺀 범위를 AI에게 목표로 준다.
+const KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER = "\n\n▶ 더 이상 받고 싶지 않으시면 baikalnews.com에서 구독취소를 눌러주세요.";
+const KAKAO_BRIEFING_AI_CHAR_TARGET_MIN = KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN - KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER.length;
+const KAKAO_BRIEFING_AI_CHAR_LIMIT = KAKAO_BRIEFING_VAR_CHAR_LIMIT - KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER.length;
+
 function setKakaoBriefingBusy(active, text) {
   const banner = document.getElementById("kakao-briefing-busy-banner");
   const textEl = document.getElementById("kakao-briefing-busy-text");
@@ -8187,7 +8194,7 @@ ${sourceContent}
 
 [작성 지침 -- 반드시 모두 지킬 것]
 - 원문에 담긴 뉴스 항목을 빠짐없이 다루되, 각 항목을 짧은 한 문장(또는 이어지는 두 문장)으로 압축하십시오. 원문에 없는 새로운 사실을 추가하거나 추측하지 마십시오.
-- 공백 포함 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
+- 공백 포함 ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_AI_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
 - (매우 중요) 각 뉴스 항목은 "▩ "로 시작하십시오 (번호 대신 이 기호를 사용하십시오). "제목 줄"과 "설명 줄"을 따로 나누지 말고, 하나의 문장으로 바로 핵심 사실을 전달하십시오. 예를 들어 "▩ 밭일하던 100세 할머니 숨진 채 발견\n밭일을 하던 100세 할머니가 숨진 채 발견되었습니다." 처럼 제목을 쓰고 그 아래 줄에서 같은 내용을 다시 풀어 쓰는 방식은 같은 내용이 중복되어 글자를 낭비하므로 절대 금지합니다. 대신 "▩ 밭일하던 100세 할머니 숨진 채 발견됨, 당시 체온 42.2도로 측정돼 폭염 주의 당부됨"처럼 "▩ " 뒤에 바로 한 줄로 이어서 쓰십시오. 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
 - 문장 종결은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "별세했습니다" → "별세함", "비판했습니다" → "비판함"). 음슴체는 문장이 짧아져 글자수 예산도 더 아낄 수 있습니다.
 - 이 메시지는 카카오 "알림톡"(정보성 메시지)으로 발송되므로, 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)를 절대 포함하지 마십시오. 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하십시오.
@@ -8201,18 +8208,25 @@ ${extra || ''}`;
 
     // Hard technical limit, not a style preference -- retry once, tighter,
     // if the first pass ran long instead of silently truncating mid-sentence.
-    if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
+    // AI 본문 자체는 고정 구독취소 문구를 뺀 예산(KAKAO_BRIEFING_AI_CHAR_*) 안에서만
+    // 판단한다 -- 최종 전체 메시지 기준 판정은 문구를 붙인 뒤 아래에서 따로 한다.
+    if (resultText.length > KAKAO_BRIEFING_AI_CHAR_LIMIT) {
       setKakaoBriefingBusy(true, `글자수 초과(${resultText.length}자)로 더 짧게 재생성 중...`);
-      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
+      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
       resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim());
-    } else if (resultText.length < KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN) {
+    } else if (resultText.length < KAKAO_BRIEFING_AI_CHAR_TARGET_MIN) {
       // Too short wastes the AlimTalk character budget the admin is paying
       // for either way -- retry asking for more items/detail instead of
       // leaving a thin brief.
       setKakaoBriefingBusy(true, `분량 부족(${resultText.length}자)으로 더 채워서 재생성 중...`);
-      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
+      const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
       resultText = stripLeakedKakaoBriefingHeader((await callGeminiTextApi(buildPrompt(retryExtra), systemInstruction)).trim());
     }
+
+    // 구독취소 안내는 AI가 쓰는 게 아니라 여기서 기계적으로 덧붙인다 --
+    // 어느 분기(그대로/길어서 재시도/짧아서 재시도)를 거쳤든 이 지점에서
+    // 한 번만 붙이면 모든 성공 경로에 빠짐없이 적용된다.
+    resultText = resultText + KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER;
 
     kakaoBriefingDraft = { date: todayDateKey(), content: resultText };
     persistKakaoBriefingDraft();

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>if (location.hostname === 'editor815.baikalnews.com') { location.replace('/admin/'); }</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <title>카카오 3분 뉴스 구독 취소 - 바이칼 뉴스</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
+    }
+    .kakao-unsub-card {
+      max-width: 440px;
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      padding: 44px 36px 36px;
+      box-shadow: 0 24px 60px oklch(30% 0.02 230 / 0.1);
+    }
+    .kakao-unsub-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .kakao-unsub-logo img {
+      height: 42px;
+      width: auto;
+      display: block;
+    }
+    .kakao-unsub-logo span {
+      font-family: var(--font-logo);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .kakao-unsub-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kakao-unsub-icon.is-success {
+      background: oklch(85% 0.08 150 / 0.35);
+    }
+    .kakao-unsub-card h1 {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+    .kakao-unsub-card p.kakao-unsub-desc {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    .kakao-unsub-form .form-group {
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .kakao-unsub-message {
+      font-size: 0.85rem;
+      margin-top: 10px;
+      text-align: left;
+      display: none;
+      line-height: 1.6;
+    }
+    .kakao-unsub-message.is-active {
+      display: block;
+    }
+    .kakao-unsub-message.is-error {
+      color: oklch(50% 0.17 30);
+    }
+    .kakao-unsub-message.is-notfound {
+      color: var(--text-secondary);
+    }
+    .kakao-unsub-submit-btn {
+      width: 100%;
+      justify-content: center;
+      font-weight: 600;
+    }
+    .kakao-unsub-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .kakao-unsub-home-btn {
+      display: inline-block;
+      background-color: var(--accent-cyan);
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 13px 28px;
+      border-radius: 8px;
+      transition: var(--transition-smooth);
+      margin-top: 8px;
+    }
+    .kakao-unsub-home-btn:hover {
+      background-color: var(--accent-blue-hover);
+    }
+    .kakao-unsub-home-link {
+      display: block;
+      margin-top: 18px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="kakao-unsub-card" id="kakao-unsub-card">
+    <div class="kakao-unsub-logo">
+      <img src="images/logo-mark-new.png" alt="바이칼뉴스">
+      <span>바이칼뉴스</span>
+    </div>
+
+    <div id="kakao-unsub-form-view">
+      <h1>카카오 3분 뉴스 구독 취소</h1>
+      <p class="kakao-unsub-desc">가입하신 휴대전화 번호를 입력하시면 더 이상 카카오톡 3분 뉴스 알림을 받지 않습니다.</p>
+      <form class="kakao-unsub-form" id="kakao-unsub-form">
+        <div class="form-group">
+          <label for="kakao-unsub-phone">휴대전화 번호</label>
+          <input type="tel" id="kakao-unsub-phone" class="form-control" placeholder="010-1234-5678" required>
+        </div>
+        <div class="kakao-unsub-message" id="kakao-unsub-message"></div>
+        <button type="submit" class="btn btn-primary kakao-unsub-submit-btn" id="kakao-unsub-submit-btn">구독 취소</button>
+      </form>
+      <a class="kakao-unsub-home-link" href="index.html">바이칼 뉴스 홈으로 돌아가기</a>
+    </div>
+
+    <div id="kakao-unsub-result-view" style="display:none;">
+      <div class="kakao-unsub-icon is-success" id="kakao-unsub-result-icon"></div>
+      <h1 id="kakao-unsub-result-title">구독이 취소되었습니다</h1>
+      <p class="kakao-unsub-desc" id="kakao-unsub-result-message">구독이 취소되었습니다. 더 이상 3분 뉴스를 받지 않습니다.</p>
+      <a class="kakao-unsub-home-btn" href="index.html">바이칼 뉴스 홈으로 돌아가기</a>
+    </div>
+  </div>
+  <script>
+    // api/kakao-unsubscribe.js에 { phone }을 POST -- OTP 등 별도 인증 없이
+    // 번호만 일치하면 즉시 삭제한다 (구독취소는 마찰 없이 되어야 한다는
+    // 설계 원칙 + 인증 문자 발송 비용을 피하기 위한 의도적 선택).
+    const KAKAO_UNSUBSCRIBE_ENDPOINT = 'https://baikalnews.com/api/kakao-unsubscribe';
+
+    const formView = document.getElementById('kakao-unsub-form-view');
+    const resultView = document.getElementById('kakao-unsub-result-view');
+    const form = document.getElementById('kakao-unsub-form');
+    const phoneInput = document.getElementById('kakao-unsub-phone');
+    const messageEl = document.getElementById('kakao-unsub-message');
+    const submitBtn = document.getElementById('kakao-unsub-submit-btn');
+    const resultIconEl = document.getElementById('kakao-unsub-result-icon');
+
+    const successIcon = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" stroke="oklch(55% 0.13 150)" stroke-width="1.6"/><path d="M7.5 12.5l3 3 6-6.5" stroke="oklch(45% 0.14 150)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    // 성공 시에만 폼 자체를 확인 화면으로 대체한다. "일치하는 구독 정보
+    // 없음"과 네트워크/서버 오류는 오타 등으로 재시도할 수 있는 정상적인
+    // 경우이므로, 폼은 그대로 두고 입력창 아래에 안내만 보여준다.
+    function showSuccess() {
+      formView.style.display = 'none';
+      resultView.style.display = '';
+      resultIconEl.innerHTML = successIcon;
+    }
+
+    function showMessage(text, kind) {
+      messageEl.textContent = text;
+      messageEl.className = 'kakao-unsub-message is-active is-' + kind;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageEl.classList.remove('is-active');
+
+      const phone = phoneInput.value.trim();
+      if (!phone) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '처리 중...';
+
+      try {
+        const res = await fetch(KAKAO_UNSUBSCRIBE_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          // 잘못된 번호 형식 등 -- 서버가 준 안내를 그대로 폼 아래에 보여주고
+          // 계속 입력할 수 있게 둔다 (전체 화면을 에러로 덮지 않음).
+          showMessage(data.error || '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'error');
+          return;
+        }
+
+        if (data.found) {
+          showSuccess();
+        } else {
+          showMessage('입력하신 번호로 등록된 구독 정보를 찾을 수 없습니다. 번호를 다시 확인해 주세요.', 'notfound');
+        }
+      } catch (err) {
+        showMessage('네트워크 오류로 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '구독 취소';
+      }
+    });
+  </script>
+</body>
+</html>
