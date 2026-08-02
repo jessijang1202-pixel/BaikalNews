@@ -822,7 +822,7 @@ function renderArticlePage() {
     featuredImg.alt = article.title;
   }
   if (featuredImgCaption) {
-    const captionText = article.imageCaption || `${article.title} 관련 현장 취재 자료.`;
+    const captionText = article.imageCaption || `${article.title} 관련 취재 자료.`;
     featuredImgCaption.innerHTML = `<strong>사진/보도:</strong> ${captionText} (ⓒ ${bylineText})`;
   }
 

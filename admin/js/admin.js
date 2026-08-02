@@ -3550,7 +3550,7 @@ function autoGenerateImageCaption() {
   const title = document.getElementById("form-title").value.trim();
   const captionEl = document.getElementById("form-image-caption");
   if (!captionEl) return;
-  captionEl.value = title ? `${title} 관련 현장 취재 자료.` : "현장 취재 자료.";
+  captionEl.value = title ? `${title} 관련 취재 자료.` : "취재 자료.";
 }
 
 async function triggerAiImageGeneration() {
