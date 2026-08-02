@@ -365,10 +365,15 @@ function initStaticPageOverrides() {
   }
 }
 
-// Helper: Get published articles in category
+// Helper: Get published articles in category, newest first -- the homepage's
+// per-category rows render this directly with no sort of their own, so the
+// order has to be correct here (category.html re-sorts afterward anyway for
+// its 최신순/인기순 toggle, so sorting here doesn't change its behavior).
 function getArticlesByCategory(category) {
   if (!window.ARTICLES) return [];
-  return window.ARTICLES.filter(a => a.category === category && isArticleLive(a));
+  return window.ARTICLES
+    .filter(a => a.category === category && isArticleLive(a))
+    .sort(compareArticlesByDateDesc);
 }
 
 // Helper: Get URL query parameters
