@@ -7152,63 +7152,188 @@ async function renderNewsletterSubscriberBriefing() {
   renderNewsletterSubscribersList(subscribers);
 }
 
+// 누적 구독자수 추이 -- 월 선택 버튼(예: "2026년 8월")으로 달을 바꿔가며
+// 볼 수 있다. 버튼을 다시 그릴 때마다 재조회하지 않도록 마지막으로 받은
+// 구독자 목록을 여기 캐시해 둔다.
+let newsletterTrendAllSubscribers = [];
+let newsletterTrendSelectedMonth = null; // 'YYYY-MM'
+
 function renderNewsletterTrendChart(subscribers) {
+  newsletterTrendAllSubscribers = subscribers;
+
+  if (!newsletterTrendSelectedMonth) {
+    const now = new Date();
+    newsletterTrendSelectedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  renderNewsletterTrendMonthButtons();
+  renderNewsletterTrendLineChart();
+}
+
+function renderNewsletterTrendMonthButtons() {
+  const wrap = document.getElementById("newsletter-trend-month-buttons");
+  if (!wrap) return;
+
+  // 구독자가 있는 가장 이른 달부터 이번 달까지 버튼을 만든다 -- 데이터가
+  // 없는 먼 과거 달까지 억지로 보여주지 않는다.
+  const now = new Date();
+  let earliest = now;
+  newsletterTrendAllSubscribers.forEach(s => {
+    const d = new Date(s.subscribedAt);
+    if (!isNaN(d) && d < earliest) earliest = d;
+  });
+
+  const months = [];
+  let cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  const stop = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+  while (cursor >= stop) {
+    months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    cursor.setMonth(cursor.getMonth() - 1);
+  }
+
+  wrap.innerHTML = months.map(key => {
+    const [y, m] = key.split('-');
+    const active = key === newsletterTrendSelectedMonth;
+    return `<button type="button" class="btn-admin ${active ? 'btn-admin-orange' : 'btn-admin-secondary'}" onclick="selectNewsletterTrendMonth('${key}')">${y}년 ${Number(m)}월</button>`;
+  }).join('');
+}
+
+function selectNewsletterTrendMonth(monthKey) {
+  newsletterTrendSelectedMonth = monthKey;
+  renderNewsletterTrendMonthButtons();
+  renderNewsletterTrendLineChart();
+}
+
+function renderNewsletterTrendLineChart() {
   const container = document.getElementById("newsletter-trend-chart-container");
   if (!container) return;
 
-  const days = 14;
+  const [year, month] = newsletterTrendSelectedMonth.split('-').map(Number);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+  const lastDay = isCurrentMonth ? today.getDate() : daysInMonth;
 
-  const buckets = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    buckets.push({ key: d.toISOString().slice(0, 10), label: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 });
+  // 정렬된 구독일 목록에서, 특정 날짜까지 누적된 구독자 수를 센다 --
+  // 선택한 달 이전에 가입한 사람도 그대로 누적에 포함된다 (달이 바뀌어도
+  // 0으로 리셋되지 않는 게 "누적"의 의미).
+  const subscribedDates = newsletterTrendAllSubscribers
+    .map(s => new Date(s.subscribedAt))
+    .filter(d => !isNaN(d))
+    .sort((a, b) => a - b);
+
+  const points = [];
+  for (let day = 1; day <= lastDay; day++) {
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+    const cumulative = subscribedDates.filter(d => d <= endOfDay).length;
+    points.push({ day, cumulative });
   }
-  const bucketByKey = {};
-  buckets.forEach(b => { bucketByKey[b.key] = b; });
 
-  subscribers.forEach(s => {
-    const key = (s.subscribedAt || '').slice(0, 10);
-    const bucket = bucketByKey[key];
-    if (bucket) bucket.count += 1;
-  });
-
-  if (buckets.every(b => b.count === 0)) {
-    container.innerHTML = `<div class="help-text">최근 14일간 신규 구독자가 없습니다.</div>`;
+  if (points.length === 0 || points[points.length - 1].cumulative === 0) {
+    container.innerHTML = `<div class="help-text">이 달에는 누적 구독자가 없습니다.</div>`;
     return;
   }
 
-  const maxVal = Math.max(1, ...buckets.map(b => b.count));
-  const chartHeight = 140;
-  const topPad = 18; // room for the value label above the tallest bar
-  const barGroupWidth = 36;
-  const barWidth = 20;
-  const svgWidth = buckets.length * barGroupWidth;
+  const maxVal = Math.max(1, ...points.map(p => p.cumulative));
+  const vbW = 640;
+  const vbH = 220;
+  const padL = 36;
+  const padR = 16;
+  const padT = 16;
+  const padB = 28;
+  const plotW = vbW - padL - padR;
+  const plotH = vbH - padT - padB;
 
-  const bars = buckets.map((b, i) => {
-    const x = i * barGroupWidth;
-    const h = Math.round((b.count / maxVal) * chartHeight);
-    const y = topPad + chartHeight - h;
-    const label = b.count > 0
-      ? `<text x="${x + 8 + barWidth / 2}" y="${Math.max(y - 5, 10)}" font-size="10" text-anchor="middle" fill="var(--admin-text-secondary)">${b.count}</text>`
-      : '';
+  const xFor = i => padL + (points.length === 1 ? plotW : (i / (points.length - 1)) * plotW);
+  const yFor = v => padT + plotH - (v / maxVal) * plotH;
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i).toFixed(1)},${yFor(p.cumulative).toFixed(1)}`).join(' ');
+
+  // Y축 눈금 4단계 (0 포함), 깔끔한 값으로 반올림
+  const tickCount = 4;
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round((maxVal / tickCount) * i));
+  const gridLines = yTicks.map(v => {
+    const y = yFor(v);
     return `
-      <g>
-        <title>${b.label}: 신규 구독 ${b.count}명</title>
-        <rect x="${x + 8}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" fill="var(--admin-accent-cyan)" rx="2"></rect>
-        ${label}
-      </g>
-      <text x="${x + barGroupWidth / 2}" y="${topPad + chartHeight + 18}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${b.label}</text>
+      <line x1="${padL}" y1="${y}" x2="${vbW - padR}" y2="${y}" stroke="var(--admin-border)" stroke-width="1"></line>
+      <text x="${padL - 8}" y="${y + 3}" font-size="10" text-anchor="end" fill="var(--admin-text-muted)">${v.toLocaleString('ko-KR')}</text>
     `;
   }).join('');
 
+  // 라벨은 5일 간격 + 첫날/마지막날만 -- 30개 넘는 날짜를 다 표시하면 겹친다.
+  const dateLabels = points.map((p, i) => {
+    const showLabel = p.day === 1 || p.day === lastDay || p.day % 5 === 0;
+    if (!showLabel) return '';
+    return `<text x="${xFor(i)}" y="${vbH - 8}" font-size="10" text-anchor="middle" fill="var(--admin-text-muted)">${p.day}일</text>`;
+  }).join('');
+
+  const lastPoint = points[points.length - 1];
+  const endLabel = `<text x="${xFor(points.length - 1)}" y="${yFor(lastPoint.cumulative) - 10}" font-size="12" font-weight="700" text-anchor="end" fill="var(--admin-text-primary)">${lastPoint.cumulative.toLocaleString('ko-KR')}명</text>`;
+
   container.innerHTML = `
-    <svg width="${svgWidth}" height="${topPad + chartHeight + 30}" viewBox="0 0 ${svgWidth} ${topPad + chartHeight + 30}" style="min-width: 100%;">
-      ${bars}
+    <svg id="newsletter-trend-svg" viewBox="0 0 ${vbW} ${vbH}" style="width:100%; height:auto; display:block;">
+      ${gridLines}
+      <path d="${linePath}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+      <circle id="newsletter-trend-hover-dot" cx="0" cy="0" r="4" fill="#2a78d6" stroke="var(--admin-bg-panel, #fff)" stroke-width="2" style="display:none;"></circle>
+      <line id="newsletter-trend-crosshair" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--admin-border)" stroke-width="1" style="display:none;"></line>
+      ${dateLabels}
+      ${endLabel}
+      <rect id="newsletter-trend-hover-area" x="${padL}" y="0" width="${plotW}" height="${vbH}" fill="transparent"></rect>
     </svg>
+    <div id="newsletter-trend-tooltip" style="position:fixed; display:none; pointer-events:none; background:var(--admin-bg-panel, #1c2333); border:1px solid var(--admin-border); border-radius:6px; padding:6px 10px; font-size:11px; color:var(--admin-text-primary); box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:50;"></div>
   `;
+
+  attachNewsletterTrendHover(points, xFor, yFor, year, month);
+}
+
+// 크로스헤어 + 툴팁 -- 포인터가 어디 있든 가장 가까운 날짜를 스냅해서
+// 보여준다 (데이터비즈 가이드의 라인차트 호버 규칙: "크로스헤어가 X를
+// 찾는다", 포인터가 선 위에 정확히 있을 필요 없음).
+function attachNewsletterTrendHover(points, xFor, yFor, year, month) {
+  const svg = document.getElementById("newsletter-trend-svg");
+  const hoverArea = document.getElementById("newsletter-trend-hover-area");
+  const dot = document.getElementById("newsletter-trend-hover-dot");
+  const crosshair = document.getElementById("newsletter-trend-crosshair");
+  const tooltip = document.getElementById("newsletter-trend-tooltip");
+  if (!svg || !hoverArea) return;
+
+  const vbW = svg.viewBox.baseVal.width;
+
+  function handleMove(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    const scale = vbW / rect.width;
+    const svgX = (clientX - rect.left) * scale;
+
+    let nearest = 0;
+    let bestDist = Infinity;
+    points.forEach((p, i) => {
+      const dist = Math.abs(xFor(i) - svgX);
+      if (dist < bestDist) { bestDist = dist; nearest = i; }
+    });
+
+    const p = points[nearest];
+    const px = xFor(nearest);
+    const py = yFor(p.cumulative);
+
+    dot.setAttribute('cx', px);
+    dot.setAttribute('cy', py);
+    dot.style.display = '';
+    crosshair.setAttribute('x1', px);
+    crosshair.setAttribute('x2', px);
+    crosshair.style.display = '';
+
+    tooltip.innerHTML = `<strong>${p.cumulative.toLocaleString('ko-KR')}명</strong><br>${year}년 ${month}월 ${p.day}일`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = `${clientX + 14}px`;
+    tooltip.style.top = `${clientY - 36}px`;
+  }
+
+  hoverArea.addEventListener('pointermove', e => handleMove(e.clientX, e.clientY));
+  hoverArea.addEventListener('pointerleave', () => {
+    dot.style.display = 'none';
+    crosshair.style.display = 'none';
+    tooltip.style.display = 'none';
+  });
 }
 
 function renderNewsletterSubscribersList(subscribers) {
