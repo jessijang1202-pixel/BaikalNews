@@ -7277,6 +7277,60 @@ async function renderKakaoSubscriberBriefing() {
 
   renderKakaoTrendChart(subscribers);
   renderKakaoSubscribersList(subscribers);
+  renderKakaoCategoryChart(subscribers);
+}
+
+// 구독자들이 고른 카테고리 분포 -- 한 사람이 여러 개를 고를 수 있어서 합이
+// 구독자 총수보다 클 수 있다 (막대 하나하나가 "그 카테고리를 고른 사람 수").
+// 값 비교가 목적이라 단일 색(신청자수 추이 차트와 같은 amber)의 가로 막대,
+// 많은 순으로 정렬 -- 카테고리 라벨(한글, 길이 제각각)이 가로축에 있는 것보다
+// 세로로 나열하고 막대를 옆으로 뻗는 게 더 읽기 편하다.
+function renderKakaoCategoryChart(subscribers) {
+  const container = document.getElementById("kakao-category-chart-container");
+  if (!container) return;
+
+  const counts = {};
+  Object.keys(KAKAO_CATEGORY_LABELS).forEach(id => { counts[id] = 0; });
+  subscribers.forEach(s => {
+    const cats = (s.categories && s.categories.length > 0) ? s.categories : ['all'];
+    cats.forEach(id => { if (id in counts) counts[id] += 1; });
+  });
+
+  const rows = Object.entries(counts)
+    .map(([id, count]) => ({ id, label: KAKAO_CATEGORY_LABELS[id], count }))
+    .sort((a, b) => b.count - a.count);
+
+  if (subscribers.length === 0) {
+    container.innerHTML = `<div class="help-text">아직 신청자가 없습니다.</div>`;
+    return;
+  }
+
+  const maxVal = Math.max(1, ...rows.map(r => r.count));
+  const barH = 20;
+  const rowH = 32;
+  const labelW = 70;
+  const valueW = 36;
+  const chartW = 360;
+  const svgH = rows.length * rowH;
+
+  const bars = rows.map((r, i) => {
+    const y = i * rowH + (rowH - barH) / 2;
+    const w = Math.max(Math.round((r.count / maxVal) * chartW), r.count > 0 ? 3 : 0);
+    return `
+      <g>
+        <title>${r.label}: ${r.count.toLocaleString('ko-KR')}명</title>
+        <text x="${labelW - 8}" y="${y + barH / 2 + 4}" font-size="11" text-anchor="end" fill="var(--admin-text-secondary)">${r.label}</text>
+        <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" fill="#b8860b" rx="4"></rect>
+        <text x="${labelW + w + 8}" y="${y + barH / 2 + 4}" font-size="11" fill="var(--admin-text-secondary)">${r.count.toLocaleString('ko-KR')}</text>
+      </g>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg width="${labelW + chartW + valueW}" height="${svgH}" viewBox="0 0 ${labelW + chartW + valueW} ${svgH}" style="min-width: 100%;">
+      ${bars}
+    </svg>
+  `;
 }
 
 function renderKakaoTrendChart(subscribers) {
