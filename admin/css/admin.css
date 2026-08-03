@@ -1430,8 +1430,8 @@ textarea.form-control-admin {
 }
 
 .rich-editor-body {
-  min-height: 480px;
-  max-height: 720px;
+  min-height: 640px;
+  max-height: 900px;
   overflow-y: auto;
   border: 1px solid var(--admin-border-light);
   border-radius: 0 0 var(--border-radius) var(--border-radius);
