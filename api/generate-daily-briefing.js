@@ -171,21 +171,18 @@ async function callGeminiText(apiKey, prompt, systemInstruction) {
   return text;
 }
 
-// 카카오 알림톡 변수(#{brief}) 자리에 들어갈 압축판 -- admin.js의
-// generateKakaoBriefing()과 완전히 동일한 프롬프트/재시도 로직을 서버
-// 함수에도 그대로 포팅한다 (이 크론은 admin.js를 import할 수 없어 중복
-// 유지). 650자를 넘기면 알림톡 발송 자체가 불가능한 기술적 제한이라,
-// 한 번 더 짧게 재시도하고 그래도 넘으면 절대 발송용으로 저장하지 않는다.
-const KAKAO_BRIEFING_VAR_CHAR_LIMIT = 650;
-const KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN = 550;
-
-// 발송 직전 본문 끝에 기계적으로 붙이는 구독취소 안내 (admin.js의 동일 상수와
-// 동작을 맞춘다 -- 이 서버 함수는 admin.js를 import할 수 없어 중복 유지).
-// AI가 쓰는 문구가 아니라 생성 후 고정으로 덧붙이므로, 위 두 상수(전체
-// 메시지 기준)에서 이 문구의 글자수만큼 뺀 범위를 AI에게 목표로 준다.
-const KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER = "\n\n▶ 더 이상 받고 싶지 않으시면 baikalnews.com에서 구독취소를 눌러주세요.";
-const KAKAO_BRIEFING_AI_CHAR_TARGET_MIN = KAKAO_BRIEFING_VAR_CHAR_TARGET_MIN - KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER.length;
-const KAKAO_BRIEFING_AI_CHAR_LIMIT = KAKAO_BRIEFING_VAR_CHAR_LIMIT - KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER.length;
+// 카카오 브랜드메시지 템플릿의 변수(#{brief}) 자리에 들어갈 압축판 --
+// admin.js의 generateKakaoBriefing()과 완전히 동일한 프롬프트/재시도
+// 로직을 서버 함수에도 그대로 포팅한다 (이 크론은 admin.js를 import할 수
+// 없어 중복 유지). 구독취소 안내는 이제 승인된 템플릿 고정 문구 쪽에
+// 포함되어 있어 여기서는 뉴스 본문만 다룬다 (알림톡→브랜드메시지 전환).
+// 알림톡은 ~650자 하드 캡이 있었지만 브랜드메시지는 알리고 문서상 확인된
+// 하드 캡이 없어, 아래 값은 실제 발송 테스트 전까지의 잠정 목표치다 --
+// 알리고가 실제로 받아들이는 한도가 다르다고 확인되면 이 두 상수만
+// 조정하면 된다. 초과 시 한 번 더 짧게 재시도하고 그래도 넘으면 절대
+// 발송용으로 저장하지 않는다.
+const KAKAO_BRIEFING_CHAR_LIMIT = 1500;
+const KAKAO_BRIEFING_CHAR_TARGET_MIN = 1200;
 
 function stripLeakedKakaoBriefingHeader(text) {
   const lines = text.split('\n');
@@ -201,17 +198,17 @@ function stripLeakedKakaoBriefingHeader(text) {
 
 function buildKakaoBriefingPrompt(sourceContent, extra) {
   return `
-아래는 오늘 바이칼 뉴스 웹사이트에 게시된 "3분 뉴스 브리핑"의 원문입니다. 같은 뉴스를 다시 수집하지 말고, 이 원문에 담긴 소식만을 바탕으로 카카오톡 "알림톡"으로 발송할 압축판 본문을 작성하십시오.
+아래는 오늘 바이칼 뉴스 웹사이트에 게시된 "3분 뉴스 브리핑"의 원문입니다. 같은 뉴스를 다시 수집하지 말고, 이 원문에 담긴 소식만을 바탕으로 카카오톡 "브랜드메시지"로 발송할 압축판 본문을 작성하십시오.
 
 [웹사이트 게시용 브리핑 원문]
 ${sourceContent}
 
 [작성 지침 -- 반드시 모두 지킬 것]
 - (매우 중요) 원문에 담긴 모든 항목을 다 담으려 하지 마십시오. 아래 글자수 예산 안에서, 항목마다 제목만 반복하지 않고 그와 겹치지 않는 구체적인 사실(숫자·이름·장소·원인·결과 등)을 최소 하나는 반드시 넣을 수 있을 만큼만 항목을 선별하십시오. 덜 중요하거나 덜 흥미로운 항목은 과감히 제외하십시오 -- 항목 수를 줄여서라도 남긴 항목 하나하나의 정보량을 지키는 것이 항목을 다 담아 내용 없는 제목 나열이 되는 것보다 낫습니다. 원문에 없는 새로운 사실을 추가하거나 추측하지 마십시오.
-- 공백 포함 ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_AI_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오). 이것은 권장이 아니라 카카오 알림톡 발송 자체가 가능한지를 가르는 기술적 제한입니다.
+- 공백 포함 ${KAKAO_BRIEFING_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_CHAR_LIMIT}자 "사이"가 되도록 작성하십시오 (${KAKAO_BRIEFING_CHAR_LIMIT}자를 절대 넘기면 안 되지만, ${KAKAO_BRIEFING_CHAR_TARGET_MIN}자에 크게 못 미치게 짧게 끝내지도 마십시오).
 - (매우 중요) 각 뉴스 항목은 "▩ "로 시작하십시오 (번호 대신 이 기호를 사용하십시오). "제목 줄"과 "설명 줄"을 따로 나누지 말고, 하나의 문장으로 바로 핵심 사실을 전달하십시오. 예를 들어 "▩ 밭일하던 100세 할머니 숨진 채 발견\n밭일을 하던 100세 할머니가 숨진 채 발견되었습니다." 처럼 제목을 쓰고 그 아래 줄에서 같은 내용을 다시 풀어 쓰는 방식은 같은 내용이 중복되어 글자를 낭비하므로 절대 금지합니다. 대신 "▩ 밭일하던 100세 할머니 숨진 채 발견됨, 당시 체온 42.2도로 측정돼 폭염 주의 당부됨"처럼 "▩ " 뒤에 바로 한 줄로 이어서 쓰십시오. 각 항목 사이에는 빈 줄을 하나씩 넣어 구분하십시오.
 - 문장 종결은 "~습니다/합니다" 같은 정중체가 아니라, 뉴스 속보에서 쓰는 간결한 "음슴체"로 끝내십시오 (예: "발견되었습니다" → "발견됨", "결정했습니다" → "결정함", "확인됐습니다" → "확인됨", "별세했습니다" → "별세함", "비판했습니다" → "비판함"). 음슴체는 문장이 짧아져 글자수 예산도 더 아낄 수 있습니다.
-- 이 메시지는 카카오 "알림톡"(정보성 메시지)으로 발송되므로, 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)를 절대 포함하지 마십시오. 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하십시오.
+- 이 메시지는 카카오 "브랜드메시지"로 발송되지만, 내용은 여전히 오늘의 뉴스 사실을 안내하는 정보성 문장으로만 구성하고 광고성 문구(할인/이벤트/쿠폰 안내, "지금 확인하세요"·"바로가기" 같은 행동 유도 문구, 특정 상품이나 서비스에 대한 홍보·추천)는 절대 포함하지 마십시오 -- 발송 채널의 정책 분류와 무관하게, 이건 뉴스 브리핑이지 광고가 아닙니다.
 - (매우 중요) 인사말, 헤더, 마무리 문구, 날짜, "☀" 같은 장식적 이모지 타이틀을 절대 넣지 마십시오 -- 이미 승인된 고정 템플릿에 별도로 포함되어 있어, 여기서 또 넣으면 중복되고 글자 예산만 낭비됩니다. 첫 줄부터 바로 "▩ "로 시작하는 첫 번째 뉴스 항목으로 시작하십시오.
 - 마크다운 문법(#, **, - 등) 없이 "▩ "와 줄바꿈만으로 구성하십시오.
 - 다른 설명 없이, 뉴스 요약 본문 그 자체만 출력하십시오.
@@ -219,32 +216,27 @@ ${extra || ''}`;
 }
 
 async function generateKakaoBriefingText(apiKey, sourceContent) {
-  const systemInstruction = "당신은 웹사이트에 이미 게시된 3분 뉴스 브리핑 원문을 카카오 알림톡(정보성 메시지) 발송용으로 압축·재구성하는 편집자입니다. 원문에 없는 내용을 추가하지 말고, 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 주어진 글자수 범위를 반드시 지키십시오.";
+  const systemInstruction = "당신은 웹사이트에 이미 게시된 3분 뉴스 브리핑 원문을 카카오 브랜드메시지 발송용으로 압축·재구성하는 편집자입니다. 원문에 없는 내용을 추가하지 말고, 절대 광고성/행동유도 문구를 쓰지 말고, 헤더나 인사말 없이 뉴스 항목으로 바로 시작하며, 주어진 글자수 범위를 반드시 지키십시오.";
 
   let resultText = stripLeakedKakaoBriefingHeader(
     (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent), systemInstruction)).trim()
   );
 
-  // AI 본문 자체는 고정 구독취소 문구를 뺀 예산(KAKAO_BRIEFING_AI_CHAR_*) 안에서
-  // 판단한다 -- 전체 메시지 기준(650/550자) 최종 판정은 문구를 붙인 뒤
-  // generateAndSaveKakaoIfNeeded()에서 따로 한다. 재시도는 admin.js의
-  // generateKakaoBriefing()과 동일하게 각 방향으로 딱 한 번만.
-  if (resultText.length > KAKAO_BRIEFING_AI_CHAR_LIMIT) {
-    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
+  // 재시도는 admin.js의 generateKakaoBriefing()과 동일하게 각 방향으로 딱
+  // 한 번만.
+  if (resultText.length > KAKAO_BRIEFING_CHAR_LIMIT) {
+    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 ${KAKAO_BRIEFING_CHAR_LIMIT}자 제한을 넘었습니다. 항목 수를 더 줄여서라도 반드시 ${KAKAO_BRIEFING_CHAR_LIMIT}자 이내로 다시 작성하십시오.`;
     resultText = stripLeakedKakaoBriefingHeader(
       (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent, retryExtra), systemInstruction)).trim()
     );
-  } else if (resultText.length < KAKAO_BRIEFING_AI_CHAR_TARGET_MIN) {
-    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_AI_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_AI_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
+  } else if (resultText.length < KAKAO_BRIEFING_CHAR_TARGET_MIN) {
+    const retryExtra = `\n[중요] 방금 작성한 내용이 ${resultText.length}자로 너무 짧습니다. 원문에 없는 내용을 새로 지어내지 말고, 원문에 이미 있는 각 항목의 설명을 조금 더 자세히 풀어서, 반드시 ${KAKAO_BRIEFING_CHAR_TARGET_MIN}~${KAKAO_BRIEFING_CHAR_LIMIT}자 사이가 되도록 다시 작성하십시오.`;
     resultText = stripLeakedKakaoBriefingHeader(
       (await callGeminiText(apiKey, buildKakaoBriefingPrompt(sourceContent, retryExtra), systemInstruction)).trim()
     );
   }
 
-  // 구독취소 안내는 AI가 쓰는 게 아니라 여기서 기계적으로 덧붙인다 -- 어느
-  // 분기(그대로/길어서 재시도/짧아서 재시도)를 거쳤든 이 지점에서 한 번만
-  // 붙이면 모든 성공 경로에 빠짐없이 적용된다.
-  return resultText + KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER;
+  return resultText;
 }
 
 // PATCH가 아니라 POST(on_conflict) upsert를 썼더니, title/content가 NOT NULL
@@ -278,8 +270,8 @@ async function generateAndSaveKakaoIfNeeded(apiKey, date, sourceContent) {
   try {
     const resultText = await generateKakaoBriefingText(apiKey, sourceContent);
 
-    if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
-      console.error(`${date} 카카오 브리핑: 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
+    if (resultText.length > KAKAO_BRIEFING_CHAR_LIMIT) {
+      console.error(`${date} 카카오 브리핑: 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
       await upsertKakaoBriefingFields(date, { kakao_status: 'error', kakao_error: 'char_limit_exceeded_after_retry' });
       return { ok: false, reason: 'char_limit_exceeded_after_retry', length: resultText.length };
     }
@@ -451,8 +443,8 @@ async function generateAndSaveCategoryVariants(apiKey, date, sourceContent, allV
         const filteredSource = matchedItems.join('\n\n');
         const resultText = await generateKakaoBriefingText(apiKey, filteredSource);
 
-        if (resultText.length > KAKAO_BRIEFING_VAR_CHAR_LIMIT) {
-          console.error(`${date} 카카오 브리핑 변형(${key}): 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_VAR_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
+        if (resultText.length > KAKAO_BRIEFING_CHAR_LIMIT) {
+          console.error(`${date} 카카오 브리핑 변형(${key}): 재시도에도 불구하고 ${resultText.length}자로 제한(${KAKAO_BRIEFING_CHAR_LIMIT}자) 초과 -- 발송용으로 저장하지 않음.`);
           await upsertKakaoBriefingVariant(date, key, { status: 'error', error: 'char_limit_exceeded_after_retry', content: null });
           continue;
         }

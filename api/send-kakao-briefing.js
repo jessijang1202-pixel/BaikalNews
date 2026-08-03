@@ -1,12 +1,22 @@
 // Vercel Cron target (see vercel.json's "crons" entry, "15 23 * * *" UTC =
 // 08:15 KST daily -- 15분 뒤인 이유는 api/generate-daily-briefing.js가
-// 08:00에 먼저 그 날의 카카오 알림톡 본문(kakao_content)을 자동 생성해
-// 두기 때문에, 그게 끝난 뒤 이 함수가 실행되도록 여유를 둔 것) that
-// actually sends the day's 카카오 3분 브리핑 알림톡 to every real
-// kakao_subscribers row via Aligo's bizmessage API. Only fires when the
-// admin has switched "발송 방식" to 자동 (app_settings.kakao_send_mode ===
-// 'auto') -- admin.js's setKakaoSendMode()가 그 값을 쓴다. 수동 모드일 때는
-// 지금까지처럼 관리자가 직접 카카오 채널 관리자센터에서 예약 발송한다.
+// 08:00에 먼저 그 날의 카카오 브랜드메시지 본문(kakao_content)을 자동
+// 생성해 두기 때문에, 그게 끝난 뒤 이 함수가 실행되도록 여유를 둔 것) that
+// actually sends the day's 카카오 3분 브리핑 브랜드메시지(Brand Message,
+// 구 Friendtalk)를 every real kakao_subscribers row에게 Aligo의 비즈메시지
+// API로 보낸다. Only fires when the admin has switched "발송 방식" to 자동
+// (app_settings.kakao_send_mode === 'auto') -- admin.js's
+// setKakaoSendMode()가 그 값을 쓴다. 수동 모드일 때는 지금까지처럼 관리자가
+// 직접 카카오 채널 관리자센터에서 예약 발송한다.
+//
+// 알림톡(AlimTalk)에서 브랜드메시지로 전환한 이유: 카카오 정책상 구독형
+// 뉴스레터성 콘텐츠는 알림톡(특정 사용자 행동에 결부된 정보성 메시지 전용)
+// 대상이 아니라 브랜드메시지(마케팅/채널 친구 동의 기반)로 보내야 한다.
+// kakao_target: 'N'(채널 친구 대상)을 쓰므로, 카카오톡 채널 추가 동의가
+// 필수 동의로 전환된 이후 가입한 구독자들이 실제 채널 친구가 되어 있어야
+// 발송이 성립한다 -- 전화번호 수집 자체는 여전히 필요하다 (채널 친구
+// 전체 브로드캐스트가 아니라, 알리고가 번호별로 채널 친구 여부를
+// 교차 검증하는 방식이기 때문).
 //
 // Idempotent by design: a Vercel retry or a double cron fire must never
 // double-send to real subscribers. news_briefings.kakao_status가 이미
@@ -15,8 +25,11 @@
 // 발송된 상태로 남더라도, 이미 보낸 chunk에 다시 보내는 것보다는 안전).
 //
 // Env vars required (set in Vercel):
-// - ALIGO_API_KEY, ALIGO_USERID, ALIGO_SENDER_KEY, ALIGO_TEMPLATE_CODE,
+// - ALIGO_API_KEY, ALIGO_USERID, ALIGO_SENDER_KEY, ALIGO_BRAND_TEMPLATE_CODE,
 //   ALIGO_SENDER_PHONE -- 알리고(Aligo) 비즈메시지 발송 계정/템플릿 정보.
+//   ALIGO_BRAND_TEMPLATE_CODE는 api/create-brand-template.js를 한 번 호출해
+//   얻는 브랜드메시지 전용 템플릿 코드로, 기존 알림톡용 ALIGO_TEMPLATE_CODE와
+//   별개다 (그 값은 건드리지 않고 그대로 둔다).
 // - SUPABASE_SERVICE_ROLE_KEY -- 실 구독자 전화번호 조회 및 발송 상태
 //   기록은 anon 키의 permissive RLS에 기대지 않고 서비스 롤 키로 직접
 //   수행한다 (돈이 나가는 실제 발송 동작이므로).
@@ -159,27 +172,31 @@ async function updateBriefingKakaoStatus(serviceRoleKey, date, fields) {
   }
 }
 
-// 한 번의 API 호출로 최대 500명까지 -- receiver_N/recvname_N/subject_N/
-// message_N 넘버링 파라미터로 묶어 보낸다 (알리고 API 스펙). Phase 2부터는
-// 구독자마다 자기 카테고리 조합에 맞는 message_N을 따로 넣는다 (알리고
-// 벌크 발송 API가 같은 요청 안에서 수신자별로 다른 message를 지원함).
+// 한 번의 API 호출로 최대 500명까지 -- receiver_N/receiver_N_message
+// 넘버링 파라미터로 묶어 보낸다 (알리고 브랜드메시지 API 스펙). 알림톡의
+// message_N(평문 문자열)과 달리, 브랜드메시지는 receiver_N_message에
+// "템플릿 변수명 -> 값" 매핑을 담은 JSON 문자열을 넣는다 -- 이 템플릿은
+// #{brief} 변수 하나만 쓰므로 매번 { "#{brief}": item.content } 하나만
+// 채운다. kakao_target: 'N'(채널 친구 대상)은 설계상 고정값이라 구독자별로
+// 달라지지 않는다.
 async function sendAligoChunk(resolvedChunk) {
   const params = new URLSearchParams({
     apikey: process.env.ALIGO_API_KEY,
     userid: process.env.ALIGO_USERID,
     senderkey: process.env.ALIGO_SENDER_KEY,
-    tpl_code: process.env.ALIGO_TEMPLATE_CODE,
-    sender: process.env.ALIGO_SENDER_PHONE
+    template_code: process.env.ALIGO_BRAND_TEMPLATE_CODE,
+    sender: process.env.ALIGO_SENDER_PHONE,
+    kakao_target: 'N',
+    advert_yn: 'Y',
+    failoverYn: 'N'
   });
   resolvedChunk.forEach((item, idx) => {
     const n = idx + 1;
     params.set(`receiver_${n}`, item.sub.phone);
-    if (item.sub.name) params.set(`recvname_${n}`, item.sub.name);
-    params.set(`subject_${n}`, '바이칼뉴스 3분 브리핑');
-    params.set(`message_${n}`, item.content);
+    params.set(`receiver_${n}_message`, JSON.stringify({ '#{brief}': item.content }));
   });
 
-  const res = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
+  const res = await fetch('https://kakaoapi.aligo.in/brandtalk/template/send/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params
@@ -199,7 +216,7 @@ module.exports = async (req, res) => {
     return;
   }
   const aligoConfigured = process.env.ALIGO_API_KEY && process.env.ALIGO_USERID &&
-    process.env.ALIGO_SENDER_KEY && process.env.ALIGO_TEMPLATE_CODE && process.env.ALIGO_SENDER_PHONE;
+    process.env.ALIGO_SENDER_KEY && process.env.ALIGO_BRAND_TEMPLATE_CODE && process.env.ALIGO_SENDER_PHONE;
   if (!aligoConfigured) {
     console.error('알리고(Aligo) 관련 환경변수가 하나 이상 설정되지 않았습니다.');
     res.status(500).json({ error: 'Aligo env vars not configured' });
