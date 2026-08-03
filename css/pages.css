@@ -89,6 +89,11 @@
   margin-bottom: 10px;
   border-radius: var(--border-radius-md);
   overflow: hidden;
+  /* 실제 기사 이미지가 JS로 채워지기 전(로딩 중)에 엉뚱한 플레이스홀더
+     사진이 잠깐 보였다가 바뀌는 깜빡임을 없애기 위해, <img>는 src 없이
+     시작하고 이 배경색만 보이도록 한다 -- aspect-ratio가 이미 공간을
+     확보해줘서 레이아웃이 흔들리지도 않는다. */
+  background-color: var(--bg-secondary, #f0efec);
 }
 
 /* Default: fixed 16:9 crop (matches AI-generated images and legacy uploads
