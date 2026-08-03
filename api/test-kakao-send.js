@@ -13,7 +13,17 @@
 // ALIGO_API_KEY, ALIGO_USERID, ALIGO_SENDER_KEY, ALIGO_TEMPLATE_CODE,
 // ALIGO_SENDER_PHONE
 
+const { ProxyAgent } = require('undici');
+
 const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
+
+// QuotaGuard 정적 IP 프록시(QUOTAGUARDSTATIC_URL) -- 알리고가 호출 서버 IP를
+// 화이트리스트로 검사하기 때문에 필요. setGlobalDispatcher로 전역 적용하지
+// 않고 이 프록시 에이전트를 알리고 호출 한 곳에만 dispatcher로 지정하는
+// 이유는, 전역 적용 시 이 함수 안의 Supabase 등 다른 fetch까지 종량제
+// 프록시 대역폭을 소모하게 되기 때문이다. 아직 QuotaGuard 가입 전이라 env가
+// 없으면 null로 두어 기존 동작(발송 실패)을 그대로 유지한다.
+const aligoProxyAgent = process.env.QUOTAGUARDSTATIC_URL ? new ProxyAgent(process.env.QUOTAGUARDSTATIC_URL) : null;
 
 const DEFAULT_TEST_CONTENT = '▩ 이것은 바이칼뉴스 3분 브리핑 발송 테스트입니다. 실제 발송이 정상 작동하는지 확인하는 메시지입니다.';
 
@@ -67,7 +77,8 @@ module.exports = async (req, res) => {
     const aligoRes = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params
+      body: params,
+      ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
     });
     // 알리고가 응답만 했다면 code가 0이 아니어도 그대로 돌려준다 -- 잔액 부족과
     // 템플릿 불일치를 구분하려면 알리고의 원본 code/message가 그대로 필요하다.

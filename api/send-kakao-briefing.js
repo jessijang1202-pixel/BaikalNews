@@ -37,7 +37,17 @@
 // 노출되어 있음 -- 접근 통제는 키 자체의 비밀성이 아니라 RLS/서비스 롤
 // 권한으로 이뤄짐), 다른 api/*.js 파일과 동일한 패턴으로 하드코딩한다.
 
+const { ProxyAgent } = require('undici');
+
 const SUPABASE_URL = "https://iyxzwrsgivvsgeqclchw.supabase.co";
+
+// QuotaGuard 정적 IP 프록시(QUOTAGUARDSTATIC_URL) -- 알리고가 호출 서버 IP를
+// 화이트리스트로 검사하기 때문에 필요. setGlobalDispatcher로 전역 적용하지
+// 않고 알리고 발송 호출(sendAligoChunk) 한 곳에만 dispatcher로 지정하는
+// 이유는, 전역 적용 시 이 함수 안의 Supabase 조회/갱신 fetch들까지 종량제
+// 프록시 대역폭을 소모하게 되기 때문이다. 아직 QuotaGuard 가입 전이라 env가
+// 없으면 null로 두어 기존 동작(발송 실패)을 그대로 유지한다.
+const aligoProxyAgent = process.env.QUOTAGUARDSTATIC_URL ? new ProxyAgent(process.env.QUOTAGUARDSTATIC_URL) : null;
 
 // 관리자 화면(editor815.baikalnews.com)의 "지금 카카오 발송" 버튼이 이
 // 함수를 fetch()로 직접 호출할 수 있도록 CORS 허용 (Vercel Cron 자체는
@@ -199,7 +209,8 @@ async function sendAligoChunk(resolvedChunk) {
   const res = await fetch('https://kakaoapi.aligo.in/brandtalk/template/send/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params
+    body: params,
+    ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
   });
   const data = await res.json();
   return data;

@@ -10,7 +10,17 @@
 // Env vars required (기존 알림톡 발송과 동일한 계정/채널):
 // ALIGO_API_KEY, ALIGO_USERID, ALIGO_SENDER_KEY
 
+const { ProxyAgent } = require('undici');
+
 const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
+
+// QuotaGuard 정적 IP 프록시(QUOTAGUARDSTATIC_URL) -- 알리고가 호출 서버 IP를
+// 화이트리스트로 검사하기 때문에 필요. setGlobalDispatcher로 전역 적용하지
+// 않고 알리고 호출 한 곳에만 dispatcher로 지정하는 이유는, 전역 적용 시
+// 종량제 프록시 대역폭이 이 함수의 다른 fetch 호출에도 불필요하게 쓰이기
+// 때문이다. 아직 QuotaGuard 가입 전이라 env가 없으면 null로 두어 기존
+// 동작(발송 실패)을 그대로 유지한다.
+const aligoProxyAgent = process.env.QUOTAGUARDSTATIC_URL ? new ProxyAgent(process.env.QUOTAGUARDSTATIC_URL) : null;
 
 // 발송 직전 기계적으로 붙이던 구독취소 안내(admin.js/generate-daily-briefing.js의
 // 옛 KAKAO_BRIEFING_UNSUBSCRIBE_FOOTER)를 이제 이 고정 템플릿 문구 쪽으로
@@ -54,7 +64,8 @@ module.exports = async (req, res) => {
     const aligoRes = await fetch('https://kakaoapi.aligo.in/brandtalk/template/create/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params
+      body: params,
+      ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
     });
     // 알리고 원본 응답을 그대로 돌려준다 -- template_code/send_variable/status를
     // 가공 없이 호출자(관리자)가 직접 확인해야 하기 때문.
