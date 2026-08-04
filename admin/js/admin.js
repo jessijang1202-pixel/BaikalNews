@@ -8742,12 +8742,17 @@ function snsPublishedTime(a) {
   return new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
 }
 
-async function fetchSnsRecentArticles() {
+// 검색어가 없을 때(펼침 목록)는 최근 48시간 기사만, 검색어를 입력하면
+// 전체 발행 기사 대상으로 찾는다 -- "펼침 목록만 48시간, 검색은 전체"라는
+// 명시적 요청에 따른 구분.
+async function fetchSnsArticlePools() {
   const articles = await window.SupabaseAdapter.fetchArticles();
-  const cutoff = Date.now() - SNS_PICKER_WINDOW_MS;
-  return articles
-    .filter(a => a.status === 'published' && snsPublishedTime(a) >= cutoff)
+  const allArticles = articles
+    .filter(a => a.status === 'published')
     .sort((a, b) => snsPublishedTime(b) - snsPublishedTime(a));
+  const cutoff = Date.now() - SNS_PICKER_WINDOW_MS;
+  const recentArticles = allArticles.filter(a => snsPublishedTime(a) >= cutoff);
+  return { allArticles, recentArticles };
 }
 
 async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
@@ -8755,35 +8760,43 @@ async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
   const dropdown = document.getElementById(dropdownId);
   if (!input || !dropdown) return;
 
-  const state = { articles: [], selected: null, onSelect };
+  const state = { allArticles: [], recentArticles: [], selected: null, onSelect };
   snsArticlePickers[inputId] = state;
 
   input.value = '';
   input.disabled = false;
   dropdown.style.display = 'none';
 
-  state.articles = await fetchSnsRecentArticles();
+  const pools = await fetchSnsArticlePools();
+  state.allArticles = pools.allArticles;
+  state.recentArticles = pools.recentArticles;
 
-  if (state.articles.length === 0) {
-    input.placeholder = '최근 48시간 내 발행된 기사가 없습니다.';
+  if (state.allArticles.length === 0) {
+    input.placeholder = '발행된 기사가 없습니다.';
     input.disabled = true;
     if (onSelect) onSelect(null);
     return;
   }
 
-  input.placeholder = '기사 제목으로 검색...';
+  input.placeholder = '기사 제목으로 검색... (비워두면 최근 48시간 기사 표시)';
+
+  const currentList = () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) return { list: state.recentArticles, isDefaultView: true };
+    return { list: state.allArticles.filter(a => (a.title || '').toLowerCase().includes(q)), isDefaultView: false };
+  };
 
   input.oninput = () => {
     state.selected = null;
-    const q = input.value.trim().toLowerCase();
-    const filtered = q ? state.articles.filter(a => (a.title || '').toLowerCase().includes(q)) : state.articles;
-    renderSnsPickerDropdown(inputId, dropdownId, filtered);
+    const { list, isDefaultView } = currentList();
+    renderSnsPickerDropdown(inputId, dropdownId, list, isDefaultView);
     dropdown.style.display = 'block';
   };
   input.onfocus = () => {
-    const q = input.value.trim().toLowerCase();
-    const filtered = q && !state.selected ? state.articles.filter(a => (a.title || '').toLowerCase().includes(q)) : state.articles;
-    renderSnsPickerDropdown(inputId, dropdownId, filtered);
+    // 이미 선택된 기사가 표시된 상태(입력창에 "선택됨: ...")로 포커스만
+    // 다시 준 경우는 검색어로 취급하지 않고 기본(최근 48시간) 목록을 연다.
+    const { list, isDefaultView } = state.selected ? { list: state.recentArticles, isDefaultView: true } : currentList();
+    renderSnsPickerDropdown(inputId, dropdownId, list, isDefaultView);
     dropdown.style.display = 'block';
   };
   // blur가 목록 클릭보다 먼저 발생해 드롭다운이 먼저 닫혀버리지 않도록,
@@ -8791,11 +8804,14 @@ async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
   input.onblur = () => { setTimeout(() => { dropdown.style.display = 'none'; }, 150); };
 }
 
-function renderSnsPickerDropdown(inputId, dropdownId, list) {
+function renderSnsPickerDropdown(inputId, dropdownId, list, isDefaultView) {
   const dropdown = document.getElementById(dropdownId);
   if (!dropdown) return;
   if (list.length === 0) {
-    dropdown.innerHTML = `<div class="sns-picker-empty">검색 결과가 없습니다.</div>`;
+    const emptyMsg = isDefaultView
+      ? '최근 48시간 내 발행된 기사가 없습니다. 검색해 보세요.'
+      : '검색 결과가 없습니다.';
+    dropdown.innerHTML = `<div class="sns-picker-empty">${emptyMsg}</div>`;
     return;
   }
   dropdown.innerHTML = list.map((a, i) => `
