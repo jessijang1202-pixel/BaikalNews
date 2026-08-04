@@ -9157,7 +9157,10 @@ function buildCardNewsCopyText(article) {
   if (!article) return '';
   const lead = (article.lead || article.subtitle || '').trim();
   const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
-  return `${lead}\n\n${url}`;
+  // 특정 채널 전용이 아니라 여러 SNS에 두루 쓰는 문구라, buildSnsHashtags의
+  // 기본(facebook/threads) 분기 -- 브랜드+카테고리 2개 + 키워드 3개 --를 그대로 쓴다.
+  const hashtags = buildSnsHashtags(article, 'facebook');
+  return `${lead}\n\n${url}\n\n${hashtags}`;
 }
 
 // 업로드한 이미지를 미리보기로 보여주고, 클립보드 복사용 PNG Blob으로
