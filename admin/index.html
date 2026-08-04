@@ -1508,11 +1508,12 @@
         </div>
 
         <!-- Sub-tab: SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면
-             맥락 없이 보여 어색하다는 문제로 시작한 기능. AI 이미지 프롬프트
-             생성 단계는 더 이상 쓰지 않는다 -- 관리자가 Gemini Gem 등에서
-             직접 만든 인포그래픽 이미지를 업로드하고, 기사 리드+링크가 자동
-             으로 채워진 콘텐츠 상자와 함께 클립보드로 복사해 SNS에
-             붙여넣는 용도로 단순화했다. -->
+             맥락 없이 보여 어색하다는 문제로 시작한 기능. 두 가지를 함께
+             보여준다: 1) 인포그래픽 이미지는 Gemini Gem 등 외부 도구에서
+             만들기 때문에, 그곳에 붙여넣을 "인포그래픽용 기사 요약"을 AI로
+             생성 -> 2) SNS 게시글 캡션으로 그대로 복사해 쓸 "제목+내용+
+             해시태그" 상자(템플릿 기반). 기사를 선택하면 기사 요약(리드)과
+             두 콘텐츠 상자가 한 화면에 함께 채워진다. -->
         <div id="sns-subtab-cardnews" class="sns-subtab-content">
           <div class="panel" style="padding: 24px; margin-bottom: 20px;">
             <div class="panel-header">
@@ -1532,35 +1533,37 @@
               <img id="cardnews-preview-image" src="" alt="" style="display:none; max-width:100%; max-height:220px; border-radius:8px; margin-top:4px; object-fit:cover;">
               <div id="cardnews-preview-title" style="font-weight:600; margin-top:10px;"></div>
               <div id="cardnews-preview-date" class="help-text"></div>
+              <div id="cardnews-preview-lead" style="margin-top:8px; line-height:1.5;"></div>
             </div>
+          </div>
+
+          <div class="panel" style="padding: 24px; margin-bottom: 20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">인포그래픽용 기사 요약</h3>
+              <button type="button" id="cardnews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateCardNewsSummary()">기사 요약</button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
+              Gemini Gem 등에서 인포그래픽을 만들 때 붙여넣을 텍스트입니다. 첫 줄은 헤드라인, 그 아래는 핵심 내용 불릿으로 생성되며, 검토하고 자유롭게 수정할 수 있습니다.
+            </p>
+            <textarea id="cardnews-summary" class="form-control-admin" style="min-height:160px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 요약이 없습니다. 위 &quot;기사 요약&quot; 버튼을 눌러주세요."></textarea>
+            <button type="button" class="btn-admin btn-admin-secondary" style="margin-top:10px;" onclick="copyCardNewsSummary()">복사</button>
+            <p class="help-text" id="cardnews-summary-status" style="margin-top:10px;"></p>
           </div>
 
           <div class="panel" style="padding: 24px;">
             <div class="panel-header">
-              <h3 class="panel-title">카드뉴스 이미지 업로드 &amp; 복사</h3>
+              <h3 class="panel-title">SNS 복사용 콘텐츠</h3>
             </div>
             <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
-              Gemini Gem 등 외부 도구에서 만든 인포그래픽 이미지를 업로드하세요. 기사 리드와 링크가 담긴 콘텐츠 상자는 자동으로 채워집니다. 이미지와 텍스트는 각각 복사하거나, 한 번에 복사해서 붙여넣는 자리에 맞게 골라 넣을 수 있습니다.
+              기사 제목 + 내용 + 해시태그가 자동으로 채워집니다. 필요하면 수정한 뒤 복사해서 SNS에 붙여넣으세요.
             </p>
 
-            <div class="form-group-admin" style="margin-bottom: 20px;">
-              <label for="cardnews-image-upload">인포그래픽 이미지 업로드</label>
-              <input type="file" id="cardnews-image-upload" accept="image/*" class="form-control-admin" onchange="onCardNewsImageUpload(event)">
-              <div id="cardnews-image-preview-wrap" style="display:none; margin-top:12px;">
-                <img id="cardnews-image-preview" src="" alt="" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; border:1px solid var(--admin-border);">
-              </div>
-            </div>
-
             <div class="form-group-admin" style="margin-bottom: 16px;">
-              <label for="cardnews-copy-text">콘텐츠 (리드 + 링크 + 해시태그)</label>
+              <label for="cardnews-copy-text">콘텐츠 (제목 + 내용 + 해시태그)</label>
               <textarea id="cardnews-copy-text" class="form-control-admin" style="min-height:140px; font-family:inherit; line-height:1.6;" placeholder="기사를 선택하면 자동으로 채워집니다."></textarea>
             </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="copyCardNewsImage()">이미지 복사</button>
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="copyCardNewsText()">텍스트 복사</button>
-              <button type="button" class="btn-admin btn-admin-primary" onclick="copyCardNewsBoth()">이미지+텍스트 한 번에 복사</button>
-            </div>
+            <button type="button" class="btn-admin btn-admin-primary" onclick="copyCardNewsText()">복사</button>
             <p class="help-text" id="cardnews-copy-status" style="margin-top:10px;"></p>
           </div>
         </div>

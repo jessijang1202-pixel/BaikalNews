@@ -9102,28 +9102,25 @@ async function publishSnsOne(platform) {
 
 // ==========================================
 // SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면 맥락 없이 어색해
-// 보인다는 문제로 시작한 기능. AI로 이미지 프롬프트를 만들어주던 단계는
-// 더 이상 쓰지 않는다 -- 관리자가 Gemini Gem 등 외부 도구에서 직접 만든
-// 인포그래픽 이미지 파일을 여기 업로드하고, 기사 리드+링크로 채워진 콘텐츠
-// 상자와 함께 클립보드로 복사해 SNS에 붙여넣는 용도로 단순화했다.
+// 보인다는 문제로 시작한 기능. 두 가지를 함께 보여준다: 1) 인포그래픽
+// 이미지는 Gemini Gem 등 외부 도구에서 만들기 때문에, 그곳에 붙여넣을
+// "인포그래픽용 기사 요약"을 AI로 생성 -> 2) SNS 게시글 캡션으로 그대로
+// 복사해 쓸 "제목+내용+해시태그" 상자(템플릿 기반, AI 호출 없음). 기사를
+// 선택하면 두 상자가 한 화면에 함께 채워진다.
 // ==========================================
 let cardNewsSelectedArticle = null;
-let cardNewsImageBlob = null; // 클립보드 복사용 PNG Blob (업로드 원본 포맷과 무관하게 통일)
 
 function onCardNewsArticleSelected(article) {
   cardNewsSelectedArticle = article;
   renderCardNewsPreview(article);
 
+  const summaryEl = document.getElementById("cardnews-summary");
+  if (summaryEl) summaryEl.value = '';
+  const summaryStatusEl = document.getElementById("cardnews-summary-status");
+  if (summaryStatusEl) summaryStatusEl.textContent = '';
+
   const copyTextEl = document.getElementById("cardnews-copy-text");
   if (copyTextEl) copyTextEl.value = buildCardNewsCopyText(article);
-
-  // 기사를 바꾸면 이전 기사 기준으로 올린 이미지는 더 이상 유효하지
-  // 않으므로 함께 초기화한다.
-  cardNewsImageBlob = null;
-  const uploadEl = document.getElementById("cardnews-image-upload");
-  if (uploadEl) uploadEl.value = '';
-  const previewWrap = document.getElementById("cardnews-image-preview-wrap");
-  if (previewWrap) previewWrap.style.display = 'none';
   const copyStatusEl = document.getElementById("cardnews-copy-status");
   if (copyStatusEl) copyStatusEl.textContent = '';
 }
@@ -9133,6 +9130,7 @@ function renderCardNewsPreview(article) {
   const img = document.getElementById("cardnews-preview-image");
   const titleEl = document.getElementById("cardnews-preview-title");
   const dateEl = document.getElementById("cardnews-preview-date");
+  const leadEl = document.getElementById("cardnews-preview-lead");
   if (!wrap) return;
 
   if (!article) {
@@ -9151,66 +9149,92 @@ function renderCardNewsPreview(article) {
   }
   if (titleEl) titleEl.textContent = article.title || '';
   if (dateEl) dateEl.textContent = article.date || '';
+  if (leadEl) leadEl.textContent = (article.lead || article.subtitle || '').trim();
+}
+
+// 인포그래픽용 기사 요약: 관리자가 Gemini Gem 등 외부 도구에 붙여넣어
+// 인포그래픽 이미지를 만들 때 쓸 텍스트를 AI로 생성. 리드 문단을 그대로
+// 옮기지 않도록, 그리고 뉴스 보도체가 아닌 카드뉴스 카피 문체로 쓰도록
+// 프롬프트에서 명시하고, 결과를 반드시 검토/수정 가능한 textarea로 먼저
+// 보여준다. 제목/내용을 라벨이나 별도 입력창으로 나누지 않고 한 textarea에
+// 그대로 담는다 (첫 줄 = 헤드라인, 그 아래 = 핵심 내용 불릿).
+async function generateCardNewsSummary() {
+  if (!cardNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("cardnews-summarize-btn");
+  const summaryEl = document.getElementById("cardnews-summary");
+  const statusEl = document.getElementById("cardnews-summary-status");
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = "생성 중..."; }
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    const article = cardNewsSelectedArticle;
+    const bodyText = (article.content || "").replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const prompt = `
+아래 뉴스 기사를 "한 장짜리 카드뉴스(인포그래픽)"에 그대로 복사해 넣을 수 있는 문구로 정리하십시오. 여러 장의 슬라이드가 아니라, 이미지 한 장 안에 제목·핵심 내용이 한눈에 들어오도록 구성하는 것이 목적입니다.
+
+[기사 제목]
+${article.title}
+
+[리드 문단]
+${article.lead || article.subtitle || ''}
+
+[본문]
+${bodyText.substring(0, 4000)}
+
+[작성 방식]
+- 첫 줄에 헤드라인을 쓰십시오. 한 줄, 15~25자 내외, 이 기사에서 가장 임팩트 있는 사실 하나로 압축. 날짜·수치가 핵심이면 그대로 포함.
+- 빈 줄을 하나 두고, 그 아래에 핵심 내용을 짧은 불릿("- ")으로 3~6개 쓰십시오. 각 항목은 15~30자 내외, 기사에서 실제로 중요한 사실만, 순서대로 읽으면 기사 맥락이 파악되도록 자연스럽게 구성.
+- 제목/내용을 가리키는 라벨(예: "헤드라인:", "[내용]" 등)은 절대 쓰지 마십시오. 그대로 복사해서 쓸 카드뉴스 문구만 출력하십시오.
+
+[작성 지침 -- 반드시 모두 지킬 것]
+- 리드 문단을 그대로 옮기지 마십시오.
+- "~했습니다", "~라고 밝혔습니다", "~를 발표했습니다" 같은 뉴스 보도체 문장을 쓰지 마십시오. 대신 카드뉴스 헤드라인처럼 짧게 끊어 쓰는 카피 문체를 쓰십시오. 예: "고덕동, 10월 12일부터 둘로 나뉩니다" / "인구 6.8만 명 → 고덕1동·고덕2동 분동 확정".
+- 불릿 항목은 완결된 문장이 아니어도 됩니다. 명사형이나 짧은 절로 끝내도 됩니다.
+- 마크다운 문법(#, ** 등)이나 추가 설명 없이, 위 작성 방식 그대로만 출력하십시오.`;
+
+    const systemInstruction = "당신은 뉴스 기사를 한 장짜리 카드뉴스(인포그래픽) 문구로 재구성하는 카피라이터입니다. 뉴스 보도체 문장이 아니라, 짧고 임팩트 있는 카드뉴스 카피 문체로 쓰십시오. 라벨이나 섹션 구분 없이, 첫 줄은 헤드라인, 그 아래는 핵심 내용 불릿으로만 이루어진 그대로 복사 가능한 텍스트를 출력하십시오.";
+    const resultText = await callGeminiTextApi(prompt, systemInstruction);
+    if (summaryEl) summaryEl.value = resultText.trim();
+  } catch (err) {
+    console.error("카드뉴스 요약 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+async function copyCardNewsSummary() {
+  const textEl = document.getElementById("cardnews-summary");
+  const statusEl = document.getElementById("cardnews-summary-status");
+  const text = textEl ? textEl.value.trim() : '';
+  if (!text) {
+    alert("복사할 내용이 없습니다. 먼저 요약을 생성해 주세요.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    if (statusEl) statusEl.textContent = "클립보드에 복사했습니다.";
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
 }
 
 function buildCardNewsCopyText(article) {
   if (!article) return '';
+  const title = article.title || '';
   const lead = (article.lead || article.subtitle || '').trim();
-  const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
   // 특정 채널 전용이 아니라 여러 SNS에 두루 쓰는 문구라, buildSnsHashtags의
   // 기본(facebook/threads) 분기 -- 브랜드+카테고리 2개 + 키워드 3개 --를 그대로 쓴다.
   const hashtags = buildSnsHashtags(article, 'facebook');
-  return `${lead}\n\n${url}\n\n${hashtags}`;
-}
-
-// 업로드한 이미지를 미리보기로 보여주고, 클립보드 복사용 PNG Blob으로
-// 변환해 둔다. 브라우저 클립보드 쓰기가 이미지 포맷을 image/png로만
-// 안정적으로 지원하므로, 업로드 원본이 jpg/webp 등이어도 캔버스를 거쳐
-// PNG로 통일한다.
-function onCardNewsImageUpload(event) {
-  const file = event.target.files && event.target.files[0];
-  const previewWrap = document.getElementById("cardnews-image-preview-wrap");
-  const previewImg = document.getElementById("cardnews-image-preview");
-  const statusEl = document.getElementById("cardnews-copy-status");
-  cardNewsImageBlob = null;
-  if (statusEl) statusEl.textContent = '';
-
-  if (!file) {
-    if (previewWrap) previewWrap.style.display = 'none';
-    return;
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = () => {
-    if (previewImg) previewImg.src = objectUrl;
-    if (previewWrap) previewWrap.style.display = 'block';
-
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0);
-    canvas.toBlob((blob) => { cardNewsImageBlob = blob; }, 'image/png');
-  };
-  img.onerror = () => {
-    alert("이미지를 불러오지 못했습니다. 다른 파일을 시도해 주세요.");
-  };
-  img.src = objectUrl;
-}
-
-async function copyCardNewsImage() {
-  const statusEl = document.getElementById("cardnews-copy-status");
-  if (!cardNewsImageBlob) {
-    alert("먼저 이미지를 업로드해 주세요.");
-    return;
-  }
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': cardNewsImageBlob })]);
-    if (statusEl) statusEl.textContent = "이미지를 클립보드에 복사했습니다.";
-  } catch (err) {
-    console.error("이미지 클립보드 복사 실패:", err);
-    alert("이미지 복사에 실패했습니다. 이 브라우저는 이미지 클립보드 복사를 지원하지 않을 수 있습니다.");
-  }
+  return `${title}\n\n${lead}\n\n${hashtags}`;
 }
 
 async function copyCardNewsText() {
@@ -9223,34 +9247,10 @@ async function copyCardNewsText() {
   }
   try {
     await navigator.clipboard.writeText(text);
-    if (statusEl) statusEl.textContent = "텍스트를 클립보드에 복사했습니다.";
+    if (statusEl) statusEl.textContent = "클립보드에 복사했습니다.";
   } catch (err) {
-    console.error("텍스트 클립보드 복사 실패:", err);
-    alert("텍스트 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
-  }
-}
-
-// 이미지와 텍스트를 한 클립보드 항목에 함께 담는다. 붙여넣을 때는 대상이
-// 텍스트 입력란이면 텍스트가, 이미지 첨부 영역이면 이미지가 선택되는
-// 식이다 -- 즉 "복사는 한 번"이지만, "붙여넣기는 이미지 자리/텍스트 자리에
-// 각각" 해야 한다. 두 곳에 동시에 붙여넣는 SNS 편집창은 사실상 없다.
-async function copyCardNewsBoth() {
-  const textEl = document.getElementById("cardnews-copy-text");
-  const statusEl = document.getElementById("cardnews-copy-status");
-  const text = textEl ? textEl.value.trim() : '';
-  if (!cardNewsImageBlob || !text) {
-    alert("이미지 업로드와 텍스트가 모두 준비된 뒤에 시도해 주세요.");
-    return;
-  }
-  try {
-    const textBlob = new Blob([text], { type: 'text/plain' });
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': cardNewsImageBlob, 'text/plain': textBlob })
-    ]);
-    if (statusEl) statusEl.textContent = "이미지+텍스트를 함께 복사했습니다. (붙여넣는 자리에 따라 이미지 또는 텍스트가 들어갑니다)";
-  } catch (err) {
-    console.error("통합 클립보드 복사 실패:", err);
-    alert("한 번에 복사하는 기능을 이 브라우저가 지원하지 않습니다. 이미지 복사/텍스트 복사를 각각 눌러주세요.");
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
   }
 }
 
