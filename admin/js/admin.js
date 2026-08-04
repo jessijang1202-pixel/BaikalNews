@@ -9231,10 +9231,11 @@ function buildCardNewsCopyText(article) {
   if (!article) return '';
   const title = article.title || '';
   const lead = (article.lead || article.subtitle || '').trim();
+  const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
   // 특정 채널 전용이 아니라 여러 SNS에 두루 쓰는 문구라, buildSnsHashtags의
   // 기본(facebook/threads) 분기 -- 브랜드+카테고리 2개 + 키워드 3개 --를 그대로 쓴다.
   const hashtags = buildSnsHashtags(article, 'facebook');
-  return `${title}\n\n${lead}\n\n${hashtags}`;
+  return `${title}\n\n${lead}\n\n${url}\n\n${hashtags}`;
 }
 
 async function copyCardNewsText() {
