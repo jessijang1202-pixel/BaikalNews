@@ -1509,7 +1509,7 @@
 
         <!-- Sub-tab: SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면
              맥락 없이 보여 어색하다는 문제로, 기사 내용이 다 들어가는
-             한 장짜리 카드뉴스(인포그래픽)를 만들기 위한 첫 단계(요약 ->
+             한 장짜리 카드뉴스(인포그래픽)를 만들기 위한 첫 단계(내용 정리 ->
              검토 -> 이미지 프롬프트 생성)까지만 다룬다. 실제 이미지
              생성/발행은 이후 단계에서 별도로 붙는다. -->
         <div id="sns-subtab-cardnews" class="sns-subtab-content">
@@ -1539,20 +1539,20 @@
               <h3 class="panel-title">카드뉴스 생성 프롬프트</h3>
             </div>
             <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
-              1단계에서 기사 본문을 카드뉴스용 핵심 요약으로 압축하고, 검토·수정한 뒤 2단계에서 슬라이드별 이미지 프롬프트와 헤드라인을 생성합니다. (실제 이미지 생성은 이후 단계에서 진행됩니다.)
+              1단계에서 기사 본문을 카드뉴스용 헤드라인·핵심 내용으로 정리하고, 검토·수정한 뒤 2단계에서 슬라이드별 이미지 프롬프트와 헤드라인을 생성합니다. (실제 이미지 생성은 이후 단계에서 진행됩니다.)
             </p>
 
             <div style="margin-bottom: 24px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">1단계 · 뉴스 요약</h4>
-                <button type="button" id="cardnews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateCardNewsSummary()">뉴스 요약</button>
+                <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">1단계 · 헤드라인·내용</h4>
+                <button type="button" id="cardnews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateCardNewsSummary()">내용 생성</button>
               </div>
-              <p class="help-text" style="margin-bottom: 8px;">기사 리드 문단을 그대로 옮기는 것이 아니라, 한 장짜리 카드뉴스(인포그래픽)에 들어갈 헤드라인·요약으로 재구성합니다. 결과를 검토하고 자유롭게 수정한 뒤 2단계로 넘어가세요.</p>
+              <p class="help-text" style="margin-bottom: 8px;">기사 리드 문단을 그대로 옮기는 것이 아니라, 한 장짜리 카드뉴스(인포그래픽)에 들어갈 헤드라인·핵심 내용으로 재구성합니다. 결과를 검토하고 자유롭게 수정한 뒤 2단계로 넘어가세요.</p>
               <div class="form-group-admin" style="margin-bottom: 12px;">
                 <label for="cardnews-headline" style="font-size:0.8rem;">헤드라인 (이미지의 메인 제목)</label>
                 <input type="text" id="cardnews-headline" class="form-control-admin" placeholder="아직 생성된 헤드라인이 없습니다.">
               </div>
-              <textarea id="cardnews-summary" class="form-control-admin" style="min-height:160px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 요약이 없습니다. 위 &quot;뉴스 요약&quot; 버튼을 눌러주세요."></textarea>
+              <textarea id="cardnews-summary" class="form-control-admin" style="min-height:160px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 내용이 없습니다. 위 &quot;내용 생성&quot; 버튼을 눌러주세요."></textarea>
             </div>
 
             <div>
@@ -1560,7 +1560,7 @@
                 <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">2단계 · 프롬프트 생성</h4>
                 <button type="button" id="cardnews-generate-prompt-btn" class="btn-admin btn-admin-primary" onclick="generateCardNewsPrompts()">프롬프트 생성</button>
               </div>
-              <p class="help-text" style="margin-bottom: 8px;">위 요약(수정한 경우 수정된 내용)을 바탕으로, 헤드라인 슬라이드 + 핵심 내용 슬라이드 + 마무리 슬라이드로 구성된 5~6장의 카드뉴스 슬라이드를 기획하고, 슬라이드마다 이미지 생성 프롬프트와 헤드라인 문구를 만듭니다.</p>
+              <p class="help-text" style="margin-bottom: 8px;">위 헤드라인·내용(수정한 경우 수정된 내용)을 바탕으로, 헤드라인 슬라이드 + 핵심 내용 슬라이드 + 마무리 슬라이드로 구성된 5~6장의 카드뉴스 슬라이드를 기획하고, 슬라이드마다 이미지 생성 프롬프트와 헤드라인 문구를 만듭니다.</p>
               <div class="help-text" id="cardnews-prompt-status" style="margin-bottom: 10px;"></div>
               <div id="cardnews-slides-list"></div>
             </div>

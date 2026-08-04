@@ -9104,7 +9104,7 @@ async function publishSnsOne(platform) {
 // SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면 맥락 없이 어색해
 // 보인다는 문제로, 기사 내용을 한 장짜리 카드뉴스(인포그래픽)로 만드는
 // 첫 단계만 다룬다: 1) 기사 본문을 인포그래픽용 핵심 텍스트(헤드라인/
-// 요약)로 압축(검토/수정 가능한 입력창으로 노출) -> 2) 그
+// 내용)로 압축(검토/수정 가능한 입력창으로 노출) -> 2) 그
 // 내용을 바탕으로 이미지 프롬프트 + 헤드라인 세트를 생성. 실제 이미지
 // 생성/저장/발행은 이후 단계에서 별도로 붙는다 -- 여기서는 화면에 결과를
 // 보여주는 데서 끝난다.
@@ -9115,7 +9115,7 @@ function onCardNewsArticleSelected(article) {
   cardNewsSelectedArticle = article;
   renderCardNewsPreview(article);
 
-  // 기사를 바꾸면 이전 기사 기준으로 만든 헤드라인/요약/슬라이드는 더
+  // 기사를 바꾸면 이전 기사 기준으로 만든 헤드라인/내용/슬라이드는 더
   // 이상 유효하지 않으므로 함께 초기화한다.
   const headlineEl = document.getElementById("cardnews-headline");
   if (headlineEl) headlineEl.value = '';
@@ -9153,8 +9153,8 @@ function renderCardNewsPreview(article) {
 }
 
 // AI 응답에서 [헤드라인] 섹션만 따로 뽑아낸다 -- 헤드라인은 인포그래픽의
-// 메인 제목으로 별도 입력창에서 독립적으로 검토/수정하고, 나머지(요약)는
-// 요약 textarea에 남긴다.
+// 메인 제목으로 별도 입력창에서 독립적으로 검토/수정하고, 나머지(내용)는
+// 내용 textarea에 남긴다.
 function splitCardNewsHeadline(rawText) {
   const text = (rawText || '').trim();
   const match = text.match(/\[헤드라인\]\s*\n([\s\S]*?)(?=\n\s*\[|$)/);
@@ -9164,7 +9164,7 @@ function splitCardNewsHeadline(rawText) {
 }
 
 // 1단계: 기사 본문을 한 장짜리 카드뉴스(인포그래픽)의 뼈대가 될 핵심
-// 텍스트(헤드라인/요약)로 압축. 리드 문단을 그대로 옮기지
+// 텍스트(헤드라인/내용)로 압축. 리드 문단을 그대로 옮기지
 // 않도록, 그리고 뉴스 보도체가 아닌 카드뉴스 카피 문체로 쓰도록 프롬프트에서
 // 명시하고, 결과를 바로 다음 단계에 쓰지 않고 반드시 검토/수정 가능한
 // 입력창/textarea로 먼저 보여준다 (사이트 운영자가 명시적으로 요구한 검토
@@ -9180,7 +9180,7 @@ async function generateCardNewsSummary() {
   const headlineEl = document.getElementById("cardnews-headline");
   const summaryEl = document.getElementById("cardnews-summary");
   const originalLabel = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = "요약 생성 중..."; }
+  if (btn) { btn.disabled = true; btn.textContent = "내용 생성 중..."; }
 
   try {
     const article = cardNewsSelectedArticle;
@@ -9202,7 +9202,7 @@ ${bodyText.substring(0, 4000)}
 [헤드라인]
 (한 줄. 15~25자 내외. 이 기사에서 가장 임팩트 있는 사실 하나로 압축. 날짜·수치가 핵심이면 그대로 포함)
 
-[요약]
+[내용]
 - (짧은 핵심 사실. 15~30자 내외)
 - (짧은 핵심 사실)
 - (짧은 핵심 사실)
@@ -9211,25 +9211,25 @@ ${bodyText.substring(0, 4000)}
 [작성 지침 -- 반드시 모두 지킬 것]
 - 리드 문단을 그대로 옮기지 마십시오.
 - "~했습니다", "~라고 밝혔습니다", "~를 발표했습니다" 같은 뉴스 보도체 문장을 쓰지 마십시오. 대신 카드뉴스 헤드라인처럼 짧게 끊어 쓰는 카피 문체를 쓰십시오. 예: "고덕동, 10월 12일부터 둘로 나뉩니다" / "인구 6.8만 명 → 고덕1동·고덕2동 분동 확정".
-- [요약]의 각 항목은 완결된 문장이 아니어도 됩니다. 명사형이나 짧은 절로 끝내도 됩니다.
+- [내용]의 각 항목은 완결된 문장이 아니어도 됩니다. 명사형이나 짧은 절로 끝내도 됩니다.
 - 마크다운 문법(#, ** 등)이나 추가 설명 없이, 위 형식 그대로만 출력하십시오.`;
 
-    const systemInstruction = "당신은 뉴스 기사를 한 장짜리 카드뉴스(인포그래픽) 문구로 재구성하는 카피라이터입니다. 뉴스 보도체 문장이 아니라, 헤드라인/요약 위주의 짧고 임팩트 있는 카드뉴스 카피 문체로 쓰십시오. 부제·핵심포인트·마무리 같은 하위 라벨로 나누지 말고, 요약 하나로 자연스럽게 정리하십시오.";
+    const systemInstruction = "당신은 뉴스 기사를 한 장짜리 카드뉴스(인포그래픽) 문구로 재구성하는 카피라이터입니다. 뉴스 보도체 문장이 아니라, 헤드라인/내용 위주의 짧고 임팩트 있는 카드뉴스 카피 문체로 쓰십시오. 부제·핵심포인트·마무리 같은 하위 라벨로 나누지 말고, 내용 하나로 자연스럽게 정리하십시오.";
     const resultText = await callGeminiTextApi(prompt, systemInstruction);
     const { headline, rest } = splitCardNewsHeadline(resultText);
     if (headlineEl) headlineEl.value = headline;
     if (summaryEl) summaryEl.value = rest;
   } catch (err) {
-    console.error("카드뉴스 요약 생성 실패:", err);
-    alert("요약 생성 실패: " + err.message);
+    console.error("카드뉴스 내용 생성 실패:", err);
+    alert("내용 생성 실패: " + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
   }
 }
 
-// 2단계: (관리자가 검토/수정했을 수 있는) 요약을 바탕으로 슬라이드별
-// 이미지 프롬프트 + 헤드라인 세트를 JSON으로 생성. 실제 이미지 생성은
-// 하지 않고 화면에 목록으로만 보여준다 -- 이후 단계 범위.
+// 2단계: (관리자가 검토/수정했을 수 있는) 헤드라인/내용을 바탕으로
+// 슬라이드별 이미지 프롬프트 + 헤드라인 세트를 JSON으로 생성. 실제 이미지
+// 생성은 하지 않고 화면에 목록으로만 보여준다 -- 이후 단계 범위.
 async function generateCardNewsPrompts() {
   if (!cardNewsSelectedArticle) {
     alert("먼저 기사를 선택해 주세요.");
@@ -9240,7 +9240,7 @@ async function generateCardNewsPrompts() {
   const summaryEl = document.getElementById("cardnews-summary");
   const summary = summaryEl ? summaryEl.value.trim() : '';
   if (!headline || !summary) {
-    alert("먼저 1단계에서 헤드라인과 뉴스 요약을 생성하거나 직접 입력해 주세요.");
+    alert("먼저 1단계에서 헤드라인과 내용을 생성하거나 직접 입력해 주세요.");
     return;
   }
 
@@ -9256,7 +9256,7 @@ async function generateCardNewsPrompts() {
     const article = cardNewsSelectedArticle;
 
     const prompt = `
-아래는 카드뉴스로 제작할 뉴스 기사의 원제목, 카드뉴스용 헤드라인, 그 핵심 내용을 정리한 요약입니다. 이를 바탕으로 인스타그램/페이스북/스레드/X에 올릴 카드뉴스(여러 장의 슬라이드 이미지 캐러셀)를 기획하십시오.
+아래는 카드뉴스로 제작할 뉴스 기사의 원제목, 카드뉴스용 헤드라인, 그 핵심 내용입니다. 이를 바탕으로 인스타그램/페이스북/스레드/X에 올릴 카드뉴스(여러 장의 슬라이드 이미지 캐러셀)를 기획하십시오.
 
 [기사 원제목]
 ${article.title}
@@ -9264,11 +9264,11 @@ ${article.title}
 [카드뉴스 헤드라인]
 ${headline}
 
-[핵심 요약]
+[핵심 내용]
 ${summary}
 
 [구성 규칙]
-- 총 5~6장의 슬라이드로 구성하십시오: 1번은 [카드뉴스 헤드라인]을 그대로(또는 거의 그대로) 쓰는 제목/후킹 슬라이드, 중간 3~4장은 핵심 요약의 각 항목을 하나씩 다루는 슬라이드, 마지막 슬라이드는 마무리(출처/브랜드 안내) 슬라이드로 구성하십시오.
+- 총 5~6장의 슬라이드로 구성하십시오: 1번은 [카드뉴스 헤드라인]을 그대로(또는 거의 그대로) 쓰는 제목/후킹 슬라이드, 중간 3~4장은 핵심 내용의 각 항목을 하나씩 다루는 슬라이드, 마지막 슬라이드는 마무리(출처/브랜드 안내) 슬라이드로 구성하십시오.
 - 각 슬라이드마다 다음 두 가지를 작성하십시오.
   1) imagePrompt: 이 슬라이드의 배경 이미지를 AI 이미지 생성기에 넣을 한글 프롬프트. 다큐멘터리 사진 스타일로 장소/구도/분위기를 구체적으로 묘사하십시오. 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하고, 외국인·서양인·혼혈로 보이는 인물은 절대 등장시키지 마십시오. AI는 텍스트를 철자가 틀리게 그리는 경우가 많으므로, 화면에 텍스트(간판, 문서, 휴대폰 화면, 자막 등)가 보이는 구도는 피하십시오 (헤드라인 문구는 이후 별도로 얹습니다).
   2) headlineText: 이 슬라이드 위에 얹을 짧은 헤드라인/캡션 문구 (15자 내외, 임팩트 있게).
