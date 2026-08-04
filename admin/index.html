@@ -1508,10 +1508,10 @@
         </div>
 
         <!-- Sub-tab: SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면
-             맥락 없이 보여 어색하다는 문제로, 여러 장의 슬라이드로 구성된
-             카드뉴스를 만들기 위한 첫 단계(요약 -> 검토 -> 슬라이드별
-             이미지 프롬프트 생성)까지만 다룬다. 실제 이미지 생성/발행은
-             이후 단계에서 별도로 붙는다. -->
+             맥락 없이 보여 어색하다는 문제로, 기사 내용이 다 들어가는
+             한 장짜리 카드뉴스(인포그래픽)를 만들기 위한 첫 단계(요약 ->
+             검토 -> 이미지 프롬프트 생성)까지만 다룬다. 실제 이미지
+             생성/발행은 이후 단계에서 별도로 붙는다. -->
         <div id="sns-subtab-cardnews" class="sns-subtab-content">
           <div class="panel" style="padding: 24px; margin-bottom: 20px;">
             <div class="panel-header">
@@ -1547,7 +1547,7 @@
                 <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">1단계 · 뉴스 요약</h4>
                 <button type="button" id="cardnews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateCardNewsSummary()">뉴스 요약</button>
               </div>
-              <p class="help-text" style="margin-bottom: 8px;">기사 리드 문단을 그대로 옮기는 것이 아니라, 카드뉴스 슬라이드의 뼈대가 될 독립적인 핵심 사실들로 재구성합니다. 결과를 검토하고 자유롭게 수정한 뒤 2단계로 넘어가세요.</p>
+              <p class="help-text" style="margin-bottom: 8px;">기사 리드 문단을 그대로 옮기는 것이 아니라, 한 장짜리 카드뉴스(인포그래픽)에 들어갈 헤드라인·부제·핵심 포인트로 재구성합니다. 결과를 검토하고 자유롭게 수정한 뒤 2단계로 넘어가세요.</p>
               <textarea id="cardnews-summary" class="form-control-admin" style="min-height:160px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 요약이 없습니다. 위 &quot;뉴스 요약&quot; 버튼을 눌러주세요."></textarea>
             </div>
 
