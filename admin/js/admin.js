@@ -9115,8 +9115,10 @@ function onCardNewsArticleSelected(article) {
   cardNewsSelectedArticle = article;
   renderCardNewsPreview(article);
 
-  // 기사를 바꾸면 이전 기사 기준으로 만든 요약/슬라이드는 더 이상
-  // 유효하지 않으므로 함께 초기화한다.
+  // 기사를 바꾸면 이전 기사 기준으로 만든 헤드라인/요약/슬라이드는 더
+  // 이상 유효하지 않으므로 함께 초기화한다.
+  const headlineEl = document.getElementById("cardnews-headline");
+  if (headlineEl) headlineEl.value = '';
   const summaryEl = document.getElementById("cardnews-summary");
   if (summaryEl) summaryEl.value = '';
   const slidesEl = document.getElementById("cardnews-slides-list");
@@ -9150,11 +9152,24 @@ function renderCardNewsPreview(article) {
   if (dateEl) dateEl.textContent = article.date || '';
 }
 
+// AI 응답에서 [헤드라인] 섹션만 따로 뽑아낸다 -- 헤드라인은 인포그래픽의
+// 메인 제목으로 별도 입력창에서 독립적으로 검토/수정하고, 나머지(부제/
+// 핵심 포인트/마무리)는 요약 textarea에 남긴다.
+function splitCardNewsHeadline(rawText) {
+  const text = (rawText || '').trim();
+  const match = text.match(/\[헤드라인\]\s*\n([\s\S]*?)(?=\n\s*\[|$)/);
+  const headline = match ? match[1].trim() : '';
+  const rest = match ? (text.slice(0, match.index) + text.slice(match.index + match[0].length)).trim() : text;
+  return { headline, rest };
+}
+
 // 1단계: 기사 본문을 한 장짜리 카드뉴스(인포그래픽)의 뼈대가 될 핵심
 // 텍스트(헤드라인/부제/핵심 포인트)로 압축. 리드 문단을 그대로 옮기지
 // 않도록, 그리고 뉴스 보도체가 아닌 카드뉴스 카피 문체로 쓰도록 프롬프트에서
 // 명시하고, 결과를 바로 다음 단계에 쓰지 않고 반드시 검토/수정 가능한
-// textarea로 먼저 보여준다 (사이트 운영자가 명시적으로 요구한 검토 단계).
+// 입력창/textarea로 먼저 보여준다 (사이트 운영자가 명시적으로 요구한 검토
+// 단계). 헤드라인은 인포그래픽의 메인 제목이라 별도로 눈에 띄게 다루는
+// 것이 낫다는 판단에 따라 별도 입력창으로 분리한다.
 async function generateCardNewsSummary() {
   if (!cardNewsSelectedArticle) {
     alert("먼저 기사를 선택해 주세요.");
@@ -9162,6 +9177,7 @@ async function generateCardNewsSummary() {
   }
 
   const btn = document.getElementById("cardnews-summarize-btn");
+  const headlineEl = document.getElementById("cardnews-headline");
   const summaryEl = document.getElementById("cardnews-summary");
   const originalLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = "요약 생성 중..."; }
@@ -9206,7 +9222,9 @@ ${bodyText.substring(0, 4000)}
 
     const systemInstruction = "당신은 뉴스 기사를 한 장짜리 카드뉴스(인포그래픽) 문구로 재구성하는 카피라이터입니다. 뉴스 보도체 문장이 아니라, 헤드라인/포인트 위주의 짧고 임팩트 있는 카드뉴스 카피 문체로 쓰십시오. 각 핵심 포인트는 소제목과 짧은 설명이 함께 있는, 실제 정보가 담긴 한 단위여야 합니다 (단어만 나열하지 말 것).";
     const resultText = await callGeminiTextApi(prompt, systemInstruction);
-    if (summaryEl) summaryEl.value = resultText.trim();
+    const { headline, rest } = splitCardNewsHeadline(resultText);
+    if (headlineEl) headlineEl.value = headline;
+    if (summaryEl) summaryEl.value = rest;
   } catch (err) {
     console.error("카드뉴스 요약 생성 실패:", err);
     alert("요약 생성 실패: " + err.message);
@@ -9223,10 +9241,12 @@ async function generateCardNewsPrompts() {
     alert("먼저 기사를 선택해 주세요.");
     return;
   }
+  const headlineEl = document.getElementById("cardnews-headline");
+  const headline = headlineEl ? headlineEl.value.trim() : '';
   const summaryEl = document.getElementById("cardnews-summary");
   const summary = summaryEl ? summaryEl.value.trim() : '';
-  if (!summary) {
-    alert("먼저 1단계에서 뉴스 요약을 생성하거나 직접 입력해 주세요.");
+  if (!headline || !summary) {
+    alert("먼저 1단계에서 헤드라인과 뉴스 요약을 생성하거나 직접 입력해 주세요.");
     return;
   }
 
@@ -9242,16 +9262,19 @@ async function generateCardNewsPrompts() {
     const article = cardNewsSelectedArticle;
 
     const prompt = `
-아래는 카드뉴스로 제작할 뉴스 기사의 제목과, 그 핵심 내용을 정리한 요약입니다. 이를 바탕으로 인스타그램/페이스북/스레드/X에 올릴 카드뉴스(여러 장의 슬라이드 이미지 캐러셀)를 기획하십시오.
+아래는 카드뉴스로 제작할 뉴스 기사의 원제목, 카드뉴스용 헤드라인, 그 핵심 내용을 정리한 요약입니다. 이를 바탕으로 인스타그램/페이스북/스레드/X에 올릴 카드뉴스(여러 장의 슬라이드 이미지 캐러셀)를 기획하십시오.
 
-[기사 제목]
+[기사 원제목]
 ${article.title}
+
+[카드뉴스 헤드라인]
+${headline}
 
 [핵심 요약]
 ${summary}
 
 [구성 규칙]
-- 총 5~6장의 슬라이드로 구성하십시오: 1번은 제목/후킹 슬라이드, 중간 3~4장은 핵심 요약의 각 항목을 하나씩 다루는 슬라이드, 마지막 슬라이드는 마무리(출처/브랜드 안내) 슬라이드로 구성하십시오.
+- 총 5~6장의 슬라이드로 구성하십시오: 1번은 [카드뉴스 헤드라인]을 그대로(또는 거의 그대로) 쓰는 제목/후킹 슬라이드, 중간 3~4장은 핵심 요약의 각 항목을 하나씩 다루는 슬라이드, 마지막 슬라이드는 마무리(출처/브랜드 안내) 슬라이드로 구성하십시오.
 - 각 슬라이드마다 다음 두 가지를 작성하십시오.
   1) imagePrompt: 이 슬라이드의 배경 이미지를 AI 이미지 생성기에 넣을 한글 프롬프트. 다큐멘터리 사진 스타일로 장소/구도/분위기를 구체적으로 묘사하십시오. 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하고, 외국인·서양인·혼혈로 보이는 인물은 절대 등장시키지 마십시오. AI는 텍스트를 철자가 틀리게 그리는 경우가 많으므로, 화면에 텍스트(간판, 문서, 휴대폰 화면, 자막 등)가 보이는 구도는 피하십시오 (헤드라인 문구는 이후 별도로 얹습니다).
   2) headlineText: 이 슬라이드 위에 얹을 짧은 헤드라인/캡션 문구 (15자 내외, 임팩트 있게).
