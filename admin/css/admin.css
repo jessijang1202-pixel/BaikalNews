@@ -955,6 +955,64 @@ textarea.form-control-admin {
   margin-top: 4px;
 }
 
+/* SNS 관리 -- 공용 기사 검색 피커 (최근 48시간 내 발행 기사만 대상).
+   두 서브탭(카드뉴스/발행용 콘텐츠)이 각자 독립된 인스턴스로 재사용한다. */
+.sns-article-picker {
+  position: relative;
+}
+
+.sns-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 280px;
+  overflow-y: auto;
+  background-color: var(--admin-bg-panel);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow-soft);
+}
+
+.sns-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.sns-picker-item:last-child {
+  border-bottom: none;
+}
+
+.sns-picker-item:hover {
+  background-color: var(--admin-bg-input);
+}
+
+.sns-picker-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sns-picker-item-date {
+  color: var(--admin-text-secondary);
+  flex-shrink: 0;
+  font-size: 0.78rem;
+}
+
+.sns-picker-empty {
+  padding: 14px;
+  font-size: 0.85rem;
+  color: var(--admin-text-secondary);
+}
+
 /* Article editor specifics */
 .editor-layout {
   display: grid;

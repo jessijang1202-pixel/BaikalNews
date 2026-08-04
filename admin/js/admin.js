@@ -700,7 +700,7 @@ async function switchTab(tabName) {
     await loadOrGenerateWebBriefing();
     await loadOrGenerateKakaoBriefing();
   } else if (tabName === 'sns') {
-    await populateSnsArticleSelect();
+    await initSnsTab();
   } else if (tabName === 'subscribers') {
     await renderNewsletterSubscriberBriefing();
     await renderKakaoSubscriberBriefing();
@@ -7651,6 +7651,20 @@ function switchLetterSubTab(key, btnEl) {
   if (key === 'kakao') renderKakaoBriefingVariantsList();
 }
 
+function switchSnsSubTab(key, btnEl) {
+  document.querySelectorAll(".sns-subtab-btn").forEach(btn => {
+    btn.classList.remove("btn-admin-primary");
+    btn.classList.add("btn-admin-secondary");
+  });
+  if (btnEl) {
+    btnEl.classList.remove("btn-admin-secondary");
+    btnEl.classList.add("btn-admin-primary");
+  }
+  document.querySelectorAll(".sns-subtab-content").forEach(el => { el.style.display = "none"; });
+  const target = document.getElementById("sns-subtab-" + key);
+  if (target) target.style.display = "block";
+}
+
 function switchExpenseSubTab(key, btnEl) {
   document.querySelectorAll(".expense-subtab-btn").forEach(btn => {
     btn.classList.remove("btn-admin-primary");
@@ -8710,37 +8724,123 @@ async function sendKakaoBriefingNow() {
 // 필요하고, 유튜브 커뮤니티는 공식 API에 게시 기능 자체가 없어 항상
 // 복사 방식만 가능하다.
 // ==========================================
-let snsArticlesCache = [];
 const SNS_PLATFORMS = ['facebook', 'instagram', 'threads', 'x', 'youtube'];
 
-async function populateSnsArticleSelect() {
-  const select = document.getElementById("sns-article-select");
-  if (!select) return;
+// ------------------------------------------------------------------
+// 공용 기사 검색 피커 -- "SNS 카드뉴스 발행"과 "SNS 발행용 콘텐츠" 두
+// 서브탭이 각자 독립된 인스턴스로 재사용한다 (기사 선택 상태를 공유하지
+// 않음 -- 관리자가 서브탭마다 다른 기사를 고를 수 있어야 하므로). 목록은
+// getOrderedPopularArticles/computeAutoPopularIds와 동일한 48시간 윈도우
+// 규칙(approvedAt/scheduledAt 기준)으로 좁혀, 검색 대상 자체가 항상 작게
+// 유지되도록 한다 -- 그래서 서버 검색 없이 클라이언트 부분일치 필터만으로
+// 충분하다.
+// ------------------------------------------------------------------
+const SNS_PICKER_WINDOW_MS = 48 * 60 * 60 * 1000;
+const snsArticlePickers = {}; // inputId -> { articles, selected, onSelect }
 
-  const articles = await window.SupabaseAdapter.fetchArticles();
-  const published = articles.filter(a => a.status === 'published');
-  const byDateDesc = published.slice().sort((a, b) => {
-    const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
-    if (dateDiff !== 0) return dateDiff;
-    const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
-    const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
-    return bTime - aTime;
-  });
-  snsArticlesCache = byDateDesc.slice(0, 30);
-
-  select.innerHTML = `<option value="">-- 기사를 선택하세요 --</option>` +
-    snsArticlesCache.map(a => `<option value="${a.id}">${a.date} · ${a.title}</option>`).join('');
-
-  if (snsArticlesCache.length > 0) {
-    select.value = String(snsArticlesCache[0].id);
-    loadSnsArticlePreview();
-  } else {
-    renderSnsEmptyState();
-  }
+function snsPublishedTime(a) {
+  return new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
 }
 
-function findSnsArticleById(id) {
-  return snsArticlesCache.find(a => a.id === id);
+async function fetchSnsRecentArticles() {
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  const cutoff = Date.now() - SNS_PICKER_WINDOW_MS;
+  return articles
+    .filter(a => a.status === 'published' && snsPublishedTime(a) >= cutoff)
+    .sort((a, b) => snsPublishedTime(b) - snsPublishedTime(a));
+}
+
+async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  const state = { articles: [], selected: null, onSelect };
+  snsArticlePickers[inputId] = state;
+
+  input.value = '';
+  input.disabled = false;
+  dropdown.style.display = 'none';
+
+  state.articles = await fetchSnsRecentArticles();
+
+  if (state.articles.length === 0) {
+    input.placeholder = '최근 48시간 내 발행된 기사가 없습니다.';
+    input.disabled = true;
+    if (onSelect) onSelect(null);
+    return;
+  }
+
+  input.placeholder = '기사 제목으로 검색...';
+
+  input.oninput = () => {
+    state.selected = null;
+    const q = input.value.trim().toLowerCase();
+    const filtered = q ? state.articles.filter(a => (a.title || '').toLowerCase().includes(q)) : state.articles;
+    renderSnsPickerDropdown(inputId, dropdownId, filtered);
+    dropdown.style.display = 'block';
+  };
+  input.onfocus = () => {
+    const q = input.value.trim().toLowerCase();
+    const filtered = q && !state.selected ? state.articles.filter(a => (a.title || '').toLowerCase().includes(q)) : state.articles;
+    renderSnsPickerDropdown(inputId, dropdownId, filtered);
+    dropdown.style.display = 'block';
+  };
+  // blur가 목록 클릭보다 먼저 발생해 드롭다운이 먼저 닫혀버리지 않도록,
+  // 클릭 쪽에서는 mousedown+preventDefault를 쓰고 여기서는 살짝 지연한다.
+  input.onblur = () => { setTimeout(() => { dropdown.style.display = 'none'; }, 150); };
+}
+
+function renderSnsPickerDropdown(inputId, dropdownId, list) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  if (list.length === 0) {
+    dropdown.innerHTML = `<div class="sns-picker-empty">검색 결과가 없습니다.</div>`;
+    return;
+  }
+  dropdown.innerHTML = list.map((a, i) => `
+    <div class="sns-picker-item" data-idx="${i}">
+      <span class="sns-picker-item-title">${a.title}</span>
+      <span class="sns-picker-item-date">${a.date}</span>
+    </div>
+  `).join('');
+  dropdown.querySelectorAll('.sns-picker-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // blur보다 먼저 클릭이 확정되도록
+      const idx = parseInt(el.dataset.idx, 10);
+      selectSnsArticlePicker(inputId, dropdownId, list[idx]);
+    });
+  });
+}
+
+function selectSnsArticlePicker(inputId, dropdownId, article) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  const state = snsArticlePickers[inputId];
+  if (!input || !state) return;
+  state.selected = article;
+  input.value = `선택됨: ${article.title}`;
+  if (dropdown) dropdown.style.display = 'none';
+  if (state.onSelect) state.onSelect(article);
+}
+
+// SNS 관리 탭을 열 때마다 두 서브탭의 피커를 모두 새로 불러온다 (다른
+// 관리자가 방금 발행했거나 48시간 윈도우가 넘어갔을 수 있으므로).
+async function initSnsTab() {
+  await Promise.all([
+    initSnsArticlePicker('sns-content-picker-input', 'sns-content-picker-dropdown', onSnsContentArticleSelected),
+    initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected)
+  ]);
+}
+
+// "SNS 발행용 콘텐츠" 서브탭에서 현재 선택된 기사 -- 예전에는 <select>의
+// value(기사 id)로 매번 캐시에서 찾아왔지만, 이제 피커의 onSelect가 기사
+// 객체를 직접 넘겨주므로 그 결과를 그대로 들고 있는다.
+let snsContentSelectedArticle = null;
+
+function onSnsContentArticleSelected(article) {
+  snsContentSelectedArticle = article;
+  loadSnsArticlePreview(article);
 }
 
 function renderSnsEmptyState() {
@@ -8853,10 +8953,7 @@ function buildSnsPostText(article, platform) {
   return '';
 }
 
-function loadSnsArticlePreview() {
-  const select = document.getElementById("sns-article-select");
-  const id = select ? parseInt(select.value, 10) : NaN;
-  const article = findSnsArticleById(id);
+function loadSnsArticlePreview(article) {
   if (!article) {
     renderSnsEmptyState();
     return;
@@ -8901,9 +8998,7 @@ const SNS_AUTOMATABLE_PLATFORMS = ['facebook', 'instagram', 'threads'];
 const SNS_PLATFORM_LABELS = { facebook: '페이스북', instagram: '인스타그램', threads: '스레드' };
 
 async function publishSnsAllAutomatable() {
-  const select = document.getElementById("sns-article-select");
-  const id = select ? parseInt(select.value, 10) : NaN;
-  const article = findSnsArticleById(id);
+  const article = snsContentSelectedArticle;
   if (!article) {
     alert("먼저 발행할 기사를 선택해 주세요.");
     return;
@@ -8951,9 +9046,7 @@ async function publishSnsAllAutomatable() {
 // 채널 하나만 개별 발행 -- 한꺼번에 발행과 같은 엔드포인트를 쓰지만,
 // 다른 채널은 건드리지 않고 이 채널의 결과만 그 패널 아래 상태줄에 표시한다.
 async function publishSnsOne(platform) {
-  const select = document.getElementById("sns-article-select");
-  const id = select ? parseInt(select.value, 10) : NaN;
-  const article = findSnsArticleById(id);
+  const article = snsContentSelectedArticle;
   if (!article) {
     alert("먼저 발행할 기사를 선택해 주세요.");
     return;
@@ -8989,6 +9082,182 @@ async function publishSnsOne(platform) {
     console.error(`${label} 발행 요청 실패:`, err);
     if (statusEl) { statusEl.textContent = `❌ 요청 실패 -- ${err.message}`; statusEl.style.color = '#ef4444'; }
   }
+}
+
+// ==========================================
+// SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면 맥락 없이 어색해
+// 보인다는 문제로, 카드뉴스(여러 장의 슬라이드 이미지 캐러셀) 제작의 첫
+// 단계만 다룬다: 1) 기사 본문을 카드뉴스용 핵심 요약으로 압축(검토/수정
+// 가능한 textarea로 노출) -> 2) 그 요약을 바탕으로 슬라이드별 이미지
+// 프롬프트 + 헤드라인 세트를 생성. 실제 이미지 생성/저장/발행은 이후
+// 단계에서 별도로 붙는다 -- 여기서는 화면에 결과를 보여주는 데서 끝난다.
+// ==========================================
+let cardNewsSelectedArticle = null;
+
+function onCardNewsArticleSelected(article) {
+  cardNewsSelectedArticle = article;
+  renderCardNewsPreview(article);
+
+  // 기사를 바꾸면 이전 기사 기준으로 만든 요약/슬라이드는 더 이상
+  // 유효하지 않으므로 함께 초기화한다.
+  const summaryEl = document.getElementById("cardnews-summary");
+  if (summaryEl) summaryEl.value = '';
+  const slidesEl = document.getElementById("cardnews-slides-list");
+  if (slidesEl) slidesEl.innerHTML = '';
+  const statusEl = document.getElementById("cardnews-prompt-status");
+  if (statusEl) statusEl.textContent = '';
+}
+
+function renderCardNewsPreview(article) {
+  const wrap = document.getElementById("cardnews-preview");
+  const img = document.getElementById("cardnews-preview-image");
+  const titleEl = document.getElementById("cardnews-preview-title");
+  const dateEl = document.getElementById("cardnews-preview-date");
+  if (!wrap) return;
+
+  if (!article) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  if (img) {
+    if (article.image) {
+      img.src = article.image;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  }
+  if (titleEl) titleEl.textContent = article.title || '';
+  if (dateEl) dateEl.textContent = article.date || '';
+}
+
+// 1단계: 기사 본문을 카드뉴스 슬라이드의 뼈대가 될 핵심 요약으로 압축.
+// 리드 문단을 그대로 옮기지 않도록 프롬프트에서 명시하고, 결과를 바로
+// 다음 단계에 쓰지 않고 반드시 검토/수정 가능한 textarea로 먼저 보여준다
+// (사이트 운영자가 명시적으로 요구한 검토 단계).
+async function generateCardNewsSummary() {
+  if (!cardNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("cardnews-summarize-btn");
+  const summaryEl = document.getElementById("cardnews-summary");
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = "요약 생성 중..."; }
+
+  try {
+    const article = cardNewsSelectedArticle;
+    const bodyText = (article.content || "").replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const prompt = `
+아래 뉴스 기사를 카드뉴스(여러 장의 슬라이드 이미지로 구성된 SNS용 카드뉴스) 제작의 정보 뼈대로 쓸 수 있도록, 핵심 내용을 간결하게 요약하십시오.
+
+[기사 제목]
+${article.title}
+
+[리드 문단]
+${article.lead || article.subtitle || ''}
+
+[본문]
+${bodyText.substring(0, 4000)}
+
+[작성 지침 -- 반드시 모두 지킬 것]
+- 리드 문단을 그대로 옮기지 말고, 기사 전체 본문에서 뽑아낸 독립적인 핵심 사실들로 재구성하십시오.
+- 각 항목은 그 자체로 완결된 하나의 사실을 담은 짧은 문장이어야 합니다 (앞뒤 문맥 없이 읽어도 이해되도록).
+- 5~7개 정도의 불릿 포인트로, 각 줄 앞에 "- "를 붙여 작성하십시오.
+- 마크다운 문법(#, ** 등)이나 다른 설명 없이, 불릿 목록만 출력하십시오.`;
+
+    const systemInstruction = "당신은 뉴스 기사를 카드뉴스 제작용 핵심 요약으로 재구성하는 편집자입니다. 리드 문단을 그대로 베끼지 말고, 기사 전체에서 독립적인 핵심 사실들을 뽑아 간결한 불릿 목록으로 정리하십시오.";
+    const resultText = await callGeminiTextApi(prompt, systemInstruction);
+    if (summaryEl) summaryEl.value = resultText.trim();
+  } catch (err) {
+    console.error("카드뉴스 요약 생성 실패:", err);
+    alert("요약 생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+// 2단계: (관리자가 검토/수정했을 수 있는) 요약을 바탕으로 슬라이드별
+// 이미지 프롬프트 + 헤드라인 세트를 JSON으로 생성. 실제 이미지 생성은
+// 하지 않고 화면에 목록으로만 보여준다 -- 이후 단계 범위.
+async function generateCardNewsPrompts() {
+  if (!cardNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+  const summaryEl = document.getElementById("cardnews-summary");
+  const summary = summaryEl ? summaryEl.value.trim() : '';
+  if (!summary) {
+    alert("먼저 1단계에서 뉴스 요약을 생성하거나 직접 입력해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("cardnews-generate-prompt-btn");
+  const statusEl = document.getElementById("cardnews-prompt-status");
+  const listEl = document.getElementById("cardnews-slides-list");
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = "프롬프트 생성 중..."; }
+  if (statusEl) statusEl.textContent = "AI가 슬라이드별 프롬프트를 만들고 있습니다...";
+  if (listEl) listEl.innerHTML = '';
+
+  try {
+    const article = cardNewsSelectedArticle;
+
+    const prompt = `
+아래는 카드뉴스로 제작할 뉴스 기사의 제목과, 그 핵심 내용을 정리한 요약입니다. 이를 바탕으로 인스타그램/페이스북/스레드/X에 올릴 카드뉴스(여러 장의 슬라이드 이미지 캐러셀)를 기획하십시오.
+
+[기사 제목]
+${article.title}
+
+[핵심 요약]
+${summary}
+
+[구성 규칙]
+- 총 5~6장의 슬라이드로 구성하십시오: 1번은 제목/후킹 슬라이드, 중간 3~4장은 핵심 요약의 각 항목을 하나씩 다루는 슬라이드, 마지막 슬라이드는 마무리(출처/브랜드 안내) 슬라이드로 구성하십시오.
+- 각 슬라이드마다 다음 두 가지를 작성하십시오.
+  1) imagePrompt: 이 슬라이드의 배경 이미지를 AI 이미지 생성기에 넣을 한글 프롬프트. 다큐멘터리 사진 스타일로 장소/구도/분위기를 구체적으로 묘사하십시오. 사람이 등장한다면 반드시 한국인/동양인 외모로 묘사하고, 외국인·서양인·혼혈로 보이는 인물은 절대 등장시키지 마십시오. AI는 텍스트를 철자가 틀리게 그리는 경우가 많으므로, 화면에 텍스트(간판, 문서, 휴대폰 화면, 자막 등)가 보이는 구도는 피하십시오 (헤드라인 문구는 이후 별도로 얹습니다).
+  2) headlineText: 이 슬라이드 위에 얹을 짧은 헤드라인/캡션 문구 (15자 내외, 임팩트 있게).
+
+반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 배열만 출력하십시오.
+[
+  { "slideNumber": 1, "imagePrompt": "...", "headlineText": "..." }
+]`;
+
+    const systemInstruction = "당신은 뉴스 기사를 SNS 카드뉴스(다중 슬라이드 이미지 캐러셀)로 기획하는 디자이너입니다. 반드시 유효한 JSON 배열로만 답하십시오.";
+    const resultText = await callGeminiTextApi(prompt, systemInstruction);
+    const slides = parseAiJsonResponse(resultText);
+    const slideList = Array.isArray(slides) ? slides : [];
+    renderCardNewsSlides(slideList);
+    if (statusEl) statusEl.textContent = `${slideList.length}장의 슬라이드 프롬프트를 생성했습니다.`;
+  } catch (err) {
+    console.error("카드뉴스 프롬프트 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("프롬프트 생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+function renderCardNewsSlides(slides) {
+  const listEl = document.getElementById("cardnews-slides-list");
+  if (!listEl) return;
+
+  if (!slides || slides.length === 0) {
+    listEl.innerHTML = `<div class="help-text">생성된 슬라이드가 없습니다.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = slides.map((s, i) => `
+    <div class="panel" style="padding:16px; margin-bottom:12px; background-color: var(--admin-bg-input);">
+      <div style="font-weight:700; margin-bottom:8px;">슬라이드 ${s.slideNumber || (i + 1)}</div>
+      <div style="margin-bottom:8px;"><strong>헤드라인:</strong> ${s.headlineText || ''}</div>
+      <div style="font-size:0.85rem; color: var(--admin-text-secondary); white-space: pre-wrap;"><strong>이미지 프롬프트:</strong> ${s.imagePrompt || ''}</div>
+    </div>
+  `).join('');
 }
 
 function renderNewsletterDraftUI() {

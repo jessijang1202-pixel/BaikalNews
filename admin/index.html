@@ -1502,96 +1502,165 @@
            모든 채널이 "복사" 방식으로 동작하고, 연동 완료되는 채널부터
            순서대로 원클릭 발행 버튼이 실제로 붙는다. -->
       <section id="tab-sns" class="tab-content">
-        <div class="panel" style="padding: 24px; margin-bottom: 20px;">
-          <div class="panel-header">
-            <h3 class="panel-title">SNS 발행용 콘텐츠</h3>
-          </div>
-          <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
-            기사의 리드 문단 + 대표 이미지 + 기사 링크를 채널별 형식에 맞게 자동으로 구성합니다. 아래에서 기사를 고르면 각 채널 칸이 자동으로 채워지며, 직접 수정도 가능합니다.
-          </p>
-          <div class="form-group-admin">
-            <label for="sns-article-select">발행할 기사 선택</label>
-            <select id="sns-article-select" class="form-control-admin" onchange="loadSnsArticlePreview()"></select>
-          </div>
-          <img id="sns-preview-image" src="" alt="" style="display:none; max-width:100%; max-height:280px; border-radius:8px; margin-top:12px; object-fit:cover;">
+        <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;">
+          <button type="button" class="btn-admin btn-admin-primary sns-subtab-btn" data-subtab="cardnews" onclick="switchSnsSubTab('cardnews', this)">SNS 카드뉴스 발행</button>
+          <button type="button" class="btn-admin btn-admin-secondary sns-subtab-btn" data-subtab="content" onclick="switchSnsSubTab('content', this)">SNS 발행용 콘텐츠</button>
         </div>
 
-        <!-- 자동 발행 가능한 채널(페이스북/인스타그램/스레드) 한꺼번에 발행 --
-             연동이 안 된 채널은 실패가 아니라 "연동 필요"로 명확히 구분해
-             보여준다. 유튜브 커뮤니티/X는 이 일괄 발행에 포함하지 않는다
-             (전자는 API 자체가 없고, 후자는 게시당 비용이 발생해 매번
-             확인이 필요하므로 개별 복사 방식만 유지). -->
-        <div class="panel" style="padding: 24px; margin-bottom: 20px; border: 2px solid var(--admin-accent-cyan);">
-          <div class="panel-header">
-            <h3 class="panel-title">자동 발행 가능한 3곳 한꺼번에 발행</h3>
-            <button type="button" id="sns-publish-all-btn" class="btn-admin btn-admin-primary" onclick="publishSnsAllAutomatable()">페이스북·인스타그램·스레드 한꺼번에 발행</button>
-          </div>
-          <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 12px;">
-            아래 각 채널 칸의 내용(수정한 경우 수정된 내용)을 그대로 사용해 3곳에 동시 발행합니다. 아직 연동되지 않은 채널은 "연동 필요"로 표시되고 건너뛰어집니다 (에러가 아닙니다).
-          </p>
-          <div id="sns-publish-all-results"></div>
-        </div>
-
-        <!-- Facebook -->
-        <div class="panel" style="padding:24px; margin-bottom:20px;">
-          <div class="panel-header">
-            <h3 class="panel-title"><a href="https://www.facebook.com/profile.php?id=1184515028089093" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">페이스북 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <div style="display:flex; gap:8px;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('facebook')">복사</button>
-              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('facebook')">발행</button>
+        <!-- Sub-tab: SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면
+             맥락 없이 보여 어색하다는 문제로, 여러 장의 슬라이드로 구성된
+             카드뉴스를 만들기 위한 첫 단계(요약 -> 검토 -> 슬라이드별
+             이미지 프롬프트 생성)까지만 다룬다. 실제 이미지 생성/발행은
+             이후 단계에서 별도로 붙는다. -->
+        <div id="sns-subtab-cardnews" class="sns-subtab-content">
+          <div class="panel" style="padding: 24px; margin-bottom: 20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">기사 선택</h3>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
+              카드뉴스로 만들 기사를 최근 48시간 내 발행된 기사 중에서 검색해 선택하세요.
+            </p>
+            <div class="form-group-admin">
+              <label for="cardnews-picker-input">카드뉴스로 만들 기사 선택</label>
+              <div class="sns-article-picker" id="cardnews-picker">
+                <input type="text" id="cardnews-picker-input" class="form-control-admin" placeholder="기사 제목으로 검색..." autocomplete="off">
+                <div class="sns-picker-dropdown" id="cardnews-picker-dropdown" style="display:none;"></div>
+              </div>
+            </div>
+            <div id="cardnews-preview" style="display:none;">
+              <img id="cardnews-preview-image" src="" alt="" style="display:none; max-width:100%; max-height:220px; border-radius:8px; margin-top:4px; object-fit:cover;">
+              <div id="cardnews-preview-title" style="font-weight:600; margin-top:10px;"></div>
+              <div id="cardnews-preview-date" class="help-text"></div>
             </div>
           </div>
-          <p class="help-text" style="margin-bottom:12px;">Graph API로 원클릭 발행 가능한 채널입니다. 페이스북 페이지/Meta 개발자 앱 연동 전까지는 복사해서 직접 게시해 주세요.</p>
-          <textarea id="sns-text-facebook" class="form-control-admin" style="min-height:140px; font-family:inherit;"></textarea>
-          <div class="help-text" id="sns-status-facebook" style="margin-top:8px;"></div>
-        </div>
 
-        <!-- Instagram -->
-        <div class="panel" style="padding:24px; margin-bottom:20px;">
-          <div class="panel-header">
-            <h3 class="panel-title"><a href="https://www.instagram.com/bai_kalnews/" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">인스타그램 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <div style="display:flex; gap:8px;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('instagram')">복사</button>
-              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('instagram')">발행</button>
+          <div class="panel" style="padding: 24px;">
+            <div class="panel-header">
+              <h3 class="panel-title">카드뉴스 생성 프롬프트</h3>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 20px;">
+              1단계에서 기사 본문을 카드뉴스용 핵심 요약으로 압축하고, 검토·수정한 뒤 2단계에서 슬라이드별 이미지 프롬프트와 헤드라인을 생성합니다. (실제 이미지 생성은 이후 단계에서 진행됩니다.)
+            </p>
+
+            <div style="margin-bottom: 24px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">1단계 · 뉴스 요약</h4>
+                <button type="button" id="cardnews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateCardNewsSummary()">뉴스 요약</button>
+              </div>
+              <p class="help-text" style="margin-bottom: 8px;">기사 리드 문단을 그대로 옮기는 것이 아니라, 카드뉴스 슬라이드의 뼈대가 될 독립적인 핵심 사실들로 재구성합니다. 결과를 검토하고 자유롭게 수정한 뒤 2단계로 넘어가세요.</p>
+              <textarea id="cardnews-summary" class="form-control-admin" style="min-height:160px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 요약이 없습니다. 위 &quot;뉴스 요약&quot; 버튼을 눌러주세요."></textarea>
+            </div>
+
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                <h4 style="font-size: 0.9rem; color: var(--admin-accent-cyan); margin: 0;">2단계 · 프롬프트 생성</h4>
+                <button type="button" id="cardnews-generate-prompt-btn" class="btn-admin btn-admin-primary" onclick="generateCardNewsPrompts()">프롬프트 생성</button>
+              </div>
+              <p class="help-text" style="margin-bottom: 8px;">위 요약(수정한 경우 수정된 내용)을 바탕으로, 헤드라인 슬라이드 + 핵심 내용 슬라이드 + 마무리 슬라이드로 구성된 5~6장의 카드뉴스 슬라이드를 기획하고, 슬라이드마다 이미지 생성 프롬프트와 헤드라인 문구를 만듭니다.</p>
+              <div class="help-text" id="cardnews-prompt-status" style="margin-bottom: 10px;"></div>
+              <div id="cardnews-slides-list"></div>
             </div>
           </div>
-          <p class="help-text" style="margin-bottom:12px;">비즈니스/크리에이터 계정 + 페이스북 페이지 연결이 필요합니다. 캡션 속 링크는 클릭되지 않으니 프로필 링크를 활용하세요. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
-          <textarea id="sns-text-instagram" class="form-control-admin" style="min-height:160px; font-family:inherit;"></textarea>
-          <div class="help-text" id="sns-status-instagram" style="margin-top:8px;"></div>
         </div>
 
-        <!-- Threads -->
-        <div class="panel" style="padding:24px; margin-bottom:20px;">
-          <div class="panel-header">
-            <h3 class="panel-title"><a href="https://www.threads.net/@bai_kalnews" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">스레드 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
-            <div style="display:flex; gap:8px;">
-              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('threads')">복사</button>
-              <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('threads')">발행</button>
+        <!-- Sub-tab: SNS 발행용 콘텐츠 -- 기존 채널별 자동 발행/복사 기능
+             전체를 그대로 옮겨온 것. 기사 선택만 공용 검색 피커로 바뀌었고,
+             그 아래 로직(자동 생성/발행/복사)은 이전과 동일하다. -->
+        <div id="sns-subtab-content" class="sns-subtab-content" style="display:none;">
+          <div class="panel" style="padding: 24px; margin-bottom: 20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">SNS 발행용 콘텐츠</h3>
             </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
+              기사의 리드 문단 + 대표 이미지 + 기사 링크를 채널별 형식에 맞게 자동으로 구성합니다. 아래에서 기사를 고르면 각 채널 칸이 자동으로 채워지며, 직접 수정도 가능합니다.
+            </p>
+            <div class="form-group-admin">
+              <label for="sns-content-picker-input">발행할 기사 선택</label>
+              <div class="sns-article-picker" id="sns-content-picker">
+                <input type="text" id="sns-content-picker-input" class="form-control-admin" placeholder="기사 제목으로 검색..." autocomplete="off">
+                <div class="sns-picker-dropdown" id="sns-content-picker-dropdown" style="display:none;"></div>
+              </div>
+            </div>
+            <img id="sns-preview-image" src="" alt="" style="display:none; max-width:100%; max-height:280px; border-radius:8px; margin-top:12px; object-fit:cover;">
           </div>
-          <p class="help-text" style="margin-bottom:12px;">2024년 출시된 공식 Threads API로 자동 발행이 가능합니다. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
-          <textarea id="sns-text-threads" class="form-control-admin" style="min-height:120px; font-family:inherit;"></textarea>
-          <div class="help-text" id="sns-status-threads" style="margin-top:8px;"></div>
-        </div>
 
-        <!-- X -->
-        <div class="panel" style="padding:24px; margin-bottom:20px;">
-          <div class="panel-header">
-            <h3 class="panel-title"><a href="https://x.com/baikalnews815" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">X (트위터) ↗</a> <span class="profile-role-tag" style="background:var(--status-review); color:#fff;">API 가능 · 게시당 비용 발생</span></h3>
-            <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('x')">복사</button>
+          <!-- 자동 발행 가능한 채널(페이스북/인스타그램/스레드) 한꺼번에 발행 --
+               연동이 안 된 채널은 실패가 아니라 "연동 필요"로 명확히 구분해
+               보여준다. 유튜브 커뮤니티/X는 이 일괄 발행에 포함하지 않는다
+               (전자는 API 자체가 없고, 후자는 게시당 비용이 발생해 매번
+               확인이 필요하므로 개별 복사 방식만 유지). -->
+          <div class="panel" style="padding: 24px; margin-bottom: 20px; border: 2px solid var(--admin-accent-cyan);">
+            <div class="panel-header">
+              <h3 class="panel-title">자동 발행 가능한 3곳 한꺼번에 발행</h3>
+              <button type="button" id="sns-publish-all-btn" class="btn-admin btn-admin-primary" onclick="publishSnsAllAutomatable()">페이스북·인스타그램·스레드 한꺼번에 발행</button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 12px;">
+              아래 각 채널 칸의 내용(수정한 경우 수정된 내용)을 그대로 사용해 3곳에 동시 발행합니다. 아직 연동되지 않은 채널은 "연동 필요"로 표시되고 건너뛰어집니다 (에러가 아닙니다).
+            </p>
+            <div id="sns-publish-all-results"></div>
           </div>
-          <p class="help-text" style="margin-bottom:12px;">2026년 2월부터 종량제로 전환되어, 링크가 포함된 게시글은 건당 약 $0.20이 발생합니다. 280자 제한에 맞춰 자동으로 축약됩니다. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
-          <textarea id="sns-text-x" class="form-control-admin" style="min-height:100px; font-family:inherit;"></textarea>
-        </div>
 
-        <!-- YouTube Community -->
-        <div class="panel" style="padding:24px;">
-          <div class="panel-header">
-            <h3 class="panel-title"><a href="https://www.youtube.com/@%EB%B0%94%EC%9D%B4%EC%B9%BCTV-815" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">유튜브 커뮤니티 ↗</a> <span class="profile-role-tag" style="background:#6b7280; color:#fff;">API 미지원 · 복사 필요</span></h3>
-            <button type="button" class="btn-admin btn-admin-primary" onclick="copySnsText('youtube')">복사</button>
+          <!-- Facebook -->
+          <div class="panel" style="padding:24px; margin-bottom:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><a href="https://www.facebook.com/profile.php?id=1184515028089093" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">페이스북 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('facebook')">복사</button>
+                <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('facebook')">발행</button>
+              </div>
+            </div>
+            <p class="help-text" style="margin-bottom:12px;">Graph API로 원클릭 발행 가능한 채널입니다. 페이스북 페이지/Meta 개발자 앱 연동 전까지는 복사해서 직접 게시해 주세요.</p>
+            <textarea id="sns-text-facebook" class="form-control-admin" style="min-height:140px; font-family:inherit;"></textarea>
+            <div class="help-text" id="sns-status-facebook" style="margin-top:8px;"></div>
           </div>
-          <p class="help-text" style="margin-bottom:12px;">유튜브 공식 API에는 커뮤니티 탭 게시 기능 자체가 없어 자동 발행이 불가능합니다. 복사해서 유튜브 스튜디오/앱에 직접 붙여넣어 주세요.</p>
-          <textarea id="sns-text-youtube" class="form-control-admin" style="min-height:120px; font-family:inherit;"></textarea>
+
+          <!-- Instagram -->
+          <div class="panel" style="padding:24px; margin-bottom:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><a href="https://www.instagram.com/bai_kalnews/" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">인스타그램 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('instagram')">복사</button>
+                <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('instagram')">발행</button>
+              </div>
+            </div>
+            <p class="help-text" style="margin-bottom:12px;">비즈니스/크리에이터 계정 + 페이스북 페이지 연결이 필요합니다. 캡션 속 링크는 클릭되지 않으니 프로필 링크를 활용하세요. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
+            <textarea id="sns-text-instagram" class="form-control-admin" style="min-height:160px; font-family:inherit;"></textarea>
+            <div class="help-text" id="sns-status-instagram" style="margin-top:8px;"></div>
+          </div>
+
+          <!-- Threads -->
+          <div class="panel" style="padding:24px; margin-bottom:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><a href="https://www.threads.net/@bai_kalnews" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">스레드 ↗</a> <span class="profile-role-tag" style="background:var(--color-green-deep); color:#fff;">API 자동 발행 가능</span></h3>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('threads')">복사</button>
+                <button type="button" class="btn-admin btn-admin-primary" onclick="publishSnsOne('threads')">발행</button>
+              </div>
+            </div>
+            <p class="help-text" style="margin-bottom:12px;">2024년 출시된 공식 Threads API로 자동 발행이 가능합니다. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
+            <textarea id="sns-text-threads" class="form-control-admin" style="min-height:120px; font-family:inherit;"></textarea>
+            <div class="help-text" id="sns-status-threads" style="margin-top:8px;"></div>
+          </div>
+
+          <!-- X -->
+          <div class="panel" style="padding:24px; margin-bottom:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><a href="https://x.com/baikalnews815" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">X (트위터) ↗</a> <span class="profile-role-tag" style="background:var(--status-review); color:#fff;">API 가능 · 게시당 비용 발생</span></h3>
+              <button type="button" class="btn-admin btn-admin-secondary" onclick="copySnsText('x')">복사</button>
+            </div>
+            <p class="help-text" style="margin-bottom:12px;">2026년 2월부터 종량제로 전환되어, 링크가 포함된 게시글은 건당 약 $0.20이 발생합니다. 280자 제한에 맞춰 자동으로 축약됩니다. 연동 전까지는 복사해서 직접 게시해 주세요.</p>
+            <textarea id="sns-text-x" class="form-control-admin" style="min-height:100px; font-family:inherit;"></textarea>
+          </div>
+
+          <!-- YouTube Community -->
+          <div class="panel" style="padding:24px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><a href="https://www.youtube.com/@%EB%B0%94%EC%9D%B4%EC%B9%BCTV-815" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">유튜브 커뮤니티 ↗</a> <span class="profile-role-tag" style="background:#6b7280; color:#fff;">API 미지원 · 복사 필요</span></h3>
+              <button type="button" class="btn-admin btn-admin-primary" onclick="copySnsText('youtube')">복사</button>
+            </div>
+            <p class="help-text" style="margin-bottom:12px;">유튜브 공식 API에는 커뮤니티 탭 게시 기능 자체가 없어 자동 발행이 불가능합니다. 복사해서 유튜브 스튜디오/앱에 직접 붙여넣어 주세요.</p>
+            <textarea id="sns-text-youtube" class="form-control-admin" style="min-height:120px; font-family:inherit;"></textarea>
+          </div>
         </div>
       </section>
 
