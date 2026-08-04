@@ -2576,13 +2576,33 @@ let curationArticlesCache = [];
 let curationPopularOrder = [];
 const CURATION_POPULAR_COUNT = 5;
 
+// js/main.js의 getOrderedPopularArticles()와 동일한 48시간 윈도우 + 백필
+// 로직을 그대로 맞춘다 -- 이게 다르면 관리자가 순서를 바꿔도(재배치 UI가
+// 다른 기사들을 대상으로 보여줌) 실제 공개 사이트에는 반영 안 되는 것처럼
+// 보이는 불일치가 생긴다.
 function computeAutoPopularIds(published, count) {
-  return published.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count).map(a => a.id);
+  const WINDOW_MS = 48 * 60 * 60 * 1000;
+  const cutoff = Date.now() - WINDOW_MS;
+  const publishedTime = a => new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+  const byViewsDesc = (a, b) => (b.views || 0) - (a.views || 0);
+
+  const recent = published.filter(a => publishedTime(a) >= cutoff).sort(byViewsDesc);
+  const top = recent.slice(0, count);
+
+  if (top.length < count) {
+    const usedIds = new Set(top.map(a => a.id));
+    const backfill = published
+      .filter(a => !usedIds.has(a.id))
+      .sort(byViewsDesc)
+      .slice(0, count - top.length);
+    top.push(...backfill);
+  }
+
+  return top.map(a => a.id);
 }
 
 async function populateCurationDropdowns() {
   const publishedSelects = [
-    "curate-hero",
     "curate-latest-1", "curate-latest-2", "curate-latest-3"
   ];
 
@@ -2624,7 +2644,6 @@ async function populateCurationDropdowns() {
     });
   };
 
-  if (curation.featuredHeroId) document.getElementById("curate-hero").value = curation.featuredHeroId;
   applyValues(curation.latestNewsIds, "curate-latest");
 
   // 많이 읽은 인기 기사: trust the saved order only if it's still the exact
@@ -2708,8 +2727,6 @@ function updateCurationPreview(selectId) {
 }
 
 async function saveCurationSettings() {
-  const heroId = parseInt(document.getElementById("curate-hero").value, 10);
-
   const readSlots = (prefix, count) => {
     const ids = [];
     for (let i = 1; i <= count; i++) {
@@ -2719,13 +2736,7 @@ async function saveCurationSettings() {
     return ids;
   };
 
-  if (isNaN(heroId)) {
-    alert("최소한 메인 추천 탑 뉴스는 1건 지정해야 홈화면 배포가 가능합니다.");
-    return;
-  }
-
   const newCuration = {
-    featuredHeroId: heroId,
     latestNewsIds: readSlots("curate-latest", 3),
     editorsPicksIds: [],
     popularReadsIds: curationPopularOrder.slice(),
@@ -2741,7 +2752,7 @@ async function saveCurationSettings() {
     // of trusting the success alert we're about to show.
     if (window.SupabaseAdapter.isConfigured && window.SupabaseAdapter.isConfigured()) {
       const verify = await window.SupabaseAdapter.fetchCuration();
-      const matches = verify && verify.featuredHeroId === newCuration.featuredHeroId &&
+      const matches = verify &&
         JSON.stringify(verify.popularReadsIds || []) === JSON.stringify(newCuration.popularReadsIds) &&
         JSON.stringify(verify.latestNewsIds || []) === JSON.stringify(newCuration.latestNewsIds);
       if (!matches) {
@@ -2750,7 +2761,7 @@ async function saveCurationSettings() {
       }
     }
   }
-  await logAudit("홈화면 큐레이션 개정", null, `헤드라인 기사 ID: #${heroId}로 정렬 배포함.`);
+  await logAudit("홈화면 큐레이션 개정", null, "최신 보도/인기 기사 슬롯 재배포함 (대표 헤드라인은 자동 최신순).");
   alert("홈화면 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
 }
 

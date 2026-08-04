@@ -37,12 +37,22 @@ function compareArticlesByDateDesc(a, b) {
   return (b.id || 0) - (a.id || 0);
 }
 
-// Returns the top `count` articles by view count -- membership is always
-// automatic (highest views), but wherever curation.popularReadsIds still
-// covers a current top article, that saved relative order is respected
-// (set by admins reordering 많이 읽은 인기 기사 in the curation admin tab).
-// Any newly-popular article not covered by the saved order is appended in
-// view-rank order.
+// Returns the top `count` articles by view count -- but ranked only among
+// articles published in the last 48 hours, so a months-old article that
+// racked up views over a long time can't camp in "실시간 인기기사"
+// indefinitely and make the section look static. Membership is always
+// automatic (highest views within the window), but wherever
+// curation.popularReadsIds still covers a current top article, that saved
+// relative order is respected (set by admins reordering 많이 읽은 인기 기사
+// in the curation admin tab). Any newly-popular article not covered by the
+// saved order is appended in view-rank order.
+//
+// "Published" time uses approvedAt/scheduledAt (real timestamps) the same
+// way compareArticlesByDateDesc's tiebreak does, since the day-only `date`
+// field can't express a 48-hour cutoff precisely. If fewer than `count`
+// articles fall inside the window (a quiet news day), the remaining slots
+// backfill from the rest of the pool by view count so the section is never
+// thin/empty just because little was published recently.
 //
 // The top-N is always computed from the FULL article pool first (not a
 // per-page-filtered one) so the ranking is identical everywhere the widget
@@ -53,7 +63,23 @@ function compareArticlesByDateDesc(a, b) {
 // which article excluded itself, which is what caused the list to look
 // different from page to page.
 function getOrderedPopularArticles(published, curation, excludeId, count) {
-  const topByViews = published.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, count);
+  const WINDOW_MS = 48 * 60 * 60 * 1000;
+  const cutoff = Date.now() - WINDOW_MS;
+  const publishedTime = a => new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+
+  const byViewsDesc = (a, b) => (b.views || 0) - (a.views || 0);
+  const recent = published.filter(a => publishedTime(a) >= cutoff).sort(byViewsDesc);
+  const topByViews = recent.slice(0, count);
+
+  if (topByViews.length < count) {
+    const usedIds = new Set(topByViews.map(a => a.id));
+    const backfill = published
+      .filter(a => !usedIds.has(a.id))
+      .sort(byViewsDesc)
+      .slice(0, count - topByViews.length);
+    topByViews.push(...backfill);
+  }
+
   const topIds = new Set(topByViews.map(a => a.id));
   const orderIds = ((curation && curation.popularReadsIds) || []).filter(id => topIds.has(id));
   const ordered = orderIds.map(id => topByViews.find(a => a.id === id));
@@ -527,12 +553,14 @@ function renderHomepage() {
     latestNewsIds: []
   };
 
+  // Hero is always the single most recently published article -- no manual
+  // pinning. Computed once here so Feature #2 (below) excludes the exact
+  // same article rather than re-deriving it separately.
+  const heroArt = published.slice().sort(compareArticlesByDateDesc)[0];
+
   // Feature #1: Hero/Featured Article
   const heroContainer = document.getElementById("featured-hero-container");
   if (heroContainer) {
-    // Find designated hero or fallback to first published
-    let heroArt = published.find(a => a.id === curation.featuredHeroId);
-    if (!heroArt) heroArt = published[0];
     heroContainer.innerHTML = createArticleCardHTML(heroArt, 'hero');
   }
 
@@ -543,7 +571,6 @@ function renderHomepage() {
   // whatever's already picked).
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
-    let heroArt = published.find(a => a.id === curation.featuredHeroId) || published[0];
     const latestNewsIds = curation.latestNewsIds || [];
     const LATEST_NEWS_COUNT = 5;
 
