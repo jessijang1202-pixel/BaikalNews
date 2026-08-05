@@ -1648,6 +1648,16 @@ async function saveArticle() {
       revisionMsg = `기사 내용 정정 (승인인: ${approver})`;
     }
 
+    // 예약 발행이었던 기사를 예약 시각 전에 "즉시 발행"으로 바꾸는 경우처럼,
+    // 폼의 보도 날짜가 이전 상태(예: 예약 날짜)에 맞춰진 채로 남아있을 수
+    // 있다. 방금 새로 발행 상태가 된 것이라면 실제로 발행되는 지금 날짜로
+    // 맞춘다 (스케줄 발행 때 발행일자를 예약 시각으로 맞추는 것과 같은 원칙).
+    if (status === 'published' && art.status !== 'published') {
+      date = new Date().toLocaleDateString("ko-KR").replace(/\s/g, '').slice(0, -1);
+      const dateInput = document.getElementById("form-date");
+      if (dateInput) dateInput.value = date;
+    }
+
     art.title = title;
     art.subtitle = subtitle;
     art.lead = lead;
