@@ -1018,6 +1018,27 @@ textarea.form-control-admin {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 32px;
+  align-items: stretch;
+}
+
+/* 본문 편집기(form-content)가 우측 사이드바 칼럼과 항상 나란한 높이가
+   되도록: 그리드가 두 칼럼을 이미 같은 행 높이로 늘려주므로(align-items:
+   stretch), 왼쪽 칼럼을 세로 flex로 만들고 본문 편집기가 담긴 마지막
+   form-group만 flex:1로 남는 공간을 모두 채우게 한다. 우측 사이드바
+   높이는 기사 상태(승인자/예약발행 필드 노출 여부)나 대표 이미지
+   미리보기 표시 여부에 따라 계속 바뀌는데, 고정 px 값이나 JS 높이 계산은
+   그때마다 다시 어긋나므로 순수 CSS로 항상 맞도록 한다. */
+.editor-layout > div:first-child {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-layout > div:first-child > .form-group-admin:last-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .editor-sidebar-widget {
@@ -1498,6 +1519,15 @@ textarea.form-control-admin {
   color: var(--admin-text-primary);
   font-size: 0.95rem;
   line-height: 1.7;
+}
+
+/* 기사 본문 편집기(#form-content)만: 우측 사이드바와 나란한 높이를 flex로
+   채우도록 위의 고정 min/max-height 대신 flex:1을 쓴다 (다른 rich-editor-body
+   인스턴스인 페이지 HTML 편집기는 그대로 고정 높이를 유지). */
+#form-content.rich-editor-body {
+  flex: 1 1 auto;
+  min-height: 300px;
+  max-height: none;
 }
 
 .rich-editor-body:focus {

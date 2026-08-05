@@ -617,14 +617,6 @@ function setupEventListeners() {
       overlay.classList.remove("active");
     });
   }
-
-  // 창 크기가 바뀌면(반응형 구간 전환 포함) 본문 편집기 높이를 다시 맞춘다.
-  // 기사 작성 탭이 열려있지 않을 때는 아무 효과가 없으므로 매번 호출해도 안전.
-  let resizeSyncTimer = null;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeSyncTimer);
-    resizeSyncTimer = setTimeout(syncArticleEditorHeight, 150);
-  });
 }
 
 async function switchTab(tabName) {
@@ -1396,10 +1388,6 @@ function onStatusChangeInForm(status) {
     scheduledGroup.style.display = "none";
     scheduledInput.removeAttribute("required");
   }
-
-  // 위에서 토글한 필드들(승인자/반려사유/예약발행)이 우측 사이드바 높이를
-  // 바꾸므로, 상태가 바뀔 때마다 본문 편집기 높이를 다시 맞춘다.
-  syncArticleEditorHeight();
 }
 
 function updateContentCharCount() {
@@ -1408,43 +1396,6 @@ function updateContentCharCount() {
   if (!el || !counterEl) return;
   const noSpaceCount = (el.innerText || "").replace(/\s/g, '').length;
   counterEl.textContent = `공백 제외 ${noSpaceCount.toLocaleString("ko-KR")}자`;
-}
-
-// 본문 편집기(form-content)의 아래쪽 끝을 우측 사이드바(분류/이미지/SEO/
-// 워크플로우 위젯 전체)의 아래쪽 끝과 나란히 맞춘다. 우측 사이드바는 기사
-// 상태(승인자/예약발행 필드 표시 여부)나 대표 이미지 미리보기 표시 여부에
-// 따라 높이가 계속 바뀌므로, 고정 px 값이 아니라 매번 실제 높이를 재서
-// 맞춘다. 화면이 좁아 두 칼럼이 세로로 쌓이는 반응형 구간(768px 이하)에서는
-// 나란히 맞출 의미가 없으므로 인라인 높이를 지우고 CSS 기본값으로 되돌린다.
-function syncArticleEditorHeight() {
-  const contentEl = document.getElementById("form-content");
-  const layout = document.querySelector("#tab-article-editor .editor-layout");
-  if (!contentEl || !layout) return;
-
-  const leftCol = layout.children[0];
-  const rightCol = layout.children[1];
-  if (!leftCol || !rightCol) return;
-
-  if (window.innerWidth <= 768) {
-    contentEl.style.height = '';
-    contentEl.style.minHeight = '';
-    contentEl.style.maxHeight = '';
-    return;
-  }
-
-  requestAnimationFrame(() => {
-    // form-content 위쪽(제목/부제/리드/툴바)이 왼쪽 칼럼에서 이미 차지한
-    // 높이 + 아래쪽 글자수 표시 높이를 우측 칼럼 전체 높이에서 뺀 만큼을
-    // 본문 편집기 높이로 준다.
-    const aboveHeight = contentEl.getBoundingClientRect().top - leftCol.getBoundingClientRect().top;
-    const charcountEl = document.getElementById("form-content-charcount");
-    const belowHeight = charcountEl ? charcountEl.offsetHeight + 4 : 0;
-    const targetHeight = Math.max(300, rightCol.offsetHeight - aboveHeight - belowHeight);
-
-    contentEl.style.height = `${targetHeight}px`;
-    contentEl.style.minHeight = `${targetHeight}px`;
-    contentEl.style.maxHeight = `${targetHeight}px`;
-  });
 }
 
 // Edit existing article
@@ -3357,14 +3308,11 @@ function updateFormImagePreview() {
   const url = input.value.trim();
   if (!url) {
     preview.style.display = "none";
-    syncArticleEditorHeight();
     return;
   }
-  preview.onerror = () => { preview.style.display = "none"; syncArticleEditorHeight(); };
-  preview.onload = () => { syncArticleEditorHeight(); };
+  preview.onerror = () => { preview.style.display = "none"; };
   preview.src = /^https?:\/\//i.test(url) ? url : `https://baikalnews.com/${url}`;
   preview.style.display = "block";
-  syncArticleEditorHeight();
 }
 
 // Sets #form-image's value and refreshes its thumbnail together -- prefer
