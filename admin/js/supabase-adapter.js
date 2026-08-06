@@ -241,7 +241,6 @@
               return {
                 featuredHeroId: data.featured_hero_id,
                 editorsPicksIds: data.editors_picks_ids || [],
-                popularReadsIds: data.popular_reads_ids || [],
                 latestNewsIds: data.latest_news_ids || [],
                 pinnedIds: []
               };
@@ -265,7 +264,6 @@
               id: 1,
               featured_hero_id: curation.featuredHeroId,
               editors_picks_ids: curation.editorsPicksIds,
-              popular_reads_ids: curation.popularReadsIds,
               latest_news_ids: curation.latestNewsIds
             };
 

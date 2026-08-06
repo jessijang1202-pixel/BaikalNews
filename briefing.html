@@ -348,9 +348,8 @@
       // 이 스크립트보다 먼저 실행됨)가 채워둔다.
       const rankingContainer = document.getElementById('briefing-ranking-container');
       if (rankingContainer && window.ARTICLES && typeof getOrderedPopularArticles === 'function') {
-        const curation = JSON.parse(localStorage.getItem('baikal_curation')) || { popularReadsIds: [] };
         const published = window.ARTICLES.filter(a => isArticleLive(a));
-        const rankingItems = getOrderedPopularArticles(published, curation, null, 5);
+        const rankingItems = getOrderedPopularArticles(published, null, 5);
         rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
       }
     });

@@ -38,21 +38,21 @@ function compareArticlesByDateDesc(a, b) {
 }
 
 // Returns the top `count` articles by view count -- but ranked only among
-// articles published in the last 48 hours, so a months-old article that
+// articles published in the last 5 days, so a months-old article that
 // racked up views over a long time can't camp in "실시간 인기기사"
-// indefinitely and make the section look static. Membership is always
-// automatic (highest views within the window), but wherever
-// curation.popularReadsIds still covers a current top article, that saved
-// relative order is respected (set by admins reordering 많이 읽은 인기 기사
-// in the curation admin tab). Any newly-popular article not covered by the
-// saved order is appended in view-rank order.
+// indefinitely and make the section look static. Ordering is always fully
+// automatic (highest views within the window, recomputed live) -- there is
+// no admin-settable manual order for this section, since a one-time saved
+// order used to freeze the display even as view counts kept shifting among
+// the same set of articles, which is exactly what made the section look
+// like it "never changes."
 //
 // "Published" time uses approvedAt/scheduledAt (real timestamps) the same
 // way compareArticlesByDateDesc's tiebreak does, since the day-only `date`
-// field can't express a 48-hour cutoff precisely. If fewer than `count`
-// articles fall inside the window (a quiet news day), the remaining slots
-// backfill from the rest of the pool by view count so the section is never
-// thin/empty just because little was published recently.
+// field can't express a multi-day cutoff precisely. If fewer than `count`
+// articles fall inside the window (a quiet news stretch), the remaining
+// slots backfill from the rest of the pool by view count so the section is
+// never thin/empty just because little was published recently.
 //
 // The top-N is always computed from the FULL article pool first (not a
 // per-page-filtered one) so the ranking is identical everywhere the widget
@@ -62,8 +62,8 @@ function compareArticlesByDateDesc(a, b) {
 // would make each article page compute a different top-5 depending on
 // which article excluded itself, which is what caused the list to look
 // different from page to page.
-function getOrderedPopularArticles(published, curation, excludeId, count) {
-  const WINDOW_MS = 48 * 60 * 60 * 1000;
+function getOrderedPopularArticles(published, excludeId, count) {
+  const WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - WINDOW_MS;
   const publishedTime = a => new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
 
@@ -80,12 +80,7 @@ function getOrderedPopularArticles(published, curation, excludeId, count) {
     topByViews.push(...backfill);
   }
 
-  const topIds = new Set(topByViews.map(a => a.id));
-  const orderIds = ((curation && curation.popularReadsIds) || []).filter(id => topIds.has(id));
-  const ordered = orderIds.map(id => topByViews.find(a => a.id === id));
-  const remaining = topByViews.filter(a => !orderIds.includes(a.id));
-  const result = [...ordered, ...remaining];
-  return excludeId ? result.filter(a => a.id !== excludeId) : result;
+  return excludeId ? topByViews.filter(a => a.id !== excludeId) : topByViews;
 }
 
 // A "scheduled" article becomes visible on its own once scheduledAt has passed --
@@ -138,7 +133,6 @@ function isArticleLive(article) {
     const defaultCuration = {
       featuredHeroId: 1,
       editorsPicksIds: [5, 6, 7],
-      popularReadsIds: [8, 9, 10],
       pinnedIds: []
     };
     localStorage.setItem("baikal_curation", JSON.stringify(defaultCuration));
@@ -549,7 +543,6 @@ function renderHomepage() {
   const curation = JSON.parse(localStorage.getItem("baikal_curation")) || {
     featuredHeroId: published[0].id,
     editorsPicksIds: [],
-    popularReadsIds: [],
     latestNewsIds: []
   };
 
@@ -608,10 +601,10 @@ function renderHomepage() {
     }
   }
 
-  // Feature #4: Popular Reads (auto-selected by view count, admin-orderable)
+  // Feature #4: Popular Reads (fully automatic -- selected and ordered by view count)
   const popularContainer = document.getElementById("popular-reads-container");
   if (popularContainer) {
-    const popularItems = getOrderedPopularArticles(published, curation, null, 5);
+    const popularItems = getOrderedPopularArticles(published, null, 5);
     popularContainer.innerHTML = popularItems.length > 0
       ? popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('')
       : `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
@@ -712,8 +705,6 @@ function renderCategoryPage() {
   const navEl = document.getElementById(navId);
   if (navEl) navEl.classList.add("active");
 
-  const curation = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
-
   // Sort: 최신순 (newest date first) / 인기순 (highest view count first)
   const sort = getQueryParam("sort") === "popular" ? "popular" : "latest";
   let filtered = getArticlesByCategory(cat);
@@ -767,12 +758,12 @@ function renderCategoryPage() {
     }
   }
 
-  // Sidebar ranking widget (실시간 인기기사 - views descending, admin reorder on top,
+  // Sidebar ranking widget (실시간 인기기사 - views descending, fully automatic,
   // same getOrderedPopularArticles logic as the homepage/article page instances)
   const rankingContainer = document.getElementById("category-ranking-container");
   if (rankingContainer) {
     const published = window.ARTICLES.filter(a => isArticleLive(a));
-    const rankingItems = getOrderedPopularArticles(published, curation, null, 5);
+    const rankingItems = getOrderedPopularArticles(published, null, 5);
     rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
   }
 }
@@ -999,12 +990,11 @@ function renderArticlePage() {
     }
   }
 
-  // Render Sidebar Ranking Widget (실시간 인기기사 - reuses homepage curation, excludes current article)
+  // Render Sidebar Ranking Widget (실시간 인기기사 - fully automatic, excludes current article)
   const rankingContainer = document.getElementById("article-ranking-container");
   if (rankingContainer) {
-    const curationData = JSON.parse(localStorage.getItem("baikal_curation")) || { popularReadsIds: [] };
     const publishedForRanking = window.ARTICLES.filter(a => isArticleLive(a));
-    const rankingItems = getOrderedPopularArticles(publishedForRanking, curationData, article.id, 5);
+    const rankingItems = getOrderedPopularArticles(publishedForRanking, article.id, 5);
     rankingContainer.innerHTML = rankingItems.map(a => createArticleCardHTML(a, 'minimal')).join('');
   }
 

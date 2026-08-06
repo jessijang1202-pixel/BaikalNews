@@ -2581,17 +2581,16 @@ async function transferAiDraftToEditor() {
 // 6. Homepage News Curation Panel
 // Cached so the 10 preview updates don't each re-fetch the article list
 let curationArticlesCache = [];
-// Ordered article IDs for 많이 읽은 인기 기사 -- membership is always the
-// current top-5-by-views, admins can only reorder these via the ▲/▼ list.
-let curationPopularOrder = [];
 const CURATION_POPULAR_COUNT = 5;
 
-// js/main.js의 getOrderedPopularArticles()와 동일한 48시간 윈도우 + 백필
-// 로직을 그대로 맞춘다 -- 이게 다르면 관리자가 순서를 바꿔도(재배치 UI가
-// 다른 기사들을 대상으로 보여줌) 실제 공개 사이트에는 반영 안 되는 것처럼
-// 보이는 불일치가 생긴다.
+// js/main.js의 getOrderedPopularArticles()와 동일한 5일 윈도우 + 백필 로직을
+// 그대로 맞춘다 -- 이게 다르면 이 관리자 미리보기가 실제 공개 사이트와
+// 다른 목록/순서를 보여주는 불일치가 생긴다. 예전에는 이 순서를 관리자가
+// 수동으로 저장해 고정할 수 있었는데, 그 저장된 순서가 조회수가 계속
+// 바뀌어도 그대로 남아있어 "실시간 인기기사가 안 바뀐다"는 원인이 됐다 --
+// 그래서 수동 재배치 기능 자체를 없애고 항상 실시간 자동 계산만 보여준다.
 function computeAutoPopularIds(published, count) {
-  const WINDOW_MS = 48 * 60 * 60 * 1000;
+  const WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - WINDOW_MS;
   const publishedTime = a => new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
   const byViewsDesc = (a, b) => (b.views || 0) - (a.views || 0);
@@ -2656,30 +2655,24 @@ async function populateCurationDropdowns() {
 
   applyValues(curation.latestNewsIds, "curate-latest");
 
-  // 많이 읽은 인기 기사: trust the saved order only if it's still the exact
-  // same set of articles the current view counts would auto-select -- if
-  // membership drifted (a new article rose into the top 5), reset to the
-  // fresh view-count order rather than let a stale pick linger.
-  const autoIds = computeAutoPopularIds(published, CURATION_POPULAR_COUNT);
-  const savedIds = curation.popularReadsIds || [];
-  const sameSet = savedIds.length === autoIds.length && autoIds.every(id => savedIds.includes(id));
-  curationPopularOrder = sameSet ? savedIds.slice() : autoIds;
-  renderCurationPopularList();
+  // 많이 읽은 인기 기사: 관리자가 손댈 수 있는 값이 없다 -- 항상 최근 5일
+  // 조회수 기준 실시간 자동 계산 결과를 그대로 보여준다 (읽기 전용 미리보기).
+  renderCurationPopularList(computeAutoPopularIds(published, CURATION_POPULAR_COUNT));
 
   // Render the initial preview for every slot
   publishedSelects.forEach(selectId => updateCurationPreview(selectId));
 }
 
-function renderCurationPopularList() {
+function renderCurationPopularList(popularIds) {
   const container = document.getElementById("curate-pop-auto-list");
   if (!container) return;
 
-  if (curationPopularOrder.length === 0) {
+  if (popularIds.length === 0) {
     container.innerHTML = `<div class="help-text">조회수가 집계된 발행 기사가 없습니다.</div>`;
     return;
   }
 
-  container.innerHTML = curationPopularOrder.map((id, i) => {
+  container.innerHTML = popularIds.map((id, i) => {
     const art = curationArticlesCache.find(a => a.id === id);
     if (!art) return '';
     const imageUrl = /^https?:\/\//i.test(art.image || '') ? art.image : `https://baikalnews.com/${art.image || 'images/news_editorial.png'}`;
@@ -2691,20 +2684,9 @@ function renderCurationPopularList() {
           <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${art.title}</div>
           <div style="font-size:0.72rem; color:var(--admin-text-secondary);">조회수 ${(art.views || 0).toLocaleString("ko-KR")}회</div>
         </div>
-        <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px;" onclick="moveCurationPopularItem(${i}, -1)" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px;" onclick="moveCurationPopularItem(${i}, 1)" ${i === curationPopularOrder.length - 1 ? 'disabled' : ''}>▼</button>
       </div>
     `;
   }).join('');
-}
-
-function moveCurationPopularItem(index, direction) {
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= curationPopularOrder.length) return;
-  const tmp = curationPopularOrder[index];
-  curationPopularOrder[index] = curationPopularOrder[newIndex];
-  curationPopularOrder[newIndex] = tmp;
-  renderCurationPopularList();
 }
 
 // Shows a small thumbnail + title under a curation <select> for whatever
@@ -2749,7 +2731,6 @@ async function saveCurationSettings() {
   const newCuration = {
     latestNewsIds: readSlots("curate-latest", 3),
     editorsPicksIds: [],
-    popularReadsIds: curationPopularOrder.slice(),
     pinnedIds: []
   };
 
@@ -2763,7 +2744,6 @@ async function saveCurationSettings() {
     if (window.SupabaseAdapter.isConfigured && window.SupabaseAdapter.isConfigured()) {
       const verify = await window.SupabaseAdapter.fetchCuration();
       const matches = verify &&
-        JSON.stringify(verify.popularReadsIds || []) === JSON.stringify(newCuration.popularReadsIds) &&
         JSON.stringify(verify.latestNewsIds || []) === JSON.stringify(newCuration.latestNewsIds);
       if (!matches) {
         alert("큐레이션 저장이 데이터베이스에 반영되지 않았습니다. Supabase의 curation 테이블에 latest_news_ids 컬럼이 있는지, UPDATE 권한(RLS 정책)이 있는지 확인해 주세요.");
@@ -2771,7 +2751,7 @@ async function saveCurationSettings() {
       }
     }
   }
-  await logAudit("홈화면 큐레이션 개정", null, "최신 보도/인기 기사 슬롯 재배포함 (대표 헤드라인은 자동 최신순).");
+  await logAudit("홈화면 큐레이션 개정", null, "최신 보도 슬롯 재배포함 (대표 헤드라인은 자동 최신순, 인기 기사는 자동 실시간 집계).");
   alert("홈화면 뉴스 배치 큐레이션이 정상 배포되었습니다. 독자 사이트에서 즉시 노출이 갱신됩니다.");
 }
 
@@ -8739,11 +8719,10 @@ const SNS_PLATFORMS = ['facebook', 'instagram', 'threads', 'x', 'youtube'];
 // ------------------------------------------------------------------
 // 공용 기사 검색 피커 -- "SNS 카드뉴스 발행"과 "SNS 발행용 콘텐츠" 두
 // 서브탭이 각자 독립된 인스턴스로 재사용한다 (기사 선택 상태를 공유하지
-// 않음 -- 관리자가 서브탭마다 다른 기사를 고를 수 있어야 하므로). 목록은
-// getOrderedPopularArticles/computeAutoPopularIds와 동일한 48시간 윈도우
-// 규칙(approvedAt/scheduledAt 기준)으로 좁혀, 검색 대상 자체가 항상 작게
-// 유지되도록 한다 -- 그래서 서버 검색 없이 클라이언트 부분일치 필터만으로
-// 충분하다.
+// 않음 -- 관리자가 서브탭마다 다른 기사를 고를 수 있어야 하므로). 펼침
+// 목록(검색어 없음)은 48시간 이내 발행 기사로 좁힌다(approvedAt/
+// scheduledAt 기준) -- "실시간 인기기사"의 5일 랭킹 윈도우와는 별개로,
+// SNS 발행 후보는 최근 것만 보이면 된다는 명시적 요청에 따른 값이다.
 // ------------------------------------------------------------------
 const SNS_PICKER_WINDOW_MS = 48 * 60 * 60 * 1000;
 const snsArticlePickers = {}; // inputId -> { articles, selected, onSelect }
