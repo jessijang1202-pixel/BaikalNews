@@ -5,12 +5,15 @@
 // generateWebBriefing() (Naver ranking scrape -> Gemini summarize) but runs
 // server-side, since a cron job has no browser/admin session to drive it.
 //
-// Deliberately does NOT auto-publish: the row is inserted with
-// status='draft', so it stays invisible on the public briefing.html
-// archive (which only reads status='published' rows) until an admin
-// reviews it in the "웹사이트 게시용" panel and clicks "웹사이트에 게시".
-// This was an explicit choice -- unreviewed AI output going straight to a
-// public page unattended was judged too risky to skip human sign-off.
+// Auto-publishes: the row is inserted with status='published' directly, so
+// it's immediately visible on the public briefing.html archive (which only
+// reads status='published' rows) with no admin review step. This was an
+// explicit request (2026-08-07) -- an earlier version deliberately inserted
+// as 'draft' pending manual review/publish, but the admin wants the 8am
+// briefing live with zero manual steps. Manually-triggered generation from
+// the admin panel (generateWebBriefing() in admin/js/admin.js) still saves
+// as 'draft' and requires a manual "웹사이트에 게시" click -- only this
+// automatic cron path skips review.
 //
 // Idempotent: if a row already exists for today's (KST) date -- whether
 // it's a manually-generated draft or already published -- this exits
@@ -542,7 +545,7 @@ ${newsListText}
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates'
       },
-      body: JSON.stringify({ briefing_date: today, title, content: resultText, status: 'draft' })
+      body: JSON.stringify({ briefing_date: today, title, content: resultText, status: 'published' })
     });
 
     if (!insertRes.ok) {
@@ -550,7 +553,7 @@ ${newsListText}
       throw new Error(`Supabase news_briefings insert failed: ${errText}`);
     }
 
-    console.log(`${today} 브리핑 자동 생성 완료 (초안 상태, ${resultText.length}자).`);
+    console.log(`${today} 브리핑 자동 생성 완료 (검수 없이 즉시 게시, ${resultText.length}자).`);
 
     // 웹 브리핑은 이미 저장이 끝난 뒤이므로, 카카오 생성이 실패해도 이미
     // 성공한 웹 브리핑 응답을 절대 막지 않는다 (generateAndSaveKakaoIfNeeded는

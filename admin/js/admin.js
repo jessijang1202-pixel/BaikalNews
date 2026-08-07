@@ -8070,8 +8070,8 @@ function renderWebBriefingUI() {
     textEl.value = webBriefingDraft.content;
     if (statusEl) {
       const publishedNote = webBriefingDraft.status === 'published'
-        ? '웹사이트에 게시됨'
-        : '초안 상태 -- 아직 웹사이트에 게시되지 않았습니다. 매일 아침 8시 자동 생성된 초안일 수 있으니 검토 후 게시해 주세요.';
+        ? '웹사이트에 게시됨 (매일 아침 8시 자동 생성/게시분일 수 있습니다)'
+        : '초안 상태 -- 아직 웹사이트에 게시되지 않았습니다. "오늘의 브리핑 생성" 버튼으로 직접 만든 초안이니, 검토 후 게시해 주세요.';
       statusEl.textContent = `${webBriefingDraft.date} 기준 (${webBriefingDraft.content.length}자) -- ${publishedNote}`;
     }
   } else {
