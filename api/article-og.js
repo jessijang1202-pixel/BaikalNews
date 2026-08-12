@@ -29,7 +29,7 @@ function escapeHtml(str) {
 
 async function fetchArticle(id) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,subtitle,lead,image,category_label`,
+    `${SUPABASE_URL}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,lead,image,category_label`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   );
   if (!res.ok) return null;
@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
 
   const pageUrl = `https://baikalnews.com/article.html${id ? `?id=${encodeURIComponent(id)}` : ''}`;
   const title = article ? article.title : '바이칼 뉴스';
-  const description = article ? (article.lead || article.subtitle || '') : '깊고 투명한 시선으로 세상을 비추다.';
+  const description = article ? (article.lead || '') : '깊고 투명한 시선으로 세상을 비추다.';
   const image = article && article.image ? article.image : 'https://baikalnews.com/images/logo-mark-new.png';
 
   const html = `<!DOCTYPE html>

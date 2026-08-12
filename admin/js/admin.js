@@ -1427,7 +1427,6 @@ async function editArticle(id) {
   // Populate fields
   document.getElementById("edit-article-id").value = art.id;
   document.getElementById("form-title").value = art.title;
-  document.getElementById("form-subtitle").value = art.subtitle || "";
   document.getElementById("form-lead").value = art.lead || "";
   document.getElementById("form-content").innerHTML = art.content || "";
   document.getElementById("form-category").value = art.category;
@@ -1526,7 +1525,6 @@ async function saveArticle() {
   }
   
   const title = document.getElementById("form-title").value;
-  const subtitle = document.getElementById("form-subtitle").value;
   const lead = document.getElementById("form-lead").value;
   const content = document.getElementById("form-content").innerHTML;
   const category = document.getElementById("form-category").value;
@@ -1610,7 +1608,6 @@ async function saveArticle() {
     }
 
     art.title = title;
-    art.subtitle = subtitle;
     art.lead = lead;
     art.content = content;
     art.category = category;
@@ -1665,7 +1662,6 @@ async function saveArticle() {
     art = {
       id: newId,
       title,
-      subtitle,
       lead,
       content,
       category,
@@ -1963,16 +1959,15 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 완벽하게 따르고 핵심 키워드를 포함한 기사 제목
-2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
-3. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
-4. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
+2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -2022,16 +2017,15 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
-2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
-3. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
+2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -2238,16 +2232,15 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 새로운 독창적 기사 제목
-2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
-3. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
+2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -2330,16 +2323,15 @@ ${SEO_PROMPT_INSTRUCTIONS}
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 독자의 실질적 관심을 끌고 핵심 키워드를 포함한 정보성 기사 제목
-2. "subtitle": 제목과 겹치지 않게 기사의 핵심 내용을 한 문장으로 압축한 부제목 (핵심 요약, 30자 내외)
-3. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
-4. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
+2. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
   const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
   return {
-    headline: draft.title, subtitle: draft.subtitle, lead: draft.lead, body: draft.body, category,
+    headline: draft.title, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
   };
 }
@@ -2469,13 +2461,12 @@ async function generateAiDraft() {
       result = await generateInfoDraft();
     }
 
-    const { headline, subtitle, lead, body, category, seoTitle, seoMeta, slug, keywords } = result;
+    const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords } = result;
     const finalSlug = slugify(slug) || `article-${Date.now()}`;
     const finalKeywords = Array.isArray(keywords) ? keywords : [];
 
     generatedDraftData = {
       title: headline,
-      subtitle: subtitle || `${AI_CATEGORY_LABELS[category] || category} 부문 AI 작성 초안`,
       lead: lead,
       content: body,
       category: category,
@@ -2487,7 +2478,6 @@ async function generateAiDraft() {
     };
 
     document.getElementById("ai-out-headline").textContent = headline;
-    document.getElementById("ai-out-subtitle").textContent = generatedDraftData.subtitle;
     document.getElementById("ai-out-lead").textContent = lead;
     document.getElementById("ai-out-body").innerHTML = body;
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
@@ -2560,7 +2550,6 @@ async function transferAiDraftToEditor() {
 
   // Populate editor form with AI draft data
   document.getElementById("form-title").value = generatedDraftData.title;
-  document.getElementById("form-subtitle").value = generatedDraftData.subtitle;
   document.getElementById("form-lead").value = generatedDraftData.lead;
   document.getElementById("form-content").innerHTML = generatedDraftData.content;
   document.getElementById("form-category").value = generatedDraftData.category;
@@ -8906,7 +8895,7 @@ function buildSnsHashtags(article, platform) {
   const base = ['#바이칼뉴스', tag].filter(Boolean);
 
   const titleKeywords = extractSnsKeywords(article.title, 8);
-  const leadKeywords = extractSnsKeywords(article.lead || article.subtitle || '', 8)
+  const leadKeywords = extractSnsKeywords(article.lead || '', 8)
     .filter(k => !titleKeywords.includes(k));
   const contentKeywords = [...titleKeywords, ...leadKeywords];
 
@@ -8929,7 +8918,7 @@ function buildSnsHashtags(article, platform) {
 
 function buildSnsPostText(article, platform) {
   const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
-  const lead = (article.lead || article.subtitle || '').trim();
+  const lead = (article.lead || '').trim();
   const title = article.title || '';
   const hashtags = buildSnsHashtags(article, platform);
 
@@ -9138,7 +9127,7 @@ function renderCardNewsPreview(article) {
   }
   if (titleEl) titleEl.textContent = article.title || '';
   if (dateEl) dateEl.textContent = article.date || '';
-  if (leadEl) leadEl.textContent = (article.lead || article.subtitle || '').trim();
+  if (leadEl) leadEl.textContent = (article.lead || '').trim();
 }
 
 // 인포그래픽용 기사 요약: 관리자가 Gemini Gem 등 외부 도구에 붙여넣어
@@ -9171,7 +9160,7 @@ async function generateCardNewsSummary() {
 ${article.title}
 
 [리드 문단]
-${article.lead || article.subtitle || ''}
+${article.lead || ''}
 
 [본문]
 ${bodyText.substring(0, 4000)}
@@ -9219,7 +9208,7 @@ async function copyCardNewsSummary() {
 function buildCardNewsCopyText(article) {
   if (!article) return '';
   const title = article.title || '';
-  const lead = (article.lead || article.subtitle || '').trim();
+  const lead = (article.lead || '').trim();
   const url = article.canonicalUrl || `https://baikalnews.com/article.html?id=${article.id}`;
   // 특정 채널 전용이 아니라 여러 SNS에 두루 쓰는 문구라, buildSnsHashtags의
   // 기본(facebook/threads) 분기 -- 브랜드+카테고리 2개 + 키워드 3개 --를 그대로 쓴다.

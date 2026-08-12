@@ -11,7 +11,6 @@
     return {
       id: row.id,
       title: row.title,
-      subtitle: row.subtitle,
       lead: row.lead,
       content: row.content,
       category: row.category,
@@ -122,7 +121,6 @@
             const dbRow = {
               id: article.id,
               title: article.title,
-              subtitle: article.subtitle,
               lead: article.lead,
               content: article.content,
               category: article.category,
