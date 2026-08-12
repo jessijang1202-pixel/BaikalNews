@@ -5447,147 +5447,68 @@ function setShortsVeoCostSavingMode(enabled) {
   localStorage.setItem("baikal_shorts_veo_cost_saving", enabled ? "true" : "false");
 }
 
-// Resolves a Veo (video generation) capable model for this API key.
-// NOTE: Veo access requires separate enablement/billing beyond a plain Gemini
-// text/image key -- resolveVeoModel throws a clear message if none is found.
-async function resolveVeoModel(apiKey) {
-  const costSaving = getShortsVeoCostSavingMode();
-  // 절감 모드와 풀 모드가 서로 다른 모델을 가리켜야 하므로 캐시 키를
-  // 분리한다 -- 안 그러면 토글을 바꿔도 하루 동안 예전 모드의 캐시된
-  // 모델명을 계속 재사용하게 된다.
-  const cacheKey = "baikal_veo_model_" + (costSaving ? "lite" : "full");
-  const cacheTimeKey = cacheKey + "_cached_at";
-  const cached = localStorage.getItem(cacheKey);
-  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  if (cached && (Date.now() - cachedAt) < oneDayMs) {
-    return cached;
-  }
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
-  const data = await res.json();
-  const models = (data.models || []).filter(m => /veo/i.test(m.name));
-  if (models.length === 0) {
-    throw new Error("이 API 키로 사용 가능한 Veo 영상 생성 모델을 찾지 못했습니다. Google AI Studio/Cloud 콘솔에서 Veo 접근 권한(별도 결제 활성화)이 있는지 확인해 주세요.");
-  }
-
-  // "lite"/"fast" 계열 모델명은 Google 쪽 네이밍이 바뀔 수 있어 정확한
-  // 모델 ID를 하드코딩하지 않고 패턴으로 찾는다 -- 못 찾으면 기존 veo-3
-  // 우선순위로 자연스럽게 대체(fallback)된다.
-  const chosen = costSaving
-    ? (models.find(m => /lite/i.test(m.name)) || models.find(m => /fast/i.test(m.name)) || models.find(m => /veo-3/i.test(m.name)) || models[0])
-    : (models.find(m => /veo-3/i.test(m.name)) || models[0]);
-  const modelName = chosen.name.replace(/^models\//, '');
-  localStorage.setItem(cacheKey, modelName);
-  localStorage.setItem(cacheTimeKey, String(Date.now()));
-  return modelName;
-}
-
 // Kicks off a Veo video generation job (long-running operation) and polls
-// until it completes, returning the finished clip as a Blob. Veo's exact
-// response shape is newer/less stable than Gemini's text & image endpoints,
-// so this defensively tries a few known field-name variants.
+// until it completes, returning the finished clip as a Blob. All three steps
+// (start / poll / download) go through server-side proxies so the Gemini key
+// never reaches the browser -- see api/veo-start-proxy.js. The 절감 모드
+// toggle is still a local UI preference; it's just passed along as a param
+// so the proxy can pick the lite/fast model.
 async function generateVeoVideo(promptText, onStatus) {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
-  if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. (Veo 영상 생성도 이미지 생성용 Gemini 키를 사용합니다)");
-  }
-
-  const model = await resolveVeoModel(apiKey);
   if (onStatus) onStatus("Veo 영상 생성 요청 중...");
 
-  const startRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`, {
+  const startRes = await fetch("https://baikalnews.com/api/veo-start-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      instances: [{ prompt: promptText + MEDIA_KOREAN_PEOPLE_RULE }],
-      parameters: { aspectRatio: "9:16", durationSeconds: 8 }
-    })
+    body: JSON.stringify({ prompt: promptText + MEDIA_KOREAN_PEOPLE_RULE, costSaving: getShortsVeoCostSavingMode() })
   });
   if (!startRes.ok) {
     const errText = await startRes.text();
-    if (startRes.status === 404) {
-      localStorage.removeItem("baikal_veo_model_lite");
-      localStorage.removeItem("baikal_veo_model_lite_cached_at");
-      localStorage.removeItem("baikal_veo_model_full");
-      localStorage.removeItem("baikal_veo_model_full_cached_at");
-    }
-    throw new Error(`Veo 영상 생성 요청 실패 (HTTP ${startRes.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`Veo 영상 생성 요청 실패 (HTTP ${startRes.status}): ${errText}`);
   }
-
-  let operation = await startRes.json();
-  const operationName = operation.name;
-  if (!operationName) throw new Error("Veo 작업 ID를 받지 못했습니다: " + JSON.stringify(operation));
+  const { operationName } = await startRes.json();
+  if (!operationName) throw new Error("Veo 작업 ID를 받지 못했습니다.");
 
   if (onStatus) onStatus("Veo 영상 렌더링 중... (최대 몇 분 소요될 수 있습니다)");
 
   let attempts = 0;
-  while (!operation.done && attempts < 60) {
+  let result = { done: false };
+  while (!result.done && attempts < 60) {
     await new Promise(r => setTimeout(r, 10000));
-    const pollRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`);
+    const pollRes = await fetch("https://baikalnews.com/api/veo-poll-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operationName })
+    });
     if (!pollRes.ok) {
       const errText = await pollRes.text();
       throw new Error(`Veo 진행상황 확인 실패 (HTTP ${pollRes.status}): ${errText}`);
     }
-    operation = await pollRes.json();
+    result = await pollRes.json();
     attempts++;
     if (onStatus) onStatus(`Veo 영상 렌더링 중... (${attempts * 10}초 경과)`);
   }
 
-  if (!operation.done) {
+  if (!result.done) {
     throw new Error("Veo 영상 생성이 시간 내에 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.");
   }
-  if (operation.error) {
-    throw new Error(`Veo 영상 생성 실패: ${operation.error.message || JSON.stringify(operation.error)}`);
+  if (result.error) {
+    throw new Error(`Veo 영상 생성 실패: ${result.error}`);
   }
-
-  const genResponse = operation.response || {};
-  const samples = (genResponse.generateVideoResponse && genResponse.generateVideoResponse.generatedSamples)
-    || genResponse.generatedSamples
-    || genResponse.videos;
-  const firstSample = samples && samples[0];
-  const videoUri = firstSample && (
-    (firstSample.video && firstSample.video.uri) || firstSample.uri || firstSample.video
-  );
-  if (!videoUri) {
-    throw new Error("Veo 응답에서 영상 URI를 찾지 못했습니다. API 응답 형식이 예상과 다를 수 있습니다: " + JSON.stringify(genResponse).substring(0, 500));
+  if (!result.videoUri) {
+    throw new Error("Veo 응답에서 영상 URI를 찾지 못했습니다.");
   }
 
   if (onStatus) onStatus("완성된 Veo 영상 다운로드 중...");
-  const videoUrl = videoUri.includes('key=') ? videoUri : `${videoUri}${videoUri.includes('?') ? '&' : '?'}key=${apiKey}`;
-  const videoRes = await fetch(videoUrl);
-  if (!videoRes.ok) throw new Error(`Veo 영상 파일 다운로드 실패 (HTTP ${videoRes.status})`);
-  return await videoRes.blob();
-}
-
-// Resolves a Gemini TTS-capable model -- same auto-discovery/caching pattern
-// as resolveVeoModel.
-async function resolveGeminiTtsModel(apiKey) {
-  const cacheKey = "baikal_gemini_tts_model";
-  const cacheTimeKey = "baikal_gemini_tts_model_cached_at";
-  const cached = localStorage.getItem(cacheKey);
-  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  if (cached && (Date.now() - cachedAt) < oneDayMs) {
-    return cached;
+  const downloadRes = await fetch("https://baikalnews.com/api/veo-download-proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ videoUri: result.videoUri })
+  });
+  if (!downloadRes.ok) {
+    const errText = await downloadRes.text();
+    throw new Error(`Veo 영상 파일 다운로드 실패 (HTTP ${downloadRes.status}): ${errText}`);
   }
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
-  const data = await res.json();
-  const models = (data.models || []).filter(m => /tts/i.test(m.name));
-  if (models.length === 0) {
-    throw new Error("이 API 키로 사용 가능한 음성(TTS) 생성 모델을 찾지 못했습니다. Google AI Studio에서 TTS 모델 접근 권한을 확인해 주세요.");
-  }
-
-  const chosen = models.find(m => /flash/i.test(m.name)) || models[0];
-  const modelName = chosen.name.replace(/^models\//, '');
-  localStorage.setItem(cacheKey, modelName);
-  localStorage.setItem(cacheTimeKey, String(Date.now()));
-  return modelName;
+  return await downloadRes.blob();
 }
 
 // Wraps Gemini TTS's raw headerless PCM16 response in a minimal WAV header
@@ -5627,47 +5548,26 @@ function pcm16ToWavBlob(base64Pcm, sampleRate) {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-// Calls Gemini's native TTS (same API key already used for images/Veo) and
-// returns a playable WAV Blob.
+// Calls Gemini's native TTS through the server-side proxy (no browser-side
+// Gemini key needed -- see api/gemini-tts-proxy.js) and returns a playable
+// WAV Blob.
 async function generateGeminiSpeech(text, voiceName) {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
-  if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
-  }
-
-  const model = await resolveGeminiTtsModel(apiKey);
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+  const res = await fetch("https://baikalnews.com/api/gemini-tts-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName || "Kore" } } }
-      }
-    })
+    body: JSON.stringify({ text, voiceName })
   });
-
   if (!res.ok) {
     const errText = await res.text();
-    if (res.status === 404) {
-      localStorage.removeItem("baikal_gemini_tts_model");
-      localStorage.removeItem("baikal_gemini_tts_model_cached_at");
-    }
-    throw new Error(`나레이션 생성 실패 (HTTP ${res.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`나레이션 생성 실패 (HTTP ${res.status}): ${errText}`);
   }
-
   const data = await res.json();
-  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-  const audioPart = parts.find(p => p.inlineData && p.inlineData.data);
-  if (!audioPart) {
+  if (!data.audioData) {
     throw new Error("AI가 음성 데이터를 반환하지 않았습니다.");
   }
-
-  const mimeType = audioPart.inlineData.mimeType || "audio/L16;rate=24000";
-  const rateMatch = mimeType.match(/rate=(\d+)/);
+  const rateMatch = (data.mimeType || '').match(/rate=(\d+)/);
   const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-  return pcm16ToWavBlob(audioPart.inlineData.data, sampleRate);
+  return pcm16ToWavBlob(data.audioData, sampleRate);
 }
 
 // Generates a single narration track (Gemini TTS) covering the hook text
@@ -9484,7 +9384,7 @@ function loadGeminiApiKey() {
     statusSpan.style.color = "#10b981"; // green
   } else if (keyInput && statusSpan) {
     keyInput.value = "";
-    statusSpan.textContent = "API Key가 설정되지 않았습니다. 숏폼(Shorts) 영상 생성(Veo)·음성(TTS)·참고영상 스타일 분석 기능을 사용하려면 등록하십시오.";
+    statusSpan.textContent = "API Key가 설정되지 않았습니다. 숏폼(Shorts) 참고영상 스타일 분석(참고 영상을 업로드해 분위기·톤을 분석하는 기능) 기능을 사용하려면 등록하십시오.";
     statusSpan.style.color = "#fbbf24"; // yellow
   }
 }

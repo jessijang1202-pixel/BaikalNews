@@ -4,10 +4,11 @@
 // request/response shape admin.js's callGeminiTextApi() used to build
 // directly against Google -- same model-picking logic as
 // resolveGeminiVisionModel() there, just run here so the key never reaches
-// the browser. Scope: text only. Image generation has its own proxy
-// (gemini-image-proxy.js); Veo video/TTS/style-analysis are NOT proxied
-// (still use the browser-side key) -- deliberate, see admin.js comments
-// near those functions.
+// the browser. Scope: text only. Image generation, Veo video, and TTS each
+// have their own proxy (gemini-image-proxy.js, veo-start/poll/download-proxy.js,
+// gemini-tts-proxy.js); only the shorts style-reference-video upload/analysis
+// still uses the browser-side key -- deliberate, see admin.js comments near
+// analyzeShortsStyleReference().
 //
 // Deliberately does NOT do the 24h client-side model-name caching admin.js
 // used to do (localStorage isn't available server-side, and serverless

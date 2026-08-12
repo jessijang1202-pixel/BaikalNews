@@ -529,16 +529,16 @@
             <span class="profile-role-tag" style="background-color: var(--admin-bg-body);">인간 승인 기반 반자동 작업 흐름</span>
           </div>
 
-          <!-- API Key Config Panel: Gemini (Shorts video/TTS/style analysis only) -->
+          <!-- API Key Config Panel: Gemini (Shorts style-reference video analysis only) -->
           <div class="ai-api-config-panel" style="background-color: var(--admin-bg-body); border: 1px solid var(--admin-border); padding: 16px; border-radius: 8px; margin: 0 24px 20px 24px;">
             <h4 style="margin-top: 0; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleApiConfig()">
-              <span>🔑 Gemini API 설정 (숏폼 영상 · 음성 · 스타일 분석 전용)</span>
+              <span>🔑 Gemini API 설정 (숏폼 참고영상 스타일 분석 전용)</span>
               <span id="api-config-toggle-icon">▼</span>
             </h4>
             <div id="api-config-content" style="display: none; margin-top: 12px;">
               <div class="form-group-admin" style="margin-bottom: 12px;">
                 <label for="ai-gemini-key">Gemini API Key</label>
-                <input type="text" id="ai-gemini-key" class="form-control-admin masked-key-input" autocomplete="off" placeholder="API Key를 입력하여 숏폼(Shorts) 영상 생성(Veo)·음성(TTS)·참고영상 스타일 분석 기능을 활성화하세요.">
+                <input type="text" id="ai-gemini-key" class="form-control-admin masked-key-input" autocomplete="off" placeholder="API Key를 입력하여 숏폼(Shorts) 참고영상 스타일 분석(참고 영상 업로드 → 분위기·톤 분석) 기능을 활성화하세요.">
               </div>
               <div style="display: flex; align-items: center; gap: 12px;">
                 <button type="button" class="btn-admin btn-admin-primary" onclick="saveGeminiApiKey()">API Key 저장</button>
