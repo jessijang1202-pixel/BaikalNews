@@ -1523,6 +1523,70 @@
             <p class="help-text" id="cardnews-summary-status" style="margin-top:10px;"></p>
           </div>
 
+          <div class="panel" style="padding: 24px; margin-bottom: 20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">카드뉴스 생성</h3>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
+              위 인포그래픽용 기사 요약을 바탕으로, 템플릿과 바이칼 물범 캐릭터를 선택하면 4:5 세로형(1080×1350px) 인포그래픽 이미지 1장을 AI가 바로 생성합니다.
+            </p>
+
+            <div class="form-group-admin">
+              <label for="cardnews-template-select">1. 템플릿 선택</label>
+              <select id="cardnews-template-select" class="form-control-admin">
+                <option value="1">1. 노란색과 연두색 링철</option>
+                <option value="2">2. 하늘색과 파스텔톤 귀여운 우표 메모지</option>
+                <option value="3">3. 노랑바탕 링노트</option>
+                <option value="4">4. 민트색과 흰색 클립</option>
+                <option value="5">5. 연두색과 노란색 캐릭터 집게</option>
+                <option value="6">6. 옐로우 인덱스</option>
+                <option value="7">7. 주황색과 노란색 엄청 심플</option>
+                <option value="8">8. 파란색과 노란색 강렬한 느낌</option>
+                <option value="9">9. 파란색 바탕과 흰색 심플</option>
+                <option value="10">10. 하늘색 집게와 아이보리 심플</option>
+                <option value="11">11. 회색바탕 악어 노트북 노트</option>
+              </select>
+            </div>
+
+            <div class="form-group-admin">
+              <label for="cardnews-character-select">2. 캐릭터 선택 (바이칼 물범)</label>
+              <select id="cardnews-character-select" class="form-control-admin">
+                <optgroup label="노랑 물범">
+                  <option value="yellow-default">기본/당황</option>
+                  <option value="yellow-study">열공</option>
+                  <option value="yellow-focus">집중</option>
+                  <option value="yellow-task">과제</option>
+                  <option value="yellow-tired">지침(피곤)</option>
+                  <option value="yellow-worry">고민</option>
+                  <option value="yellow-phone">폰</option>
+                  <option value="yellow-understand">이해</option>
+                  <option value="yellow-solved">해결</option>
+                </optgroup>
+                <optgroup label="민트 물범">
+                  <option value="mint-default">기본/당황</option>
+                  <option value="mint-smile">방긋</option>
+                  <option value="mint-glare">찌릿</option>
+                  <option value="mint-shock">헉!</option>
+                  <option value="mint-sad">시무룩</option>
+                  <option value="mint-hmm">음...</option>
+                  <option value="mint-hi">안녕!</option>
+                  <option value="mint-heart">두근</option>
+                  <option value="mint-sleep">쿨쿨</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <button type="button" id="cardnews-generate-image-btn" class="btn-admin btn-admin-primary" onclick="generateCardNewsImage()">카드뉴스 생성</button>
+            <p class="help-text" id="cardnews-image-status" style="margin-top:10px;"></p>
+
+            <div id="cardnews-image-result" style="display:none; margin-top:16px;">
+              <img id="cardnews-image-preview" src="" alt="생성된 카드뉴스 인포그래픽" style="max-width:100%; border-radius:8px; border:1px solid var(--admin-border-light);">
+              <div style="margin-top:10px;">
+                <a id="cardnews-image-download" class="btn-admin btn-admin-secondary" download="cardnews.png" href="#">PNG 다운로드</a>
+              </div>
+            </div>
+          </div>
+
           <div class="panel" style="padding: 24px;">
             <div class="panel-header">
               <h3 class="panel-title">SNS 복사용 콘텐츠</h3>

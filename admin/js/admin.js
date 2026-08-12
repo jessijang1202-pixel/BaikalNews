@@ -8940,6 +8940,13 @@ function onCardNewsArticleSelected(article) {
   const summaryStatusEl = document.getElementById("cardnews-summary-status");
   if (summaryStatusEl) summaryStatusEl.textContent = '';
 
+  // 기사를 바꾸면 이전 기사 기준으로 생성한 카드뉴스 이미지는 더 이상
+  // 유효하지 않으므로 함께 초기화한다.
+  const imageResultWrap = document.getElementById("cardnews-image-result");
+  if (imageResultWrap) imageResultWrap.style.display = 'none';
+  const imageStatusEl = document.getElementById("cardnews-image-status");
+  if (imageStatusEl) imageStatusEl.textContent = '';
+
   const copyTextEl = document.getElementById("cardnews-copy-text");
   if (copyTextEl) copyTextEl.value = buildCardNewsCopyText(article);
   const copyStatusEl = document.getElementById("cardnews-copy-status");
@@ -9045,6 +9052,146 @@ async function copyCardNewsSummary() {
   } catch (err) {
     console.error("클립보드 복사 실패:", err);
     alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
+}
+
+// ==========================================
+// 카드뉴스 인포그래픽 이미지 생성 -- 관리자가 준 상세 지침(템플릿 11종,
+// 바이칼 물범 캐릭터 18종, 레이아웃/텍스트 제한 규칙)을 그대로 프롬프트로
+// 조립해 4:5 인포그래픽 이미지를 한 장 생성한다. 기사 대표 이미지 생성
+// (generateGeminiImage)과는 완전히 다른 스타일(다큐멘터리 사진이 아니라
+// 일러스트/캐릭터 인포그래픽)이라, 그 함수가 강제로 붙이는 사실적 사진
+// 규칙(IMAGE_REALISM_RULE 등)을 타면 안 된다 -- 그래서 같은 이미지 생성
+// 프록시(api/gemini-image-proxy.js)를 별도로, 직접 호출한다.
+// ==========================================
+const CARDNEWS_TEMPLATES = [
+  { id: 1, name: '노란색과 연두색 링철', desc: '노란 모눈 배경 RGB(253,224,71), 흰 메모지 RGB(255,255,255), 연두 바인더 링 RGB(74,222,128)' },
+  { id: 2, name: '하늘색과 파스텔톤 귀여운 우표 메모지', desc: '연회색 도트 배경 RGB(241,245,249), 파스텔 하늘색 우표 프레임 RGB(186,230,253), 핑크/노랑 포인트' },
+  { id: 3, name: '노랑바탕 링노트', desc: '노란 가로 줄무늬 배경 RGB(253,224,71), 흰색 스프링노트 RGB(255,255,255), 민트 포인트 RGB(0,199,149)' },
+  { id: 4, name: '민트색과 흰색 클립', desc: '파스텔 민트 배경 RGB(203,232,224), 흰색 라운드 카드 RGB(255,255,255), 검은 종이클립' },
+  { id: 5, name: '연두색과 노란색 캐릭터 집게', desc: '연두색 격자 배경 RGB(157,217,168), 흰색 메모지 RGB(255,255,255), 노란 바인더 집게 RGB(254,231,107)' },
+  { id: 6, name: '옐로우 인덱스', desc: '파스텔 노랑 배경 RGB(254,240,138), 우측 3색 인덱스 탭(하늘 RGB(186,230,253) / 연두 RGB(187,247,208))' },
+  { id: 7, name: '주황색과 노란색 엄청 심플', desc: '연회색/오프화이트 배경 RGB(240,240,240), 링 고리가 달린 흰 카드, 주황 RGB(248,211,193) & 노랑 포인트' },
+  { id: 8, name: '파란색과 노란색 강렬한 느낌', desc: '로열 블루 모눈 배경 RGB(67,97,238), 비비드 레몬 노랑 캡슐 RGB(255,230,0), 눈동자 그래픽' },
+  { id: 9, name: '파란색 바탕과 흰색 심플', desc: '미디엄 블루 배경 RGB(92,138,230), 고리 구멍이 뚫린 태그 형태 흰 카드 RGB(255,255,255)' },
+  { id: 10, name: '하늘색 집게와 아이보리 심플', desc: '따뜻한 아이보리 배경 RGB(248,245,237), 상단 하늘색 집게 RGB(147,197,253), 기울어진 타이틀 배지' },
+  { id: 11, name: '회색바탕 악어 노트북 노트', desc: '연회색 배경 RGB(210,210,210), 스티치 테두리 흰 태그 카드, 마커펜 소품 및 파스텔 멀티 컬러' }
+];
+
+const CARDNEWS_CHARACTERS = [
+  { id: 'yellow-default', desc: '노란 몸체 RGB(255,222,59), 땀방울 RGB(96,165,250)을 흘리며 곤란해하는 표정' },
+  { id: 'yellow-study', desc: '노란 몸체 RGB(255,222,59), 검은 안경 RGB(34,34,34)을 쓰고 책 RGB(100,116,139)을 든 모습' },
+  { id: 'yellow-focus', desc: '노란 몸체 RGB(255,222,59), 진지하고 또렷하게 집중하는 눈매' },
+  { id: 'yellow-task', desc: '노란 몸체 RGB(255,222,59), 회색 노트북 RGB(148,163,184) 타이핑 포즈' },
+  { id: 'yellow-tired', desc: '노란 몸체 RGB(255,222,59), 피곤해서 침/땀을 흘리며 졸려하는 포즈' },
+  { id: 'yellow-worry', desc: '노란 몸체 RGB(255,222,59), 턱에 손을 얹고 물음표(?) 말풍선을 띄운 모습' },
+  { id: 'yellow-phone', desc: '노란 몸체 RGB(255,222,59), 스마트폰 RGB(148,163,184)을 들고 바라보는 모습' },
+  { id: 'yellow-understand', desc: '노란 몸체 RGB(255,222,59), 눈을 반짝이며 머리 위에 노란 전구 RGB(250,204,21)가 켜진 모습' },
+  { id: 'yellow-solved', desc: '노란 몸체 RGB(255,222,59), 만세를 부르며 노란 별 RGB(250,204,21)이 반짝이는 모습' },
+  { id: 'mint-default', desc: '민트 몸체 RGB(110,210,175), 입 위치에 점선(....)이 떠 있는 어리둥절한 표정' },
+  { id: 'mint-smile', desc: '민트 몸체 RGB(110,210,175), 방긋 웃으며 입을 벌린 긍정적인 표정' },
+  { id: 'mint-glare', desc: '민트 몸체 RGB(110,210,175), 눈을 가늘게 뜨고 정색하는 표정' },
+  { id: 'mint-shock', desc: '민트 몸체 RGB(110,210,175), 눈을 크게 뜨고 입을 떡 벌린 충격받은 표정' },
+  { id: 'mint-sad', desc: '민트 몸체 RGB(110,210,175), 눈썹이 처지고 침/눈물을 흘리는 표정' },
+  { id: 'mint-hmm', desc: '민트 몸체 RGB(110,210,175), 손을 턱에 대고 물음표(?) 말풍선을 든 모습' },
+  { id: 'mint-hi', desc: '민트 몸체 RGB(110,210,175), 한쪽 손을 들고 반갑게 인사하는 포즈' },
+  { id: 'mint-heart', desc: '민트 몸체 RGB(110,210,175), 볼이 빨개지고 핑크 하트 RGB(244,114,182)가 떠 있는 모습' },
+  { id: 'mint-sleep', desc: "민트 몸체 RGB(110,210,175), 엎드려 'zzz' 글자와 함께 잠든 모습" }
+];
+
+function buildCardNewsImagePrompt(templateId, characterId, summaryText) {
+  const template = CARDNEWS_TEMPLATES.find(t => t.id === templateId);
+  const character = CARDNEWS_CHARACTERS.find(c => c.id === characterId);
+  if (!template || !character) return null;
+
+  return `
+너는 인터넷 신문사 '바이칼뉴스' 전담 세로형 인포그래픽 이미지 생성 전문 AI다. 아래 조건에 맞춰 완성형 단일 인포그래픽 이미지 1장만 생성하라. 텍스트 답변이나 설명문은 절대 출력하지 말고, 오직 이미지만 출력하라.
+
+[규격]
+- 비율: 4:5 세로형 (1080 x 1350px). 프레임 전체를 인포그래픽 내용으로 꽉 채우고, 여백이나 레터박스 없이 출력하라.
+
+[허용 텍스트 -- 최우선 절대 수칙]
+- 이미지 안에 그려 넣을 수 있는 글자는 아래 [뉴스 요약글] 내용과 "baikalnews.com" 이 두 가지뿐이다.
+- "뉴스 인포그래픽", "카드뉴스", "뉴스", "Baikal News" 같은 임의의 라벨이나 여백을 채우기 위한 단어는 절대 넣지 마라.
+- "baikalnews.com"은 이미지 상단 또는 하단 중 한 곳에 검정색 소형 글씨로 딱 1번만 깔끔하게 넣어라.
+- 이 두 가지 외의 텍스트(가짜 단어, 장식용 글자 포함)는 어떤 형태로도 그리지 마라.
+
+[레이아웃 자율성]
+- 아래 선택된 템플릿의 메인 컬러 배합과 기본 테두리/배경 분위기만 유지하고, 내부 레이아웃은 정형화된 틀에 매이지 않고 뉴스 내용에 맞춰 가장 읽기 쉽고 매력적인 구조로 자유롭게 재배치하라.
+- 텍스트 뒤나 문단 주위에 노란 상자, 둥근 박스, 카드, 테두리, 배경 색상 블록 같은 텍스트 배경 상자/박스는 절대 그리지 마라.
+- 뉴스 주제에 맞는 메인 그래픽 일러스트(버스, 기차, 건물, 차트, 산, 호수 등)를 중앙/주요 위치에 시원하게 배치하되, 바이칼 물범 캐릭터를 제외한 일러스트 그래픽 요소는 최대 3개 이하로 제한하라.
+- 핵심 데이터를 강조하는 말풍선, 포스트잇 메모지, 색상 배지, 화살표, 체크박스, 그래프 아이콘을 자유롭게 삽입하고, 빈 공간에는 별·하트·반짝이·점선 같은 스티커 장식을 아기자기하게 채워 어색하지 않게 하라.
+
+[마스코트 배치]
+- 아래 지정된 '바이칼 물범' 캐릭터를 텍스트나 핵심 내용 옆에 1~2개 귀엽게 배치하라. 크기는 제목 크기의 2배보다 크지 않게 하라.
+- 캐릭터가 단순 마스코트가 아니라 인포그래픽의 안내자/설명자 역할을 하도록, 말풍선으로 핵심 카피를 말하거나 손가락으로 제목/자료를 가리키거나 안내 상자 옆에 서 있는 등 레이아웃과 자연스럽게 결합하라.
+- 물범 공통 외형: 동글동글하고 매끈한 덤피 형태의 몸매, 아랫니 2개가 작게 드러난 귀여운 얼굴.
+
+[선택된 템플릿 -- 템플릿 ${template.id}: ${template.name}]
+${template.desc}
+
+[선택된 캐릭터]
+${character.desc}
+
+[뉴스 요약글 -- 이미지에 그대로 반영할 텍스트]
+${summaryText}
+`.trim();
+}
+
+async function generateCardNewsImage() {
+  const templateSelect = document.getElementById("cardnews-template-select");
+  const characterSelect = document.getElementById("cardnews-character-select");
+  const summaryEl = document.getElementById("cardnews-summary");
+  const btn = document.getElementById("cardnews-generate-image-btn");
+  const statusEl = document.getElementById("cardnews-image-status");
+  const resultWrap = document.getElementById("cardnews-image-result");
+  const previewImg = document.getElementById("cardnews-image-preview");
+  const downloadLink = document.getElementById("cardnews-image-download");
+
+  const summaryText = summaryEl ? summaryEl.value.trim() : '';
+  if (!summaryText) {
+    alert("먼저 위에서 인포그래픽용 기사 요약을 생성하거나 직접 입력해 주세요.");
+    return;
+  }
+  const templateId = parseInt(templateSelect.value, 10);
+  const characterId = characterSelect.value;
+  const prompt = buildCardNewsImagePrompt(templateId, characterId, summaryText);
+  if (!prompt) {
+    alert("템플릿/캐릭터 선택을 확인해 주세요.");
+    return;
+  }
+
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = "생성 중... (최대 1분 정도 걸릴 수 있습니다)"; }
+  if (statusEl) statusEl.textContent = '';
+  if (resultWrap) resultWrap.style.display = 'none';
+
+  try {
+    // generateGeminiImage()는 기사 대표 이미지용 사실적 사진 규칙을 강제로
+    // 붙이므로 여기서는 쓰지 않고, 같은 프록시를 직접 호출한다.
+    const response = await fetch("https://baikalnews.com/api/gemini-image-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`카드뉴스 생성 실패 (HTTP ${response.status}): ${errText}`);
+    }
+    const data = await response.json();
+    if (!data.dataUri) {
+      throw new Error("AI가 이미지를 반환하지 않았습니다.");
+    }
+    if (previewImg) previewImg.src = data.dataUri;
+    if (downloadLink) downloadLink.href = data.dataUri;
+    if (resultWrap) resultWrap.style.display = 'block';
+    if (statusEl) statusEl.textContent = "카드뉴스 이미지가 생성되었습니다.";
+  } catch (err) {
+    console.error("카드뉴스 이미지 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("카드뉴스 생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
   }
 }
 
