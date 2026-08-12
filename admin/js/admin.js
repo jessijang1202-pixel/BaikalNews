@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initAdminAuth();
   setupEventListeners();
   loadGeminiApiKey();
-  loadClaudeApiKey();
 });
 
 // 0. Login gate (client-side only: validated against the registered admin account list)
@@ -680,15 +679,12 @@ async function switchTab(tabName) {
     await loadOrGenerateWebBriefing();
   } else if (tabName === 'ai-writer') {
     loadGeminiApiKey();
-    loadClaudeApiKey();
     await loadWritingStyles();
   } else if (tabName === 'ai-training') {
     loadGeminiApiKey();
-    loadClaudeApiKey();
     await populateTrainingStyleSelect();
   } else if (tabName === 'shorts') {
     loadGeminiApiKey();
-    loadClaudeApiKey();
     await renderShortsList();
   } else if (tabName === 'letter-send') {
     await loadOrGenerateNewsletterDraft();
@@ -3431,37 +3427,6 @@ ${randomHint}
   }
 }
 
-// Resolves an image-generation-capable Gemini model for this API key (same
-// self-healing auto-discovery approach as resolveClaudeModel(), filtered to image models).
-async function resolveGeminiImageModel(apiKey) {
-  const cacheKey = "baikal_gemini_image_model";
-  const cacheTimeKey = "baikal_gemini_image_model_cached_at";
-  const cached = localStorage.getItem(cacheKey);
-  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  if (cached && (Date.now() - cachedAt) < oneDayMs) {
-    return cached;
-  }
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-  if (!res.ok) throw new Error("모델 목록을 가져오지 못했습니다 (HTTP " + res.status + ")");
-  const data = await res.json();
-  const models = (data.models || []).filter(m =>
-    (m.supportedGenerationMethods || []).includes("generateContent") && /image/i.test(m.name)
-  );
-
-  if (models.length === 0) {
-    throw new Error("이 API 키로 사용 가능한 이미지 생성 모델을 찾지 못했습니다. Google AI Studio에서 이미지 생성 모델 접근 권한을 확인해 주세요.");
-  }
-
-  const chosen = models.find(m => /flash/i.test(m.name)) || models[0];
-  const modelName = chosen.name.replace(/^models\//, '');
-  localStorage.setItem(cacheKey, modelName);
-  localStorage.setItem(cacheTimeKey, String(Date.now()));
-  return modelName;
-}
-
 // Calls Gemini's image-capable model and returns a data: URI
 // Applied to every image-generation prompt regardless of source (auto-written,
 // hand-typed, or shorts image cuts) so it can't be skipped or forgotten upstream.
@@ -3504,39 +3469,27 @@ const IMAGE_NO_LETTERBOX_RULE = "\n\nFULL-BLEED FRAMING (STRICT): The photograph
 // composition toward a natural widescreen shot instead of forcing a crop.
 const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape composition (not square, not portrait), filling the entire frame edge-to-edge with photographic content -- no white/blank margins or letterboxing top or bottom. Compose the shot with this widescreen framing in mind, leaving natural headroom/context at top and bottom rather than a tightly cropped square subject.";
 
+// Runs through the server-side proxy (api/gemini-image-proxy.js) so the
+// Gemini key lives in Vercel env vars instead of this browser's
+// localStorage -- no more re-entering it on every device (phones
+// especially) and no raw provider key visible in devtools.
 async function generateGeminiImage(promptText) {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
-  if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
-  }
-
-  const model = await resolveGeminiImageModel(apiKey);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
+  const response = await fetch("https://baikalnews.com/api/gemini-image-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + IMAGE_NO_LETTERBOX_RULE + MEDIA_KOREAN_PEOPLE_RULE }] }] })
+    body: JSON.stringify({ prompt: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + IMAGE_NO_LETTERBOX_RULE + MEDIA_KOREAN_PEOPLE_RULE })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    if (response.status === 404) {
-      localStorage.removeItem("baikal_gemini_image_model");
-      localStorage.removeItem("baikal_gemini_image_model_cached_at");
-    }
-    throw new Error(`AI 이미지 생성 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`AI 이미지 생성 실패 (HTTP ${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-  const imagePart = parts.find(p => p.inlineData && p.inlineData.data);
-  if (!imagePart) {
+  if (!data.dataUri) {
     throw new Error("AI가 이미지를 반환하지 않았습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.");
   }
-
-  const mimeType = imagePart.inlineData.mimeType || "image/png";
-  return `data:${mimeType};base64,${imagePart.inlineData.data}`;
+  return data.dataUri;
 }
 
 // Fills in only the descriptive middle part of the photo caption -- the
@@ -4289,7 +4242,6 @@ async function startNewShortsProject() {
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
   loadGeminiApiKey();
-  loadClaudeApiKey();
 }
 
 async function openShortsProject(id) {
@@ -4379,7 +4331,6 @@ async function openShortsProject(id) {
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
   loadGeminiApiKey();
-  loadClaudeApiKey();
 }
 
 // Resumes a local-only draft (script text saved via saveShortsDraftLocally).
@@ -4526,7 +4477,6 @@ async function openLocalShortsDraft(localDraftId) {
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
   loadGeminiApiKey();
-  loadClaudeApiKey();
 }
 
 function closeShortsWizard() {
@@ -5461,44 +5411,28 @@ async function resolveGeminiVisionModel(apiKey) {
   }
 }
 
-// Plain-text Gemini call (uses the image-generation Gemini key/model resolver,
-// not Claude) -- used specifically for writing the AI image-generation prompt,
-// since that step is conceptually part of the image pipeline.
+// Plain-text Gemini call (not Claude) -- used specifically for writing the
+// AI image-generation prompt, since that step is conceptually part of the
+// image pipeline. Runs through the server-side proxy
+// (api/gemini-text-proxy.js), which picks the model and holds the API key,
+// so nothing here needs the browser-side key anymore.
 async function callGeminiTextApi(prompt, systemInstruction = "") {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
-  if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
-  }
-
-  const model = await resolveGeminiVisionModel(apiKey);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  const requestBody = { contents: [{ parts: [{ text: prompt }] }] };
-  if (systemInstruction) {
-    requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
-  }
-
-  const response = await fetch(url, {
+  const response = await fetch("https://baikalnews.com/api/gemini-text-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify({ prompt, systemInstruction })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    if (response.status === 404) {
-      localStorage.removeItem("baikal_gemini_vision_model");
-      localStorage.removeItem("baikal_gemini_vision_model_cached_at");
-    }
-    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`Gemini API 호출 실패 (HTTP ${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-    return data.candidates[0].content.parts[0].text;
-  } else {
+  if (!data.text) {
     throw new Error("Gemini API가 올바른 응답 양식을 반환하지 않았습니다.");
   }
+  return data.text;
 }
 
 // 비용 절감 테스트 모드 -- 켜져 있으면(기본값 ON) Veo의 lite/fast 계열
@@ -5629,7 +5563,7 @@ async function generateVeoVideo(promptText, onStatus) {
 }
 
 // Resolves a Gemini TTS-capable model -- same auto-discovery/caching pattern
-// as resolveVeoModel/resolveGeminiImageModel.
+// as resolveVeoModel.
 async function resolveGeminiTtsModel(apiKey) {
   const cacheKey = "baikal_gemini_tts_model";
   const cacheTimeKey = "baikal_gemini_tts_model_cached_at";
@@ -9550,47 +9484,7 @@ function loadGeminiApiKey() {
     statusSpan.style.color = "#10b981"; // green
   } else if (keyInput && statusSpan) {
     keyInput.value = "";
-    statusSpan.textContent = "API Key가 설정되지 않았습니다. AI 이미지 생성 기능을 사용하려면 등록하십시오.";
-    statusSpan.style.color = "#fbbf24"; // yellow
-  }
-}
-
-function toggleClaudeApiConfig() {
-  const content = document.getElementById("claude-api-config-content");
-  const icon = document.getElementById("claude-api-config-toggle-icon");
-  if (content.style.display === "none" || !content.style.display) {
-    content.style.display = "block";
-    icon.textContent = "▲";
-  } else {
-    content.style.display = "none";
-    icon.textContent = "▼";
-  }
-}
-
-function saveClaudeApiKey() {
-  const keyInput = document.getElementById("ai-claude-key").value.trim();
-  if (keyInput) {
-    localStorage.setItem("baikal_claude_key", keyInput);
-    document.getElementById("claude-api-key-status").textContent = "API Key가 안전하게 저장되었습니다.";
-    document.getElementById("claude-api-key-status").style.color = "#10b981"; // green
-  } else {
-    localStorage.removeItem("baikal_claude_key");
-    document.getElementById("claude-api-key-status").textContent = "API Key가 제거되었습니다.";
-    document.getElementById("claude-api-key-status").style.color = "#ef4444"; // red
-  }
-}
-
-function loadClaudeApiKey() {
-  const savedKey = localStorage.getItem("baikal_claude_key");
-  const keyInput = document.getElementById("ai-claude-key");
-  const statusSpan = document.getElementById("claude-api-key-status");
-  if (savedKey && keyInput && statusSpan) {
-    keyInput.value = savedKey;
-    statusSpan.textContent = "API Key 연동 중";
-    statusSpan.style.color = "#10b981"; // green
-  } else if (keyInput && statusSpan) {
-    keyInput.value = "";
-    statusSpan.textContent = "API Key가 설정되지 않았습니다. 기사 작성 기능을 사용하려면 등록하십시오.";
+    statusSpan.textContent = "API Key가 설정되지 않았습니다. 숏폼(Shorts) 영상 생성(Veo)·음성(TTS)·참고영상 스타일 분석 기능을 사용하려면 등록하십시오.";
     statusSpan.style.color = "#fbbf24"; // yellow
   }
 }
@@ -9751,106 +9645,29 @@ async function scrapeExternalLink(url) {
   }
 }
 
-// Resolves which Claude model this API key can actually use, instead of hardcoding a
-// version string that Anthropic can rename/deprecate later (same self-healing
-// approach as the Gemini image-model resolver below). Cached for a day.
-async function resolveClaudeModel(apiKey) {
-  const cacheKey = "baikal_claude_model";
-  const cacheTimeKey = "baikal_claude_model_cached_at";
-  const cached = localStorage.getItem(cacheKey);
-  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  if (cached && (Date.now() - cachedAt) < oneDayMs) {
-    return cached;
-  }
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/models", {
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      }
-    });
-    if (!res.ok) throw new Error("ListModels failed with status " + res.status);
-    const data = await res.json();
-    const models = data.data || [];
-    if (models.length === 0) throw new Error("No models available");
-
-    // Prefer a Sonnet-tier model -- the best balance of quality/cost for article writing
-    const pick = (predicate) => models.find(predicate);
-    const chosen =
-      pick(m => /sonnet-5/i.test(m.id)) ||
-      pick(m => /sonnet/i.test(m.id)) ||
-      models[0];
-
-    localStorage.setItem(cacheKey, chosen.id);
-    localStorage.setItem(cacheTimeKey, String(Date.now()));
-    return chosen.id;
-  } catch (err) {
-    console.error("Claude model auto-discovery failed, falling back:", err);
-    return cached || "claude-sonnet-5";
-  }
-}
-
 // Claude (Anthropic) API caller -- used for all text/writing generation (article
 // drafts, self-check grading, writing-style analysis, image prompt writing).
 // Actual image pixel generation stays on Gemini (see generateGeminiImage below).
+// Runs through the server-side proxy (api/claude-proxy.js), which holds the
+// key (Vercel env var CLAUDE_API_KEY) and resolves the model, so the admin
+// no longer has to register a Claude key per device/browser.
 async function callClaudeApi(prompt, systemInstruction = "") {
-  const apiKey = localStorage.getItem("baikal_claude_key");
-  if (!apiKey) {
-    throw new Error("Claude API Key가 등록되지 않았습니다. AI 집필실 상단에서 먼저 등록해 주세요.");
-  }
-
-  const model = await resolveClaudeModel(apiKey);
-
-  const requestBody = {
-    model,
-    max_tokens: 8192,
-    messages: [{ role: "user", content: prompt }]
-  };
-
-  if (systemInstruction) {
-    requestBody.system = systemInstruction;
-  }
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://baikalnews.com/api/claude-proxy", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
-    body: JSON.stringify(requestBody)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, systemInstruction })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    if (response.status === 404) {
-      // The cached/discovered model name turned out to be invalid or has since been
-      // deprecated -- clear the cache so the next call re-discovers a working one.
-      localStorage.removeItem("baikal_claude_model");
-      localStorage.removeItem("baikal_claude_model_cached_at");
-    }
-    throw new Error(`Claude API 호출 실패 (HTTP ${response.status}, 모델: ${model}): ${errText}`);
+    throw new Error(`Claude API 호출 실패 (HTTP ${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  // content[0]이 항상 텍스트 블록이라고 가정하지 않는다 -- 확장 사고
-  // (extended thinking) 등이 켜져 있으면 텍스트보다 먼저 다른 타입의
-  // 블록이 올 수 있어, 배열 전체에서 실제 텍스트 블록을 찾는다. 못 찾은
-  // 경우에도 원인 파악이 가능하도록 실제 응답을 콘솔에 남기고 에러
-  // 메시지에도 일부를 포함시킨다 (기존엔 "형식이 이상하다"고만 하고
-  // 무엇이 왔는지 전혀 알려주지 않았음).
-  const textBlock = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'text' && b.text) : null;
-  if (textBlock) {
-    return textBlock.text;
+  if (!data.text) {
+    throw new Error("Claude API가 올바른 응답 양식을 반환하지 않았습니다.");
   }
-  console.error("Claude API 응답 형식이 예상과 다릅니다:", data);
-  const stopReasonNote = data.stop_reason ? ` (stop_reason: ${data.stop_reason})` : '';
-  throw new Error("Claude API가 올바른 응답 양식을 반환하지 않았습니다" + stopReasonNote + ": " + JSON.stringify(data).slice(0, 300));
+  return data.text;
 }
 
 // Learning style loop
