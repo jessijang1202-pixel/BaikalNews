@@ -17,6 +17,20 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// Anthropic이 가끔 돌려주는 일시적 과부하(529 overloaded_error)/요청량
+// 초과(429)는 몇 초 뒤 재시도하면 대부분 성공하므로, 그런 경우까지
+// 관리자에게 바로 에러창을 띄우지 않고 서버에서 몇 번 재시도한 뒤에만
+// 실패로 넘긴다.
+async function fetchWithRetry(url, options, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(url, options);
+    if (response.ok || (response.status !== 529 && response.status !== 503 && response.status !== 429) || attempt === maxAttempts) {
+      return response;
+    }
+    await new Promise(r => setTimeout(r, attempt * 1000));
+  }
+}
+
 async function resolveClaudeModel(apiKey) {
   const res = await fetch('https://api.anthropic.com/v1/models', {
     headers: {
@@ -53,7 +67,7 @@ module.exports = async (req, res) => {
     const requestBody = { model, max_tokens: 8192, messages: [{ role: 'user', content: prompt }] };
     if (systemInstruction) requestBody.system = systemInstruction;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

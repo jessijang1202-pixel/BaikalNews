@@ -25,6 +25,22 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// Gemini 모델은 가끔 "일시적인 과부하"(503 UNAVAILABLE)나 429(요청량 초과)를
+// 돌려주는데, 이건 우리 쪽 코드/모델 선택이 잘못된 게 아니라 구글 서버가
+// 잠깐 바쁜 것뿐이라 몇 초 뒤 재시도하면 대부분 성공한다. 이런 경우까지
+// 관리자에게 그대로 에러창을 띄우는 대신, 서버에서 짧게 몇 번 재시도한
+// 뒤에도 계속 실패할 때만 에러로 넘긴다. 그 외 상태 코드(4xx 등 우리 쪽
+// 요청 자체가 잘못된 경우)는 재시도해도 똑같이 실패하므로 바로 던진다.
+async function fetchWithRetry(url, options, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(url, options);
+    if (response.ok || (response.status !== 503 && response.status !== 429) || attempt === maxAttempts) {
+      return response;
+    }
+    await new Promise(r => setTimeout(r, attempt * 1000));
+  }
+}
+
 async function resolveGeminiTextModel(apiKey) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
   if (!res.ok) throw new Error('ListModels failed with status ' + res.status);
@@ -62,7 +78,7 @@ module.exports = async (req, res) => {
       requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)

@@ -14,6 +14,19 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// Gemini가 가끔 돌려주는 일시적 과부하(503)/요청량 초과(429)는 몇 초 뒤
+// 재시도하면 대부분 성공하므로, 그런 경우까지 관리자에게 바로 에러창을
+// 띄우지 않고 서버에서 몇 번 재시도한 뒤에만 실패로 넘긴다.
+async function fetchWithRetry(url, options, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(url, options);
+    if (response.ok || (response.status !== 503 && response.status !== 429) || attempt === maxAttempts) {
+      return response;
+    }
+    await new Promise(r => setTimeout(r, attempt * 1000));
+  }
+}
+
 // 텍스트가 들어가는 이미지(카드뉴스 인포그래픽)에서 한글이 심하게 깨지는
 // 문제의 원인: 기존 로직이 "flash" 계열 모델을 최우선으로 골랐는데,
 // 정작 비라틴 문자(한글 포함) 텍스트 렌더링 정확도가 압도적으로 높은
@@ -57,7 +70,7 @@ module.exports = async (req, res) => {
 
   try {
     const model = await resolveGeminiImageModel(GEMINI_API_KEY);
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
