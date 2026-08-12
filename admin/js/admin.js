@@ -3269,16 +3269,25 @@ async function bulkCompressExistingImages() {
 // right after a successful upload (see handleArticleImageUpload) so admins
 // can immediately re-select another file -- without this preview that reset
 // reads as "did nothing," even though the URL field below was filled in.
+// 기본 플레이스홀더 이미지(images/news_editorial.png)는 실제 대표 이미지가
+// 아니라 "아직 안 정함"을 뜻하는 값이라, 그걸 그대로 사진처럼 보여주면
+// 마치 이미지가 이미 정해진 것처럼 오해하기 쉽다. 그래서 이 값이거나
+// 아예 비어 있을 때는 회색 "NO IMAGE" 박스로 대신 보여준다.
+const DEFAULT_ARTICLE_IMAGE = "images/news_editorial.png";
+
 function updateFormImagePreview() {
   const input = document.getElementById("form-image");
   const preview = document.getElementById("form-image-preview");
+  const placeholder = document.getElementById("form-image-placeholder");
   if (!input || !preview) return;
 
   const url = input.value.trim();
-  if (!url) {
+  if (!url || url === DEFAULT_ARTICLE_IMAGE) {
     preview.style.display = "none";
+    if (placeholder) placeholder.style.display = "flex";
     return;
   }
+  if (placeholder) placeholder.style.display = "none";
   preview.onerror = () => { preview.style.display = "none"; };
   preview.src = /^https?:\/\//i.test(url) ? url : `https://baikalnews.com/${url}`;
   preview.style.display = "block";
