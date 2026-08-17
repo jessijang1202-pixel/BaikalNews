@@ -64,6 +64,10 @@
       "destination": "/api/category-og"
     },
     {
+      "source": "/category.html",
+      "destination": "/category-app.html"
+    },
+    {
       "source": "/",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
@@ -78,6 +82,10 @@
       "destination": "/api/homepage-og"
     },
     {
+      "source": "/",
+      "destination": "/home-app.html"
+    },
+    {
       "source": "/index.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
@@ -90,6 +98,10 @@
         { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
       "destination": "/api/homepage-og"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/home-app.html"
     }
   ],
   "crons": [
