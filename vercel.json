@@ -34,14 +34,14 @@
     {
       "source": "/article.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Googlebot.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
       "destination": "/api/article-og"
     },
     {
       "source": "/article.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Mediapartners-Google.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
       "destination": "/api/article-og"
     },
@@ -52,42 +52,42 @@
     {
       "source": "/category.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Googlebot.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
       "destination": "/api/category-og"
     },
     {
       "source": "/category.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Mediapartners-Google.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
       "destination": "/api/category-og"
     },
     {
       "source": "/",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Googlebot.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
       "destination": "/api/homepage-og"
     },
     {
       "source": "/",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Mediapartners-Google.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
       "destination": "/api/homepage-og"
     },
     {
       "source": "/index.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Googlebot.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
       "destination": "/api/homepage-og"
     },
     {
       "source": "/index.html",
       "has": [
-        { "type": "header", "key": "user-agent", "value": "Mediapartners-Google.*" }
+        { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
       "destination": "/api/homepage-og"
     }
