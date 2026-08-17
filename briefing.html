@@ -11,6 +11,12 @@
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <title>3분 뉴스 브리핑 - 바이칼 뉴스</title>
   <meta name="description" content="바쁜 하루, 3분이면 충분합니다. 바이칼 뉴스가 매일 정리하는 오늘의 주요 뉴스 브리핑 아카이브입니다.">
+  <!-- 애드센스 재심사를 위해 당분간 검색엔진 노출에서 제외 (다른 매체 기사
+       요약 위주라 "고유 콘텐츠 부족" 지적을 받을 소지가 있는 페이지). 관리자
+       페이지의 생성 파이프라인(웹 게시 + 카카오 발송용 소스)은 그대로 둔다 --
+       이 태그는 검색엔진 노출만 막을 뿐, 페이지 자체나 생성 기능은 그대로
+       작동한다. 재게시하려면 이 meta 태그만 지우면 된다. -->
+  <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://baikalnews.com/briefing.html">
 
   <!-- Fonts (preconnect + direct link, faster than @import) -->
@@ -94,7 +100,6 @@
           <li id="nav-tech"><a href="category.html?cat=tech">기술·미디어</a></li>
           <li id="nav-local"><a href="category.html?cat=local">지역·평택</a></li>
           <li id="nav-opinion"><a href="category.html?cat=opinion">오피니언</a></li>
-          <li id="nav-briefing"><a href="briefing.html">3분 뉴스 브리핑</a></li>
           <li id="nav-about"><a href="about.html">회사 소개</a></li>
           <li id="nav-contact"><a href="contact.html">제보·문의</a></li>
         </ul>
