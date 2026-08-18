@@ -110,6 +110,8 @@
 }
 
 .article-featured-image img[src*="/upload-"] {
+  width: auto;
+  max-width: 100%;
   aspect-ratio: auto;
   height: auto;
   object-fit: unset;
