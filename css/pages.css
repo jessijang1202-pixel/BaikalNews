@@ -115,6 +115,10 @@
   aspect-ratio: auto;
   height: auto;
   object-fit: unset;
+  /* width:auto image is often narrower than the column now, so center it
+     instead of leaving it flush left (display:block's default). */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .image-caption {
