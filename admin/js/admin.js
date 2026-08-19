@@ -1090,18 +1090,18 @@ async function renderArticlesList() {
     return `
     <tr>
       <td class="article-select-col"><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
-      <td>${rowNumber}</td>
-      <td style="font-weight: 500; color: var(--admin-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${art.title}</td>
-      <td>
+      <td data-label="번호">${rowNumber}</td>
+      <td class="articles-title-cell" data-label="제목">${art.title}</td>
+      <td data-label="승인인">
         <select class="form-control-admin" style="font-size: 0.78rem; padding: 4px 8px; width: auto;" onchange="changeArticleApprover(${art.id}, this.value)">
           <option value="" ${!art.approver ? 'selected' : ''}>미지정</option>
           <option value="최상락" ${art.approver === '최상락' ? 'selected' : ''}>최상락</option>
           <option value="장승희" ${art.approver === '장승희' ? 'selected' : ''}>장승희</option>
         </select>
       </td>
-      <td><span class="badge ${statusInfo.cls}">${statusInfo.label}</span></td>
-      <td style="white-space: nowrap;">${art.date}</td>
-      <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
+      <td data-label="상태"><span class="badge ${statusInfo.cls}">${statusInfo.label}</span></td>
+      <td data-label="날짜" style="white-space: nowrap;">${art.date}</td>
+      <td data-label="조회수">${(art.views || 0).toLocaleString("ko-KR")}</td>
       <td class="action-links">
         <a onclick="editArticle(${art.id})">편집</a>
         <a onclick="previewArticle(${art.id})">미리보기</a>
