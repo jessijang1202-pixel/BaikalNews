@@ -58,6 +58,13 @@ body {
   display: flex;
   min-height: 100vh;
   overflow-x: hidden;
+  /* 기본값(word-break: normal)은 한글 단어 중간(글자와 글자 사이)에서도
+     줄바꿈을 허용해서, 좁은 화면에서 "예약"이 "예"/"약"으로, "번호"가
+     "번"/"호"로 쪼개지는 등 지저분하게 보였다. keep-all은 상속되는
+     속성이라 여기 한 번만 지정해도 관리자 페이지 전체(표 헤더, 패널
+     제목 등)에 적용된다 -- 띄어쓰기 없는 한글 단어는 절대 쪼개지지 않고,
+     띄어쓰기가 있는 지점에서만 줄바꿈된다. */
+  word-break: keep-all;
 }
 
 /* #admin-app wraps the sidebar + main content so it can be hidden behind
