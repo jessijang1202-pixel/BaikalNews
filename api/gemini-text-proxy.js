@@ -72,8 +72,16 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const model = await resolveGeminiTextModel(GEMINI_API_KEY);
+    let model = await resolveGeminiTextModel(GEMINI_API_KEY);
+    if (req.query && req.query.forceModel) { model = req.query.forceModel; }
     if (req.query && req.query.debug === '1') { res.status(200).json({ resolvedModel: model }); return; }
+    if (req.query && req.query.debug === '3') {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+      const data = await r.json();
+      const names = (data.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''));
+      res.status(200).json({ names });
+      return;
+    }
     if (req.query && req.query.debug === '2') {
       const t0 = Date.now();
       const controller = new AbortController();
