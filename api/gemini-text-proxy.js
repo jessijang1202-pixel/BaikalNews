@@ -73,6 +73,7 @@ module.exports = async (req, res) => {
 
   try {
     const model = await resolveGeminiTextModel(GEMINI_API_KEY);
+    if (req.query && req.query.debug) { res.status(200).json({ resolvedModel: model }); return; }
     const requestBody = { contents: [{ parts: [{ text: prompt }] }] };
     if (systemInstruction) {
       requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
