@@ -73,7 +73,27 @@ module.exports = async (req, res) => {
 
   try {
     const model = await resolveGeminiTextModel(GEMINI_API_KEY);
-    if (req.query && req.query.debug) { res.status(200).json({ resolvedModel: model }); return; }
+    if (req.query && req.query.debug === '1') { res.status(200).json({ resolvedModel: model }); return; }
+    if (req.query && req.query.debug === '2') {
+      const t0 = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        const bodyText = await r.text();
+        res.status(200).json({ model, elapsedMs: Date.now() - t0, status: r.status, bodyPreview: bodyText.slice(0, 500) });
+      } catch (e) {
+        clearTimeout(timer);
+        res.status(200).json({ model, elapsedMs: Date.now() - t0, aborted: e.name === 'AbortError', errorMessage: e.message });
+      }
+      return;
+    }
     const requestBody = { contents: [{ parts: [{ text: prompt }] }] };
     if (systemInstruction) {
       requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
