@@ -102,6 +102,10 @@
     {
       "source": "/index.html",
       "destination": "/home-app.html"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
     }
   ],
   "crons": [
