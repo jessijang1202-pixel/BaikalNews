@@ -1057,7 +1057,7 @@ async function renderArticlesList() {
   if (scheduledCountEl) scheduledCountEl.textContent = articles.filter(a => getArticleStatusDisplay(a).label === '예약').length;
 
   if (articles.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--admin-text-muted);">등록된 기사가 없습니다. 새 기사를 추가하거나 AI로 작성해 보세요.</td></tr>`;
     return;
   }
 
@@ -1082,23 +1082,23 @@ async function renderArticlesList() {
     let shortsButton = '';
     if (shortsEligibleStatuses.includes(art.status)) {
       const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
-      shortsButton = completedShorts
-        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`
-        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">숏폼생성</a>`;
+      if (completedShorts) {
+        shortsButton = `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`;
+      } else if (art.status === 'published') {
+        // SNS 카드뉴스 발행 탭의 기사 피커는 발행된 기사만 대상으로 하므로
+        // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
+        // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
+        shortsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">SNS뉴스</a>`;
+      }
     }
 
     return `
     <tr>
       <td class="article-select-col"><input type="checkbox" class="article-select-checkbox" value="${art.id}"></td>
       <td>${rowNumber}</td>
+      <td>${AI_CATEGORY_LABELS[art.category] || art.category || ''}</td>
       <td class="articles-title-cell">${art.title}</td>
-      <td>
-        <select class="form-control-admin" style="font-size: 0.78rem; padding: 4px 8px; width: auto;" onchange="changeArticleApprover(${art.id}, this.value)">
-          <option value="" ${!art.approver ? 'selected' : ''}>미지정</option>
-          <option value="최상락" ${art.approver === '최상락' ? 'selected' : ''}>최상락</option>
-          <option value="장승희" ${art.approver === '장승희' ? 'selected' : ''}>장승희</option>
-        </select>
-      </td>
+      <td>${art.approver || '미지정'}</td>
       <td><span class="badge ${statusInfo.cls}">${statusInfo.label}</span></td>
       <td style="white-space: nowrap;">${art.date}</td>
       <td>${(art.views || 0).toLocaleString("ko-KR")}</td>
@@ -1106,21 +1106,23 @@ async function renderArticlesList() {
         <a onclick="editArticle(${art.id})">편집</a>
         <a onclick="previewArticle(${art.id})">미리보기</a>
         ${shortsButton}
-        <a onclick="duplicateArticle(${art.id})" style="color: var(--admin-text-secondary);">복사</a>
       </td>
     </tr>
   `;
   }).join('');
 }
 
-// 작업 열의 "숏폼생성" 초록 박스 -- 숏폼 탭으로 이동해 새 프로젝트를 시작하고
-// 원본 기사를 미리 선택해 둔다 (대본 자동생성 자체는 API 비용이 드니 관리자가
-// 직접 눌러 진행하도록 남겨둔다).
-async function createShortsFromArticle(articleId) {
-  await switchTab('shorts');
-  await startNewShortsProject();
-  const select = document.getElementById("shorts-article-select");
-  if (select) select.value = articleId;
+// 작업 열의 "SNS뉴스" 초록 박스 -- SNS 카드뉴스 발행 탭(카드뉴스 서브탭)으로
+// 이동해 이 기사를 카드뉴스 피커에 미리 선택해 둔다.
+async function openCardNewsFromArticle(articleId) {
+  await switchTab('sns');
+  const cardnewsBtn = document.querySelector('.sns-subtab-btn[data-subtab="cardnews"]');
+  switchSnsSubTab('cardnews', cardnewsBtn);
+  const state = snsArticlePickers['cardnews-picker-input'];
+  const article = state && state.allArticles.find(a => a.id === articleId);
+  if (article) {
+    selectSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', article);
+  }
 }
 
 // "숏폼완료" 주황 박스 -- 이미 완성된 숏폼 프로젝트를 바로 열어 확인/다운로드할
@@ -1128,41 +1130,6 @@ async function createShortsFromArticle(articleId) {
 async function openShortsFromArticleList(shortsId) {
   await switchTab('shorts');
   await openShortsProject(shortsId);
-}
-
-// Quick-edit the approver directly from the 기사 관리 list, without opening
-// the full editor. Keeps byline in sync with the approver, matching the
-// existing convention (approver name doubles as the article's byline).
-async function changeArticleApprover(id, newApprover) {
-  let articles = [];
-  if (window.SupabaseAdapter) {
-    articles = await window.SupabaseAdapter.fetchArticles();
-  }
-  const art = articles.find(a => a.id === id);
-  if (!art) {
-    alert("승인인 변경 실패: 목록에서 해당 기사를 찾지 못했습니다 (ID: " + id + ").");
-    await renderArticlesList();
-    return;
-  }
-
-  art.approver = newApprover || null;
-  art.byline = newApprover ? `${newApprover} 기자` : "";
-
-  await window.SupabaseAdapter.saveArticle(art);
-
-  // saveArticle() silently falls back to LocalStorage-only if the Supabase
-  // write itself fails (e.g. no RLS UPDATE policy on articles), without
-  // surfacing that failure to the caller -- so verify directly against the
-  // database here instead of trusting the return value.
-  if (window.SupabaseAdapter.isConfigured()) {
-    const verify = await window.SupabaseAdapter.fetchArticleById(id);
-    if (!verify || (verify.approver || null) !== (newApprover || null)) {
-      alert("승인인 변경이 데이터베이스에 저장되지 않았습니다. Supabase의 articles 테이블에 UPDATE 권한(RLS 정책)이 있는지 확인해 주세요.");
-    }
-  }
-
-  await logAudit("승인인 변경", art.id, `기사 관리 목록에서 승인인을 '${newApprover || '미지정'}'(으)로 직접 변경했습니다.`);
-  await renderArticlesList();
 }
 
 // Toggle between "just show the list" and "select rows to delete" modes.
@@ -1468,40 +1435,6 @@ function previewArticleInForm() {
   } else {
     alert("실시간 레이아웃을 보려면 기사 초안을 먼저 작성(임시 저장)해 주세요.");
   }
-}
-
-// Duplicate article
-async function duplicateArticle(id) {
-  let articles = [];
-  if (window.SupabaseAdapter) {
-    articles = await window.SupabaseAdapter.fetchArticles();
-  }
-  const art = articles.find(a => a.id === id);
-  if (!art) return;
-
-  const duplicated = {
-    ...art,
-    id: Math.max(...articles.map(a => a.id)) + 1,
-    title: `[복사본] ${art.title}`,
-    status: 'draft',
-    approver: null,
-    byline: "",
-    approvedAt: null,
-    scheduledAt: null,
-    revisionHistory: [{"date": new Date().toLocaleString("ko-KR"), "action": "기사 복제본 초안 생성"}]
-  };
-
-  if (window.SupabaseAdapter) {
-    await window.SupabaseAdapter.saveArticle(duplicated);
-    if (window.SupabaseAdapter.isConfigured()) {
-      const verify = await window.SupabaseAdapter.fetchArticleById(duplicated.id);
-      if (!verify) {
-        alert("⚠ 복제본이 Supabase에 저장되지 않고 이 브라우저에만 저장되었습니다. articles 테이블 구조/권한을 확인해 주세요.");
-      }
-    }
-  }
-  await logAudit("기사 복제", duplicated.id, `기사 #${art.id}을 바탕으로 신규 초안 #${duplicated.id}을 만듦.`);
-  await renderArticlesList();
 }
 
 // Shortcut: force status to 'published' and save immediately, so publishing
