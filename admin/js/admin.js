@@ -8552,19 +8552,19 @@ const SNS_PLATFORMS = ['facebook', 'instagram', 'threads', 'x', 'youtube'];
 // 공용 기사 검색 피커 -- "SNS 카드뉴스 발행"과 "SNS 발행용 콘텐츠" 두
 // 서브탭이 각자 독립된 인스턴스로 재사용한다 (기사 선택 상태를 공유하지
 // 않음 -- 관리자가 서브탭마다 다른 기사를 고를 수 있어야 하므로). 펼침
-// 목록(검색어 없음)은 48시간 이내 발행 기사로 좁힌다(approvedAt/
+// 목록(검색어 없음)은 7일 이내 발행 기사로 좁힌다(approvedAt/
 // scheduledAt 기준) -- "실시간 인기기사"의 5일 랭킹 윈도우와는 별개로,
 // SNS 발행 후보는 최근 것만 보이면 된다는 명시적 요청에 따른 값이다.
 // ------------------------------------------------------------------
-const SNS_PICKER_WINDOW_MS = 48 * 60 * 60 * 1000;
+const SNS_PICKER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const snsArticlePickers = {}; // inputId -> { articles, selected, onSelect }
 
 function snsPublishedTime(a) {
   return new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
 }
 
-// 검색어가 없을 때(펼침 목록)는 최근 48시간 기사만, 검색어를 입력하면
-// 전체 발행 기사 대상으로 찾는다 -- "펼침 목록만 48시간, 검색은 전체"라는
+// 검색어가 없을 때(펼침 목록)는 최근 7일 기사만, 검색어를 입력하면
+// 전체 발행 기사 대상으로 찾는다 -- "펼침 목록만 최근 것만, 검색은 전체"라는
 // 명시적 요청에 따른 구분.
 async function fetchSnsArticlePools() {
   const articles = await window.SupabaseAdapter.fetchArticles();
@@ -8599,7 +8599,7 @@ async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
     return;
   }
 
-  input.placeholder = '기사 제목으로 검색... (비워두면 최근 48시간 기사 표시)';
+  input.placeholder = '기사 제목으로 검색... (비워두면 최근 7일 기사 표시)';
 
   const currentList = () => {
     const q = input.value.trim().toLowerCase();
@@ -8615,7 +8615,7 @@ async function initSnsArticlePicker(inputId, dropdownId, onSelect) {
   };
   input.onfocus = () => {
     // 이미 선택된 기사가 표시된 상태(입력창에 "선택됨: ...")로 포커스만
-    // 다시 준 경우는 검색어로 취급하지 않고 기본(최근 48시간) 목록을 연다.
+    // 다시 준 경우는 검색어로 취급하지 않고 기본(최근 7일) 목록을 연다.
     const { list, isDefaultView } = state.selected ? { list: state.recentArticles, isDefaultView: true } : currentList();
     renderSnsPickerDropdown(inputId, dropdownId, list, isDefaultView);
     dropdown.style.display = 'block';
@@ -8630,7 +8630,7 @@ function renderSnsPickerDropdown(inputId, dropdownId, list, isDefaultView) {
   if (!dropdown) return;
   if (list.length === 0) {
     const emptyMsg = isDefaultView
-      ? '최근 48시간 내 발행된 기사가 없습니다. 검색해 보세요.'
+      ? '최근 7일 내 발행된 기사가 없습니다. 검색해 보세요.'
       : '검색 결과가 없습니다.';
     dropdown.innerHTML = `<div class="sns-picker-empty">${emptyMsg}</div>`;
     return;
@@ -8662,7 +8662,7 @@ function selectSnsArticlePicker(inputId, dropdownId, article) {
 }
 
 // SNS 관리 탭을 열 때마다 두 서브탭의 피커를 모두 새로 불러온다 (다른
-// 관리자가 방금 발행했거나 48시간 윈도우가 넘어갔을 수 있으므로).
+// 관리자가 방금 발행했거나 7일 윈도우가 넘어갔을 수 있으므로).
 async function initSnsTab() {
   await Promise.all([
     initSnsArticlePicker('sns-content-picker-input', 'sns-content-picker-dropdown', onSnsContentArticleSelected),
