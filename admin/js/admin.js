@@ -4260,7 +4260,7 @@ async function openShortsProject(id) {
   currentShortsProject.hookColor = scriptJson.hookColor;
   currentShortsProject.hookPosition = scriptJson.hookPosition;
   currentShortsProject.hookEffect = scriptJson.hookEffect;
-  currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.2;
+  currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.0;
   currentShortsProject.extraCutSeconds = scriptJson.extraCutSeconds || 0;
   // frontUpload/backUploads are transient staging state (not persisted --
   // once media generation runs they're baked into veoVideoUrl/imageCuts),
@@ -4344,7 +4344,7 @@ async function openLocalShortsDraft(localDraftId) {
     hookColor: draft.hookColor,
     hookPosition: draft.hookPosition,
     hookEffect: draft.hookEffect,
-    narrationSpeed: draft.narrationSpeed || 1.2,
+    narrationSpeed: draft.narrationSpeed || 1.0,
     extraCutSeconds: draft.extraCutSeconds || 0
   };
   shortsAssets = null;
@@ -4759,7 +4759,7 @@ async function generateShortsScript() {
     // which was worse than a slightly-too-long script. Raised from 4.5 to 6
     // chars/sec after feedback that scripts were coming out too short --
     // 4.5 (a natural TTS speaking pace) was too conservative given 재생
-    // 속도 now defaults to 1.0~1.2x rather than always compensating with
+    // 속도 now offers 1.0~1.1x rather than always compensating with
     // speed, and "이미지 컷 1초씩 늘리기" exists as a release valve if a
     // script still doesn't fit.
     const targetNarrationChars = Math.round(perCutDuration * 6);
@@ -5891,7 +5891,7 @@ function populateShortsStyleSettingsUI() {
   if (sizeInput) sizeInput.value = currentShortsProject.captionFontSize || 72;
   if (captionColorInput) captionColorInput.value = currentShortsProject.captionColor || '#ffffff';
   if (positionInput) positionInput.value = currentShortsProject.captionPosition || 'bottom';
-  if (narrationSpeedInput) narrationSpeedInput.value = currentShortsProject.narrationSpeed || 1.2;
+  if (narrationSpeedInput) narrationSpeedInput.value = currentShortsProject.narrationSpeed || 1.0;
   const extraSecondsStatusEl = document.getElementById("shorts-extra-seconds-status");
   if (extraSecondsStatusEl) {
     const extra = currentShortsProject.extraCutSeconds || 0;
@@ -6089,7 +6089,7 @@ function updateShortsStyleSettings() {
   currentShortsProject.hookColor = hookColorInput ? hookColorInput.value : '#ffffff';
   currentShortsProject.hookPosition = hookPositionInput ? hookPositionInput.value : 'bottom';
   currentShortsProject.hookEffect = hookEffectInput ? hookEffectInput.value : 'none';
-  currentShortsProject.narrationSpeed = narrationSpeedInput ? (parseFloat(narrationSpeedInput.value) || 1.2) : 1.2;
+  currentShortsProject.narrationSpeed = narrationSpeedInput ? (parseFloat(narrationSpeedInput.value) || 1.0) : 1.0;
   shortsAssets = null; // playbackRate/timing baked into the built assets -- force a rebuild so the new speed actually takes effect
   saveShortsDraftLocally();
 }
@@ -6548,9 +6548,9 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
   // Full narration content is preserved (no text trimming/truncation) --
   // instead, narration plays back faster via AudioBufferSourceNode.playbackRate,
   // which shortens its actual duration without cutting a single word.
-  // Admin-adjustable (Step 4, default 1.2x); raise it further if narration
+  // Admin-adjustable (Step 4, default 1.0x); raise it further if narration
   // still overlaps or runs long.
-  const narrationSpeed = project.narrationSpeed || 1.2;
+  const narrationSpeed = project.narrationSpeed || 1.0;
 
   // Each cut's visual duration is its own narration clip's natural length
   // (set when the narration was generated), shortened by the speed factor
