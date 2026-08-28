@@ -6424,6 +6424,7 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
   const lineHeight = size * 1.25;
   const centerY = position === 'top' ? canvasH * 0.22
     : position === 'center' ? canvasH / 2
+    : position === 'lower-center' ? canvasH * 0.68 // 가운데(얼굴을 가리기 쉬움)와 아래 사이
     : canvasH - 260; // 'bottom' (default) -- original position
 
   if (scale !== 1 || dx !== 0 || dy !== 0) {
