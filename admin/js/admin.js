@@ -9523,14 +9523,14 @@ async function generateArticleImageNews() {
     const summaryFontSizeEmphasis = 32;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
-    // 위 3줄(일반)은 폭 제한 없이 전체 폭을 다 쓰고, 문장이 이미 끝나
-    // 있으면 그대로 두고, 그래도 너무 길어서 줄바꿈해야 할 때만 왼쪽에서
-    // 5/3 지점(=3/5 지점) 근처에서 나눈다. 아래 2줄(강조)은 기존처럼
-    // 2/3 폭 + 2/3 지점 기준을 그대로 유지.
+    // 5줄 전부(위 3줄 + 아래 2줄) 동일한 기준: 폭 제한 없이 전체 폭을 다
+    // 쓰고, 문장이 이미 끝나 있으면 그대로 두고, 그래도 너무 길어서
+    // 줄바꿈해야 할 때만 왼쪽에서 3/5 지점 근처에서 나눈다. 크기/색상만
+    // 위 3줄과 아래 2줄이 다르다.
     const normalWrapMax = canvasW - paddingX * 2 - summaryIndent;
     const normalWrapFraction = 3 / 5;
-    const emphasisWrapMax = Math.round((canvasW - paddingX * 2 - summaryIndent) * (2 / 3));
-    const emphasisWrapFraction = 2 / 3;
+    const emphasisWrapMax = normalWrapMax;
+    const emphasisWrapFraction = normalWrapFraction;
     const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
     // 실제로 그리기 전에 각 줄의 줄바꿈 결과와 전체 높이를 먼저 계산해
