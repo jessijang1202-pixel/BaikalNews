@@ -859,6 +859,14 @@ body {
   background-color: #f97316;
 }
 
+.shorts-status-sns {
+  background-color: var(--color-green-deep);
+}
+
+.shorts-status-shorts {
+  background-color: #7c3aed;
+}
+
 /* Tabs Panel routing switcher */
 .tab-content {
   display: none;

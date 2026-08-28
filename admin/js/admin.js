@@ -1084,15 +1084,15 @@ async function renderArticlesList() {
     // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
     // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
     if (art.status === 'published') {
-      snsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">SNS뉴스</a>`;
+      snsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-sns">SNS</a>`;
     }
 
     let shortsButton = '';
     if (shortsEligibleStatuses.includes(art.status)) {
       const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
       shortsButton = completedShorts
-        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`
-        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">숏폼생성</a>`;
+        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-shorts">숏폼</a>`
+        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-shorts">숏폼</a>`;
     }
 
     return `
