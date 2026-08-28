@@ -4008,10 +4008,21 @@ async function deleteShortsLocalDraft(localDraftId) {
   renderShortsList();
 }
 
+// 최신 기사가 위쪽에 오도록 정렬한다 (기존엔 정렬 없이 오래된 기사부터
+// 나열돼 있었다) -- 기사 관리 목록과 동일한 기준(날짜 우선, 같은 날짜는
+// approvedAt/scheduledAt 정밀 시각으로 타이브레이크)을 사용한다.
 async function populateShortsArticleSelect() {
   const select = document.getElementById("shorts-article-select");
   const articles = await window.SupabaseAdapter.fetchArticles();
-  const usable = articles.filter(a => ['published', 'approved', 'scheduled'].includes(a.status));
+  const usable = articles
+    .filter(a => ['published', 'approved', 'scheduled'].includes(a.status))
+    .sort((a, b) => {
+      const dateDiff = parseKoreanDate(b.date) - parseKoreanDate(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      const aTime = new Date(a.approvedAt || a.scheduledAt || 0).getTime() || 0;
+      const bTime = new Date(b.approvedAt || b.scheduledAt || 0).getTime() || 0;
+      return bTime - aTime;
+    });
   select.innerHTML = `<option value="">-- 기사를 선택하세요 --</option>` +
     usable.map(a => `<option value="${a.id}">${a.title} · ${a.date}</option>`).join('');
 }
