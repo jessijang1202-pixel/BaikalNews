@@ -9380,7 +9380,7 @@ async function generateArticleImageNews() {
 
     // 제목: 흰 글자 + 포인트 컬러 배경, 줄마다 텍스트 폭에 맞춘 개별 박스
     // (긴 제목은 wrapCaptionLine으로 자동 줄바꿈, 숏폼 자막과 동일한 로직).
-    const titleFontSize = 60;
+    const titleFontSize = 50;
     ctx.font = `bold ${titleFontSize}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
@@ -9399,16 +9399,21 @@ async function generateArticleImageNews() {
     });
     cursorY += 20;
 
-    // 요약 5줄 -- 앞 3줄은 흰색, 뒤 2줄은 포인트 컬러의 톤다운 버전.
+    // 요약 -- 마지막 2줄만 포인트 컬러의 톤다운 버전, 그 앞은 전부 흰색.
+    // 실제 줄 수를 기준으로 "마지막 2줄"을 계산한다 (AI가 정확히 5줄을
+    // 안 지켜도 -- 4줄이든 6줄이든 -- 항상 끝에서 2번째 줄부터 색이
+    // 적용되도록 하기 위해서다. 고정된 인덱스(예: 3번째부터)로 판단하면
+    // 실제 줄 수가 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
-    const summaryFontSize = 50;
+    const summaryFontSize = 35;
     ctx.font = `600 ${summaryFontSize}px sans-serif`;
     const summaryWrapMax = canvasW - paddingX * 2;
     const summaryLineH = Math.round(summaryFontSize * 1.4);
+    const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
     summaryLines.forEach((line, i) => {
-      ctx.fillStyle = i < 3 ? "#ffffff" : colors.toned;
+      ctx.fillStyle = i < tonedStartIdx ? "#ffffff" : colors.toned;
       wrapCaptionLine(ctx, line, summaryWrapMax).forEach((wline) => {
         ctx.fillText(wline, paddingX, cursorY + summaryLineH / 2);
         cursorY += summaryLineH;
