@@ -6321,6 +6321,22 @@ function loadShortsWatermarkLogo() {
   return shortsWatermarkLogoPromise;
 }
 
+// 기사 이미지 뉴스 상단 배지용 흰색 로고 (사진 위에 얹으므로 파란 로고 대신
+// 흰색 버전을 쓴다). 숏폼 워터마크용 파란 로고와는 별도로 캐시.
+let imageNewsLogoPromise = null;
+function loadImageNewsLogo() {
+  if (!imageNewsLogoPromise) {
+    imageNewsLogoPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = "https://baikalnews.com/images/logo_white.png";
+    });
+  }
+  return imageNewsLogoPromise;
+}
+
 async function buildShortsAssets(project) {
   let front;
   // A single shared AudioContext + MediaStreamDestination mixes the Veo
@@ -6443,12 +6459,35 @@ function wrapCaptionLine(ctx, text, maxWidth, targetFraction) {
   return findNearestSpaceSplit(text, targetFraction != null ? targetFraction : 0.5);
 }
 
-// Always splits into exactly two lines at the space nearest a given
-// fraction through the text (default 2/3), regardless of whether it would
-// actually fit on one line -- for callers that want a forced two-line
-// layout (e.g. 이미지 뉴스 title) rather than "wrap only if needed."
+// Finds the comma/middle-dot nearest a given fraction through the text and
+// splits right after it (keeping the mark on the first line), or null if
+// the text has none. A comma is almost always the actual clause boundary
+// in a Korean headline ("평택 간선도로 3개 노선, 7천억 규모 예타 통과" should
+// break at the comma, not at whatever word happens to sit nearest the
+// character-count target), so this is tried before the plain space split.
+function findNearestPunctuationSplit(text, fraction, punctuation) {
+  const target = Math.round(text.length * fraction);
+  let bestIdx = -1, bestDist = Infinity;
+  for (let i = 0; i < text.length; i++) {
+    if (punctuation.includes(text[i])) {
+      const dist = Math.abs(i - target);
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+  }
+  if (bestIdx === -1) return null;
+  return [text.slice(0, bestIdx + 1).trim(), text.slice(bestIdx + 1).trim()].filter(Boolean);
+}
+
+// Always splits into exactly two lines, preferring a natural clause break
+// (comma/middle-dot) over a bare word-boundary split -- a title split
+// "문맥에 맞춰서" (by context/meaning) rather than by raw character position.
+// Falls back to the space nearest the target fraction (default 2/3) only
+// when the text has no comma to split at.
 function forceTwoLines(text, fraction) {
-  const parts = findNearestSpaceSplit(text, fraction != null ? fraction : 2 / 3);
+  const frac = fraction != null ? fraction : 2 / 3;
+  const punctuationSplit = findNearestPunctuationSplit(text, frac, ',，·');
+  if (punctuationSplit && punctuationSplit.length === 2) return punctuationSplit;
+  const parts = findNearestSpaceSplit(text, frac);
   return parts.length === 2 ? parts : [parts[0] || '', ''];
 }
 
@@ -9455,8 +9494,8 @@ async function generateArticleImageNews() {
       });
     });
 
-    // 우측 상단 로고 + 바이칼뉴스 (숏폼 워터마크와 같은 로고 이미지 재사용).
-    const logoImg = await loadShortsWatermarkLogo();
+    // 우측 상단 로고(흰색 버전, 사진 위에 얹으므로) + 흰색 "바이칼뉴스" 글자.
+    const logoImg = await loadImageNewsLogo();
     const logoH = 44;
     const logoW = (logoImg && logoImg.naturalWidth) ? logoH * (logoImg.naturalWidth / logoImg.naturalHeight) : 0;
     ctx.font = `bold 34px sans-serif`;
