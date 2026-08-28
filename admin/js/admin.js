@@ -6498,10 +6498,10 @@ function forceTwoLines(text, fraction) {
 // at the space nearest 2/3 through it rather than the midpoint. Used for
 // 기사 이미지 뉴스's summary lines, which may contain more than one
 // sentence if the admin edits/pastes them that way.
-function splitIntoDisplayLines(ctx, text, maxWidth) {
+function splitIntoDisplayLines(ctx, text, maxWidth, wrapFraction) {
   const sentences = text.match(/[^.!?]+[.!?]*["'‘’“”)]*\s*/g);
   const parts = (sentences && sentences.length > 1 ? sentences : [text]).map(s => s.trim()).filter(Boolean);
-  return parts.flatMap(part => wrapCaptionLine(ctx, part, maxWidth, 2 / 3));
+  return parts.flatMap(part => wrapCaptionLine(ctx, part, maxWidth, wrapFraction != null ? wrapFraction : 2 / 3));
 }
 
 // entrance effect duration in seconds -- how long an effect takes to
@@ -9519,15 +9519,18 @@ async function generateArticleImageNews() {
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
-    const summaryFontSizeNormal = 35;
-    const summaryFontSizeEmphasis = 37;
+    const summaryFontSizeNormal = 30;
+    const summaryFontSizeEmphasis = 32;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
-    // 화면을 꽉 채우지 않도록 전체 폭이 아니라 2/3만 사용 -- 문장이 그
-    // 안에서 이미 끝나 있으면 그대로 한 줄, 아니면 2/3 지점 근처에서
-    // 줄바꿈한다 (splitIntoDisplayLines). 강조 줄은 글자가 더 커서 같은
-    // 폭 기준으로도 자연히 더 자주 줄바꿈된다.
-    const summaryWrapMax = Math.round((canvasW - paddingX * 2 - summaryIndent) * (2 / 3));
+    // 위 3줄(일반)은 폭 제한 없이 전체 폭을 다 쓰고, 문장이 이미 끝나
+    // 있으면 그대로 두고, 그래도 너무 길어서 줄바꿈해야 할 때만 왼쪽에서
+    // 5/3 지점(=3/5 지점) 근처에서 나눈다. 아래 2줄(강조)은 기존처럼
+    // 2/3 폭 + 2/3 지점 기준을 그대로 유지.
+    const normalWrapMax = canvasW - paddingX * 2 - summaryIndent;
+    const normalWrapFraction = 3 / 5;
+    const emphasisWrapMax = Math.round((canvasW - paddingX * 2 - summaryIndent) * (2 / 3));
+    const emphasisWrapFraction = 2 / 3;
     const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
     // 실제로 그리기 전에 각 줄의 줄바꿈 결과와 전체 높이를 먼저 계산해
@@ -9540,8 +9543,10 @@ async function generateArticleImageNews() {
     const summaryRenderInfo = summaryLines.map((line, i) => {
       const isEmphasis = i >= tonedStartIdx;
       const fontSize = isEmphasis ? summaryFontSizeEmphasis : summaryFontSizeNormal;
+      const wrapMax = isEmphasis ? emphasisWrapMax : normalWrapMax;
+      const wrapFraction = isEmphasis ? emphasisWrapFraction : normalWrapFraction;
       ctx.font = `600 ${fontSize}px sans-serif`;
-      const wrapped = splitIntoDisplayLines(ctx, line, summaryWrapMax);
+      const wrapped = splitIntoDisplayLines(ctx, line, wrapMax, wrapFraction);
       const lineH = Math.round(fontSize * 1.4);
       summaryBlockH += wrapped.length * lineH;
       return { wrapped, lineH, color: isEmphasis ? lightColor : "#ffffff", fontSize };
