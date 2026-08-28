@@ -6483,11 +6483,11 @@ function drawShortsTopBar(ctx, project, canvasW) {
 // 수동 모드 워크플로(Gemini에서 직접 생성 후 업로드). Never shown during
 // the front video (0:00~0:08), which doesn't carry that watermark.
 function drawShortsImageCutWatermark(ctx, canvasW, canvasH) {
-  const fontSize = 45;
-  const boxH = 40;
+  const fontSize = 60;
+  const boxH = Math.round(fontSize * 1.4); // comfortably taller than the text itself
   const paddingX = 14;
-  const rightMargin = 10;
-  const bottomMargin = 10;
+  const rightMargin = 40;
+  const bottomMargin = 60;
   ctx.save();
   ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = "center";
