@@ -8,6 +8,11 @@
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
 const CANDIDATE_TIMEOUT_MS = 25000;
+// Raised from 4 to 6 for the same reason as gemini-text-proxy.js's
+// MAX_CANDIDATES (2026-08-27): more than one admin depends on this now, so
+// exhausting a short candidate list on a bad-luck run is a bigger deal than
+// it used to be.
+const MAX_CANDIDATES = 6;
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', ADMIN_ORIGIN);
@@ -97,7 +102,7 @@ module.exports = async (req, res) => {
     const candidates = await listCandidateImageModels(GEMINI_API_KEY);
     let lastFailure = null;
 
-    for (const model of candidates.slice(0, 4)) {
+    for (const model of candidates.slice(0, MAX_CANDIDATES)) {
       const result = await tryImageModel(model, prompt);
       if (!result.ok) {
         if (result.timedOut) {

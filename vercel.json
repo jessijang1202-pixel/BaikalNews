@@ -108,6 +108,10 @@
       "destination": "/api/sitemap"
     }
   ],
+  "functions": {
+    "api/gemini-text-proxy.js": { "maxDuration": 60 },
+    "api/gemini-image-proxy.js": { "maxDuration": 60 }
+  },
   "crons": [
     {
       "path": "/api/generate-daily-briefing",

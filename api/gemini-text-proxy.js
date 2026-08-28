@@ -18,7 +18,14 @@
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
-const CANDIDATE_TIMEOUT_MS = 15000;
+const CANDIDATE_TIMEOUT_MS = 20000;
+// How many candidate models to try before giving up. Raised from 3 to 8
+// after a second admin started depending on this (2026-08-27) -- a single
+// stuck/overloaded model used to be able to exhaust all 3 tries and surface
+// a hard error; trying more, different candidates makes that far less
+// likely, since Gemini's rotating model lineup means the one that's
+// struggling right now usually isn't the only usable one.
+const MAX_CANDIDATES = 8;
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', ADMIN_ORIGIN);
@@ -128,7 +135,7 @@ module.exports = async (req, res) => {
     }
 
     let lastFailure = null;
-    for (const model of candidates.slice(0, 3)) {
+    for (const model of candidates.slice(0, MAX_CANDIDATES)) {
       const result = await tryModel(model, requestBody);
       if (result.ok) {
         const data = await result.response.json();
