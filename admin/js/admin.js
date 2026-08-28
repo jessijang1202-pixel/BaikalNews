@@ -9487,14 +9487,14 @@ async function generateArticleImageNews() {
     const colorSelect = document.getElementById("imagenews-color-select");
     const colorKey = colorSelect ? colorSelect.value : 'orange';
     const colors = IMAGE_NEWS_COLOR_PALETTE[colorKey] || IMAGE_NEWS_COLOR_PALETTE.orange;
-    const lightColor = lightenHexColor(colors.main, 0.3);
+    const lightColor = lightenHexColor(colors.main, 0.2);
 
     const paddingX = 56;
 
     // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
     // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
     // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
-    const titleFontSize = 50;
+    const titleFontSize = 45;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
@@ -9510,7 +9510,7 @@ async function generateArticleImageNews() {
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
     const summaryFontSizeNormal = 35;
-    const summaryFontSizeEmphasis = 50;
+    const summaryFontSizeEmphasis = 37;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
     // 화면을 꽉 채우지 않도록 전체 폭이 아니라 2/3만 사용 -- 문장이 그
