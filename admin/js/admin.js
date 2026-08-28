@@ -9298,6 +9298,35 @@ function onImageNewsArticleSelected(article) {
   if (resultWrap) resultWrap.style.display = 'none';
   const statusEl = document.getElementById("imagenews-status");
   if (statusEl) statusEl.textContent = '';
+
+  // 이 기사에 저장된 요약이 있으면 자동으로 불러온다 (없으면 비워서
+  // "기사 요약" 버튼으로 새로 생성하도록 유도).
+  const summaryEl = document.getElementById("imagenews-summary");
+  const summaryStatusEl = document.getElementById("imagenews-summary-status");
+  if (summaryEl) {
+    const saved = article ? localStorage.getItem(`baikal_imagenews_summary_${article.id}`) : null;
+    summaryEl.value = saved || '';
+    if (summaryStatusEl) summaryStatusEl.textContent = saved ? '저장된 요약을 불러왔습니다.' : '';
+  }
+}
+
+// "요약 저장" -- 편집한 5줄 요약을 이 기사 ID에 연결해 로컬(localStorage)에
+// 저장해 둔다. 매번 AI를 다시 호출하지 않고, 같은 기사를 다시 고르면
+// 자동으로 불러와진다 (onImageNewsArticleSelected 참고).
+function saveImageNewsSummary() {
+  if (!imageNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+  const summaryEl = document.getElementById("imagenews-summary");
+  const statusEl = document.getElementById("imagenews-summary-status");
+  const text = summaryEl ? summaryEl.value.trim() : '';
+  if (!text) {
+    alert("저장할 요약 내용이 없습니다.");
+    return;
+  }
+  localStorage.setItem(`baikal_imagenews_summary_${imageNewsSelectedArticle.id}`, text);
+  if (statusEl) statusEl.textContent = "저장되었습니다.";
 }
 
 function renderImageNewsPreview(article) {
@@ -9325,15 +9354,26 @@ function renderImageNewsPreview(article) {
   if (dateEl) dateEl.textContent = article.date || '';
 }
 
-// 포인트 컬러 팔레트 -- main은 제목 배경(선명한 색), toned는 요약 뒤 2줄
-// 텍스트에 쓰는 톤다운(어둡게 가라앉힌) 버전.
+// 포인트 컬러 팔레트 -- main은 제목 배경(선명한 색)에 쓴다. 요약 뒤 2줄
+// 텍스트 색(톤다운)은 고정 값이 아니라 scaleHexColor()로 main의 30%
+// 밝기를 그때그때 계산해서 쓴다.
 const IMAGE_NEWS_COLOR_PALETTE = {
-  orange: { main: '#f97316', toned: '#9a3412' },
-  yellow: { main: '#facc15', toned: '#854d0e' },
-  blue: { main: '#2563eb', toned: '#1e3a5f' },
-  purple: { main: '#9333ea', toned: '#5b21b6' },
-  green: { main: '#16a34a', toned: '#14532d' }
+  orange: { main: '#f97316' },
+  yellow: { main: '#facc15' },
+  blue: { main: '#2563eb' },
+  purple: { main: '#9333ea' },
+  green: { main: '#16a34a' }
 };
+
+// #rrggbb 색을 factor배 밝기로 스케일해 rgb() 문자열로 반환한다 (예: 0.3 ->
+// 메인 색상의 30% 밝기, 어둡게 가라앉은 톤다운 버전).
+function scaleHexColor(hex, factor) {
+  const clean = hex.replace('#', '');
+  const r = Math.round(parseInt(clean.slice(0, 2), 16) * factor);
+  const g = Math.round(parseInt(clean.slice(2, 4), 16) * factor);
+  const b = Math.round(parseInt(clean.slice(4, 6), 16) * factor);
+  return `rgb(${r},${g},${b})`;
+}
 
 // "기사 요약" 버튼 -- 이미지 뉴스에 얹을 5줄 요약(사실 3줄 + 강조 2줄)을
 // AI로 생성. generateCardNewsSummary()와 같은 패턴, 5줄 고정이라는 점만 다름.
@@ -9445,6 +9485,7 @@ async function generateArticleImageNews() {
     const colorSelect = document.getElementById("imagenews-color-select");
     const colorKey = colorSelect ? colorSelect.value : 'orange';
     const colors = IMAGE_NEWS_COLOR_PALETTE[colorKey] || IMAGE_NEWS_COLOR_PALETTE.orange;
+    const tonedColor = scaleHexColor(colors.main, 0.3);
 
     const paddingX = 56;
     let cursorY = Math.round(canvasH * 0.5); // 제목 시작 -- 높이 중앙
@@ -9470,27 +9511,33 @@ async function generateArticleImageNews() {
     });
     cursorY += 20;
 
-    // 요약 -- 마지막 2줄만 포인트 컬러의 톤다운 버전, 그 앞은 전부 흰색.
-    // 실제 줄 수를 기준으로 "마지막 2줄"을 계산한다 (AI가 정확히 5줄을
-    // 안 지켜도 -- 4줄이든 6줄이든 -- 항상 끝에서 2번째 줄부터 색이
-    // 적용되도록 하기 위해서다. 고정된 인덱스(예: 3번째부터)로 판단하면
-    // 실제 줄 수가 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
+    // 요약 -- 마지막 2줄만 더 크게(50px) + 포인트 컬러의 30% 밝기 톤다운,
+    // 그 앞은 35px 흰색. 실제 줄 수를 기준으로 "마지막 2줄"을 계산한다
+    // (AI가 정확히 5줄을 안 지켜도 -- 4줄이든 6줄이든 -- 항상 끝에서
+    // 2번째 줄부터 적용되도록. 고정된 인덱스로 판단하면 실제 줄 수가
+    // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
-    const summaryFontSize = 35;
-    ctx.font = `600 ${summaryFontSize}px sans-serif`;
+    const summaryFontSizeNormal = 35;
+    const summaryFontSizeEmphasis = 50;
+    // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
+    const summaryIndent = 10;
     // 화면을 꽉 채우지 않도록 전체 폭이 아니라 2/3만 사용 -- 문장이 그
     // 안에서 이미 끝나 있으면 그대로 한 줄, 아니면 2/3 지점 근처에서
-    // 줄바꿈한다 (splitIntoDisplayLines).
-    const summaryWrapMax = Math.round((canvasW - paddingX * 2) * (2 / 3));
-    const summaryLineH = Math.round(summaryFontSize * 1.4);
+    // 줄바꿈한다 (splitIntoDisplayLines). 강조 줄은 글자가 더 커서 같은
+    // 폭 기준으로도 자연히 더 자주 줄바꿈된다.
+    const summaryWrapMax = Math.round((canvasW - paddingX * 2 - summaryIndent) * (2 / 3));
     const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
     summaryLines.forEach((line, i) => {
-      ctx.fillStyle = i < tonedStartIdx ? "#ffffff" : colors.toned;
+      const isEmphasis = i >= tonedStartIdx;
+      const fontSize = isEmphasis ? summaryFontSizeEmphasis : summaryFontSizeNormal;
+      ctx.font = `600 ${fontSize}px sans-serif`;
+      ctx.fillStyle = isEmphasis ? tonedColor : "#ffffff";
+      const lineH = Math.round(fontSize * 1.4);
       splitIntoDisplayLines(ctx, line, summaryWrapMax).forEach((wline) => {
-        ctx.fillText(wline, paddingX, cursorY + summaryLineH / 2);
-        cursorY += summaryLineH;
+        ctx.fillText(wline, paddingX + summaryIndent, cursorY + lineH / 2);
+        cursorY += lineH;
       });
     });
 
@@ -9501,15 +9548,11 @@ async function generateArticleImageNews() {
     ctx.font = `bold 34px sans-serif`;
     const brandText = "바이칼뉴스";
     const brandTextW = ctx.measureText(brandText).width;
-    const badgePadX = 16, badgePadY = 10, badgeGap = 10;
-    const badgeW = logoW + (logoW ? badgeGap : 0) + brandTextW + badgePadX * 2;
-    const badgeH = Math.max(logoH, 34) + badgePadY * 2;
-    const badgeRight = canvasW - 32;
-    const badgeTop = 32;
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fillRect(badgeRight - badgeW, badgeTop, badgeW, badgeH);
-    let bx = badgeRight - badgeW + badgePadX;
-    const by = badgeTop + badgeH / 2;
+    const badgeGap = 10;
+    const marginRight = 32, marginTop = 40;
+    const badgeTotalW = logoW + (logoW ? badgeGap : 0) + brandTextW;
+    let bx = canvasW - marginRight - badgeTotalW;
+    const by = marginTop + logoH / 2;
     if (logoW) {
       ctx.drawImage(logoImg, bx, by - logoH / 2, logoW, logoH);
       bx += logoW + badgeGap;
