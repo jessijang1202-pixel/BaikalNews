@@ -9463,6 +9463,19 @@ async function generateArticleImageNews() {
       el.src = imageNewsSelectedArticle.image;
     });
 
+    // 캔버스에 ctx.font로 "Pretendard"를 지정해도, 브라우저가 그 폰트
+    // 파일을 실제로 아직 안 받아왔으면 조용히 기본 폰트로 그려진다 --
+    // 그리기 전에 필요한 굵기(제목=Bold, 요약=Regular)를 명시적으로
+    // 미리 로드해 둔다 (CSS Font Loading API).
+    try {
+      await Promise.all([
+        document.fonts.load('bold 45px Pretendard'),
+        document.fonts.load('400 35px Pretendard')
+      ]);
+    } catch (err) {
+      console.warn("Pretendard 폰트 로딩 실패, 기본 폰트로 대체됩니다:", err);
+    }
+
     // 카드뉴스와 동일한 4:5 세로형 크기 -- 원본 비율과 무관하게 중앙
     // 기준으로 꽉 채워 자른다(여백 없이 cover-fit, 반드시 세로로 크롭).
     const canvasW = 1080, canvasH = 1350;
@@ -9519,8 +9532,8 @@ async function generateArticleImageNews() {
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
-    const summaryFontSizeNormal = 30;
-    const summaryFontSizeEmphasis = 32;
+    const summaryFontSizeNormal = 35;
+    const summaryFontSizeEmphasis = 37;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
     // 5줄 전부(위 3줄 + 아래 2줄) 동일한 기준: 폭 제한 없이 전체 폭을 다
@@ -9545,7 +9558,7 @@ async function generateArticleImageNews() {
       const fontSize = isEmphasis ? summaryFontSizeEmphasis : summaryFontSizeNormal;
       const wrapMax = isEmphasis ? emphasisWrapMax : normalWrapMax;
       const wrapFraction = isEmphasis ? emphasisWrapFraction : normalWrapFraction;
-      ctx.font = `600 ${fontSize}px sans-serif`;
+      ctx.font = `400 ${fontSize}px Pretendard, sans-serif`;
       const wrapped = splitIntoDisplayLines(ctx, line, wrapMax, wrapFraction);
       const lineH = Math.round(fontSize * 1.4);
       summaryBlockH += wrapped.length * lineH;
@@ -9562,7 +9575,7 @@ async function generateArticleImageNews() {
     // 여백을 줄여서라도 마지막 줄이 완전히 잘리는 것보다는 낫다.
     cursorY = Math.max(cursorY, Math.round(canvasH * 0.3));
 
-    ctx.font = `bold ${titleFontSize}px sans-serif`;
+    ctx.font = `bold ${titleFontSize}px Pretendard, sans-serif`;
     titleLines.forEach((line) => {
       const w = ctx.measureText(line).width;
       ctx.fillStyle = colors.main;
@@ -9574,7 +9587,7 @@ async function generateArticleImageNews() {
     cursorY += contentGap;
 
     summaryRenderInfo.forEach(({ wrapped, lineH, color, fontSize }) => {
-      ctx.font = `600 ${fontSize}px sans-serif`;
+      ctx.font = `400 ${fontSize}px Pretendard, sans-serif`;
       ctx.fillStyle = color;
       wrapped.forEach((wline) => {
         ctx.fillText(wline, paddingX + summaryIndent, cursorY + lineH / 2);
