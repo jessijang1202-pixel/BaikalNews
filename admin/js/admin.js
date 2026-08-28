@@ -6315,14 +6315,15 @@ function loadShortsWatermarkLogo() {
       // Best-effort -- if the logo fails to load, the watermark just draws
       // the text alone rather than breaking the whole preview/recording.
       img.onerror = () => resolve(null);
-      img.src = "https://baikalnews.com/images/baikal_logo_blue.png";
+      img.src = "https://baikalnews.com/images/logo_white.png";
     });
   }
   return shortsWatermarkLogoPromise;
 }
 
 // 기사 이미지 뉴스 상단 배지용 흰색 로고 (사진 위에 얹으므로 파란 로고 대신
-// 흰색 버전을 쓴다). 숏폼 워터마크용 파란 로고와는 별도로 캐시.
+// 흰색 버전을 쓴다). 숏폼 워터마크(같은 흰색 로고, 별도 캐시)와 파일은
+// 같지만 로딩 타이밍이 달라 각자 자기 Promise로 캐시한다.
 let imageNewsLogoPromise = null;
 function loadImageNewsLogo() {
   if (!imageNewsLogoPromise) {
@@ -6641,7 +6642,7 @@ function drawShortsBrandWatermark(ctx, canvasW, canvasH, logoImg) {
     ctx.drawImage(logoImg, cursorX, centerY - logoH / 2, logoW, logoH);
     cursorX += logoW + gap;
   }
-  ctx.fillStyle = "#0064f8";
+  ctx.fillStyle = "#ffffff";
   ctx.fillText("바이칼뉴스", cursorX + textWidth / 2, centerY + 1);
   ctx.restore();
 }
