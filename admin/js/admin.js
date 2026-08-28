@@ -4752,7 +4752,7 @@ async function generateShortsScript() {
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
       : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
     const backInstruction = neededAiCuts > 0
-      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막 2개(caption1, caption2 -- 이 컷이 보여지는 동안 순서대로 화면에 표시됩니다. 각각 15자 내외로 짧고 임팩트 있게 작성하고, 나레이션 문장의 요약이 아니라 완전히 별도의 짧은 문구여야 하며, caption1과 caption2는 서로 다른 내용이어야 합니다 -- 예: 상황 제시 -> 핵심 포인트, 또는 질문 -> 답 형태로 자연스럽게 이어지게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
+      ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷은 한글 이미지 생성 프롬프트(다큐멘터리 사진 스타일, 세로 구도), 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막 2개(caption1, caption2 -- 이 컷이 보여지는 동안 순서대로 화면에 표시됩니다. 각각 30자 내외로 화면에 다 담을 수 있는 분량으로(길면 화면에서 자동으로 2줄로 나뉘어 표시되니 괜찮습니다) 작성하고, 나레이션 문장의 요약이 아니라 완전히 별도의 문구여야 하며, caption1과 caption2는 서로 다른 내용이어야 합니다 -- 예: 상황 제시 -> 핵심 포인트, 또는 질문 -> 답 형태로 자연스럽게 이어지게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
 
     const prompt = `
@@ -4779,10 +4779,10 @@ ${backInstruction}
 
 반드시 다음 JSON 형식으로만 답하십시오. 백틱이나 다른 설명 없이 JSON 객체만 출력하십시오. "scriptMd"처럼 여러 줄로 작성하는 값 안의 줄바꿈은 반드시 \\n으로 이스케이프하여, 유효한 JSON 문자열 하나로 만드십시오 (실제 줄바꿈 문자를 문자열 안에 그대로 넣지 마십시오).
 {
-  "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (15자 내외)",
+  "hookText": "0:00~0:03 자막에 사용할 강력한 후킹 문구 (30자 내외, 길면 화면에서 자동으로 2줄로 나뉘어 표시됩니다)",
   "veoPrompt": "0:00~0:08 Veo 영상용 한글 프롬프트 (후킹 장면 포함, 위 지침에 따라 빈 문자열일 수 있음)",
   "imageCuts": [
-    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption1": "이 컷 전반부에 표시할 짧고 임팩트있는 자막 (15자 내외)", "caption2": "이 컷 후반부에 표시할, caption1과 다른 짧은 자막 (15자 내외)", "duration": ${perCutDuration} }
+    { "prompt": "한글 이미지 프롬프트", "narration": "이 컷에서 나레이션으로 읽을 자연스러운 한 문장 (자막보다 길고 설명적으로)", "caption1": "이 컷 전반부에 표시할 임팩트있는 자막 (30자 내외)", "caption2": "이 컷 후반부에 표시할, caption1과 다른 자막 (30자 내외)", "duration": ${perCutDuration} }
   ],
   "scriptMd": "마크다운 형식의 전체 대본 문서 (타임라인 표 형태, 후킹을 강조하여 작성 -- 줄바꿈은 \\n으로 이스케이프)",
   "topBarTitleLine1": "상단 배너용 후킹 제목 1줄 (6~10자 내외)",
@@ -6328,6 +6328,22 @@ async function buildShortsAssets(project) {
 // canvas text rendering has no native newline support, a literal \n in a
 // single fillText() just renders as an invisible/garbled character, not an
 // actual line break.
+// Splits one caption line into two roughly-balanced lines at the space
+// nearest its midpoint, if it's too wide for the canvas at the current
+// font size. Captions can run up to ~30자 (doubled from ~15자), which
+// regularly needs two lines to stay readable at a legible font size.
+function wrapCaptionLine(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return [text];
+  const mid = Math.floor(text.length / 2);
+  let splitAt = -1;
+  for (let offset = 0; offset < text.length; offset++) {
+    if (mid + offset < text.length && text[mid + offset] === ' ') { splitAt = mid + offset; break; }
+    if (mid - offset >= 0 && text[mid - offset] === ' ') { splitAt = mid - offset; break; }
+  }
+  if (splitAt === -1) return [text.slice(0, mid), text.slice(mid)];
+  return [text.slice(0, splitAt).trim(), text.slice(splitAt + 1).trim()].filter(Boolean);
+}
+
 function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
   if (!text) return;
   const size = fontSize || 72;
@@ -6335,7 +6351,9 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  const wrapMaxWidth = canvasW - 160;
+  const lines = text.split('\n').filter(l => l.trim().length > 0)
+    .flatMap(l => wrapCaptionLine(ctx, l, wrapMaxWidth));
   if (lines.length === 0) { ctx.restore(); return; }
   const lineHeight = size * 1.25;
   const centerY = position === 'top' ? canvasH * 0.22
