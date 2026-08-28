@@ -7787,6 +7787,9 @@ function switchSnsSubTab(key, btnEl) {
   document.querySelectorAll(".sns-subtab-content").forEach(el => { el.style.display = "none"; });
   const target = document.getElementById("sns-subtab-" + key);
   if (target) target.style.display = "block";
+  // 새로고침해도 방금 보던 서브탭이 그대로 유지되도록 기억해 둔다
+  // (initSnsTab에서 페이지 로드 시 다시 읽어 복원).
+  localStorage.setItem("baikal_sns_active_subtab", key);
 }
 
 function switchExpenseSubTab(key, btnEl) {
@@ -8971,6 +8974,13 @@ async function initSnsTab() {
     initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected),
     initSnsArticlePicker('imagenews-picker-input', 'imagenews-picker-dropdown', onImageNewsArticleSelected)
   ]);
+
+  // 새로고침 전에 보고 있던 서브탭을 복원 (기본값은 마크업 그대로 cardnews).
+  const savedSubtab = localStorage.getItem("baikal_sns_active_subtab");
+  if (savedSubtab) {
+    const btn = document.querySelector(`.sns-subtab-btn[data-subtab="${savedSubtab}"]`);
+    if (btn) switchSnsSubTab(savedSubtab, btn);
+  }
 }
 
 // "SNS 발행용 콘텐츠" 서브탭에서 현재 선택된 기사 -- 예전에는 <select>의
