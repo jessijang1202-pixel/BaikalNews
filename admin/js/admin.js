@@ -6417,20 +6417,52 @@ async function buildShortsAssets(project) {
 // canvas text rendering has no native newline support, a literal \n in a
 // single fillText() just renders as an invisible/garbled character, not an
 // actual line break.
-// Splits one caption line into two roughly-balanced lines at the space
-// nearest its midpoint, if it's too wide for the canvas at the current
-// font size. Captions can run up to ~30자 (doubled from ~15자), which
-// regularly needs two lines to stay readable at a legible font size.
-function wrapCaptionLine(ctx, text, maxWidth) {
-  if (ctx.measureText(text).width <= maxWidth) return [text];
-  const mid = Math.floor(text.length / 2);
+// Finds the space nearest a given fraction of the way through text (0.5 =
+// midpoint) and splits there; falls back to a hard character split if no
+// space exists nearby. Shared by wrapCaptionLine (only splits if the text
+// is actually too wide) and forceTwoLines (always splits, regardless of
+// width -- used where the caller wants exactly two lines every time).
+function findNearestSpaceSplit(text, fraction) {
+  const target = Math.round(text.length * fraction);
   let splitAt = -1;
   for (let offset = 0; offset < text.length; offset++) {
-    if (mid + offset < text.length && text[mid + offset] === ' ') { splitAt = mid + offset; break; }
-    if (mid - offset >= 0 && text[mid - offset] === ' ') { splitAt = mid - offset; break; }
+    if (target + offset < text.length && text[target + offset] === ' ') { splitAt = target + offset; break; }
+    if (target - offset >= 0 && text[target - offset] === ' ') { splitAt = target - offset; break; }
   }
-  if (splitAt === -1) return [text.slice(0, mid), text.slice(mid)];
+  if (splitAt === -1) return [text.slice(0, target), text.slice(target)];
   return [text.slice(0, splitAt).trim(), text.slice(splitAt + 1).trim()].filter(Boolean);
+}
+
+// Splits one caption line into two roughly-balanced lines at the space
+// nearest a given fraction through it (default 0.5, the midpoint), if it's
+// too wide for the canvas at the current font size. Captions can run up to
+// ~30자 (doubled from ~15자), which regularly needs two lines to stay
+// readable at a legible font size.
+function wrapCaptionLine(ctx, text, maxWidth, targetFraction) {
+  if (ctx.measureText(text).width <= maxWidth) return [text];
+  return findNearestSpaceSplit(text, targetFraction != null ? targetFraction : 0.5);
+}
+
+// Always splits into exactly two lines at the space nearest a given
+// fraction through the text (default 2/3), regardless of whether it would
+// actually fit on one line -- for callers that want a forced two-line
+// layout (e.g. 이미지 뉴스 title) rather than "wrap only if needed."
+function forceTwoLines(text, fraction) {
+  const parts = findNearestSpaceSplit(text, fraction != null ? fraction : 2 / 3);
+  return parts.length === 2 ? parts : [parts[0] || '', ''];
+}
+
+// Splits one block of text into display lines, preferring sentence
+// boundaries over raw width wrapping: if the text already ends a complete
+// sentence (., !, ?) before running out of room, that's its own line;
+// only a sentence that's still too wide for maxWidth gets wrapped further,
+// at the space nearest 2/3 through it rather than the midpoint. Used for
+// 기사 이미지 뉴스's summary lines, which may contain more than one
+// sentence if the admin edits/pastes them that way.
+function splitIntoDisplayLines(ctx, text, maxWidth) {
+  const sentences = text.match(/[^.!?]+[.!?]*["'‘’“”)]*\s*/g);
+  const parts = (sentences && sentences.length > 1 ? sentences : [text]).map(s => s.trim()).filter(Boolean);
+  return parts.flatMap(part => wrapCaptionLine(ctx, part, maxWidth, 2 / 3));
 }
 
 // entrance effect duration in seconds -- how long an effect takes to
@@ -9378,14 +9410,14 @@ async function generateArticleImageNews() {
     const paddingX = 56;
     let cursorY = Math.round(canvasH * 0.5); // 제목 시작 -- 높이 중앙
 
-    // 제목: 흰 글자 + 포인트 컬러 배경, 줄마다 텍스트 폭에 맞춘 개별 박스
-    // (긴 제목은 wrapCaptionLine으로 자동 줄바꿈, 숏폼 자막과 동일한 로직).
+    // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
+    // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
+    // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
     const titleFontSize = 50;
     ctx.font = `bold ${titleFontSize}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const titleWrapMax = canvasW - paddingX * 2 - 24;
-    const titleLines = wrapCaptionLine(ctx, imageNewsSelectedArticle.title || '', titleWrapMax);
+    const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
     const titleLineH = Math.round(titleFontSize * 1.35);
     const titleBoxPadX = 16, titleGap = 8;
 
@@ -9408,13 +9440,16 @@ async function generateArticleImageNews() {
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
     const summaryFontSize = 35;
     ctx.font = `600 ${summaryFontSize}px sans-serif`;
-    const summaryWrapMax = canvasW - paddingX * 2;
+    // 화면을 꽉 채우지 않도록 전체 폭이 아니라 2/3만 사용 -- 문장이 그
+    // 안에서 이미 끝나 있으면 그대로 한 줄, 아니면 2/3 지점 근처에서
+    // 줄바꿈한다 (splitIntoDisplayLines).
+    const summaryWrapMax = Math.round((canvasW - paddingX * 2) * (2 / 3));
     const summaryLineH = Math.round(summaryFontSize * 1.4);
     const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
     summaryLines.forEach((line, i) => {
       ctx.fillStyle = i < tonedStartIdx ? "#ffffff" : colors.toned;
-      wrapCaptionLine(ctx, line, summaryWrapMax).forEach((wline) => {
+      splitIntoDisplayLines(ctx, line, summaryWrapMax).forEach((wline) => {
         ctx.fillText(wline, paddingX, cursorY + summaryLineH / 2);
         cursorY += summaryLineH;
       });
