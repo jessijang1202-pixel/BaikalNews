@@ -1024,14 +1024,15 @@
             </div>
           </div>
 
-          <!-- Step 3: Media generation -->
+          <!-- Step 3 (auto 모드 전용 번호 -- 아래 공용 조립 섹션의 STEP 3/4/5와
+               id가 겹치지 않도록 'a3' 사용) -->
           <div class="shorts-step" id="shorts-media-section" style="display:none;">
-            <div class="shorts-step-header" onclick="toggleShortsStep(3, this)">
+            <div class="shorts-step-header" onclick="toggleShortsStep('a3', this)">
               <span class="shorts-step-kicker">Step 3</span>
               <h3 class="shorts-step-heading">미디어 생성</h3>
               <span class="shorts-step-chevron">▲</span>
             </div>
-            <div class="shorts-step-body" id="shorts-step-body-3">
+            <div class="shorts-step-body" id="shorts-step-body-a3">
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button type="button" id="shorts-generate-media-btn" class="btn-admin btn-admin-primary" onclick="generateShortsMedia()">Veo 영상 + 이미지 컷 생성</button>
                 <button type="button" id="shorts-generate-front-btn" class="btn-admin btn-admin-secondary" onclick="generateShortsFrontOnly()">Veo 영상만 생성</button>
@@ -1095,85 +1096,127 @@
           </div>
           <!-- ===== /모드: 수동 생성 ===== -->
 
-          <!-- Step 4: Assembly / recording -->
-          <div class="shorts-step" id="shorts-assembly-section" style="display:none;">
-            <div class="shorts-step-header" onclick="toggleShortsStep(4, this)">
-              <span class="shorts-step-kicker">Step 4</span>
-              <h3 class="shorts-step-heading">최종 조립 및 녹화</h3>
+          <!-- STEP 3~5: Assembly / recording -- 공용 조립 섹션. 이 전체를 하나로
+               묶어서 여닫던 걸(예전 Step 4) 3개의 STEP 박스로 나눴다. -->
+          <div id="shorts-assembly-section" style="display:none;">
+
+          <div class="shorts-step">
+            <div class="shorts-step-header" onclick="toggleShortsStep(3, this)">
+              <span class="shorts-step-kicker">Step 3</span>
+              <h3 class="shorts-step-heading">영상 스타일 지정하기 (제목, 자막)</h3>
               <span class="shorts-step-chevron">▲</span>
             </div>
-            <div class="shorts-step-body" id="shorts-step-body-4">
-              <div class="form-group-admin" style="margin-bottom:16px;">
-                <label>영상 스타일 설정 (미리보기/녹화 전 언제든 수정 가능)</label>
+            <div class="shorts-step-body" id="shorts-step-body-3">
+              <div class="shorts-card">
+                <div class="shorts-card-kicker" style="margin-bottom:12px;">상단 배너</div>
 
-                <div class="shorts-card">
-                  <div class="shorts-card-kicker" style="margin-bottom:12px;">상단 배너</div>
-
-                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경색
-                      <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경 높이
-                      <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:90px;" min="40" max="400" step="4" value="360" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목 크기
-                      <input type="number" id="shorts-topbar-title-size" class="form-control-admin" style="width:90px;" min="16" max="150" step="2" value="110" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(1줄)
-                      <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:150px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
-                      <input type="color" id="shorts-topbar-title-color" value="#ffff00" title="1줄 색상" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(2줄)
-                      <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:150px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
-                      <input type="color" id="shorts-topbar-title-color-2" value="#ff0000" title="2줄 색상" onchange="updateShortsStyleSettings()">
-                    </label>
-                  </div>
-                </div>
-
-                <div class="shorts-card">
-                  <div class="shorts-card-kicker" style="margin-bottom:10px;">나레이션</div>
-                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
-                    <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">
-                      <button type="button" class="shorts-narration-player-btn" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()">▶</button>
-                      <button type="button" class="shorts-narration-player-btn" onclick="stopShortsNarrationPlayback()">⏹</button>
-                      <span class="shorts-narration-player-time" id="shorts-narration-time">0:00 / 0:00</span>
-                    </div>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">재생 속도
-                      <select id="shorts-narration-speed" class="form-control-admin" style="width:80px;" onchange="updateShortsStyleSettings()">
-                        <option value="1.0">1.0x</option>
-                        <option value="1.1">1.1x</option>
-                        <option value="1.2" selected>1.2x</option>
-                      </select>
-                    </label>
-                    <span class="help-text">나레이션이 겹치거나 중간에 잘리면 속도를 더 높여 보세요 -- 대본 내용은 그대로 유지됩니다</span>
-                  </div>
-                  <div style="margin-top:8px;"><span class="help-text" id="shorts-narration-recap-status"></span></div>
-                  <audio id="shorts-narration-playback" style="display:none;"></audio>
-                </div>
-
-                <div class="shorts-card">
-                  <div class="shorts-card-kicker" style="margin-bottom:12px;">자막</div>
-                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
-                      <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="72" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
-                      <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
-                    </label>
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
-                      <select id="shorts-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
-                        <option value="top">위</option>
-                        <option value="center">가운데</option>
-                        <option value="bottom" selected>아래</option>
-                      </select>
-                    </label>
-                  </div>
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경색
+                    <input type="color" id="shorts-topbar-color" value="#0b1a30" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">배경 높이
+                    <input type="number" id="shorts-topbar-height" class="form-control-admin" style="width:90px;" min="40" max="400" step="4" value="360" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목 크기
+                    <input type="number" id="shorts-topbar-title-size" class="form-control-admin" style="width:90px;" min="16" max="150" step="2" value="110" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(1줄)
+                    <input type="text" id="shorts-topbar-title" class="form-control-admin" style="width:150px;" placeholder="예: 바이칼뉴스" onchange="updateShortsStyleSettings()">
+                    <input type="color" id="shorts-topbar-title-color" value="#ffff00" title="1줄 색상" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">제목(2줄)
+                    <input type="text" id="shorts-topbar-title-2" class="form-control-admin" style="width:150px;" placeholder="예: BAIKAL NEWS" onchange="updateShortsStyleSettings()">
+                    <input type="color" id="shorts-topbar-title-color-2" value="#ff0000" title="2줄 색상" onchange="updateShortsStyleSettings()">
+                  </label>
                 </div>
               </div>
 
+              <div class="shorts-card">
+                <div class="shorts-card-kicker" style="margin-bottom:12px;">자막 (이미지 컷 공통)</div>
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
+                    <input type="number" id="shorts-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="72" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
+                    <input type="color" id="shorts-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
+                    <select id="shorts-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
+                      <option value="top">위</option>
+                      <option value="center">가운데</option>
+                      <option value="bottom" selected>아래</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="shorts-card">
+                <div class="shorts-card-kicker" style="margin-bottom:12px;">후킹 자막 (0:00~0:03 전용)</div>
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:22px;">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">크기
+                    <input type="number" id="shorts-hook-caption-size" class="form-control-admin" style="width:64px;" min="32" max="90" step="2" value="72" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">색상
+                    <input type="color" id="shorts-hook-caption-color" value="#ffffff" onchange="updateShortsStyleSettings()">
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">위치
+                    <select id="shorts-hook-caption-position" class="form-control-admin" style="width:100px;" onchange="updateShortsStyleSettings()">
+                      <option value="top">위</option>
+                      <option value="center">가운데</option>
+                      <option value="bottom" selected>아래</option>
+                    </select>
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">등장 효과
+                    <select id="shorts-hook-caption-effect" class="form-control-admin" style="width:110px;" onchange="updateShortsStyleSettings()">
+                      <option value="none" selected>없음</option>
+                      <option value="fade">페이드인</option>
+                      <option value="pop">확대되며 등장</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="shorts-step">
+            <div class="shorts-step-header" onclick="toggleShortsStep(4, this)">
+              <span class="shorts-step-kicker">Step 4</span>
+              <h3 class="shorts-step-heading">나레이션 생성하기</h3>
+              <span class="shorts-step-chevron">▲</span>
+            </div>
+            <div class="shorts-step-body" id="shorts-step-body-4">
+              <div class="shorts-card">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
+                  <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">
+                    <button type="button" class="shorts-narration-player-btn" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()">▶</button>
+                    <button type="button" class="shorts-narration-player-btn" onclick="stopShortsNarrationPlayback()">⏹</button>
+                    <span class="shorts-narration-player-time" id="shorts-narration-time">0:00 / 0:00</span>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">재생 속도
+                    <select id="shorts-narration-speed" class="form-control-admin" style="width:80px;" onchange="updateShortsStyleSettings()">
+                      <option value="1.0">1.0x</option>
+                      <option value="1.1">1.1x</option>
+                      <option value="1.2" selected>1.2x</option>
+                    </select>
+                  </label>
+                  <span class="help-text">나레이션이 겹치거나 중간에 잘리면 속도를 더 높여 보세요 -- 대본 내용은 그대로 유지됩니다</span>
+                </div>
+                <div style="margin-top:8px;"><span class="help-text" id="shorts-narration-recap-status"></span></div>
+                <audio id="shorts-narration-playback" style="display:none;"></audio>
+              </div>
+            </div>
+          </div>
+
+          <div class="shorts-step">
+            <div class="shorts-step-header" onclick="toggleShortsStep(5, this)">
+              <span class="shorts-step-kicker">Step 5</span>
+              <h3 class="shorts-step-heading">미리보기/녹화하기</h3>
+              <span class="shorts-step-chevron">▲</span>
+            </div>
+            <div class="shorts-step-body" id="shorts-step-body-5">
               <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
               <div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <button type="button" id="shorts-preview-btn" class="btn-admin btn-admin-primary" onclick="previewShortsAssembly()">미리보기 재생</button>
@@ -1216,6 +1259,8 @@
                 </div>
               </div>
             </div>
+          </div>
+
           </div>
 
           <!-- Wizard-level actions, always at the bottom -->

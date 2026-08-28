@@ -3766,6 +3766,10 @@ function saveShortsDraftLocally() {
     captionFontSize: currentShortsProject.captionFontSize,
     captionColor: currentShortsProject.captionColor,
     captionPosition: currentShortsProject.captionPosition,
+    hookFontSize: currentShortsProject.hookFontSize,
+    hookColor: currentShortsProject.hookColor,
+    hookPosition: currentShortsProject.hookPosition,
+    hookEffect: currentShortsProject.hookEffect,
     narrationSpeed: currentShortsProject.narrationSpeed,
     extraCutSeconds: currentShortsProject.extraCutSeconds || 0,
     createdBy: currentShortsProject.createdBy || '',
@@ -3973,9 +3977,9 @@ async function renderShortsList() {
         <td>${art ? art.title : '(삭제된 기사)'}</td>
         <td>${statusLabels[s.status] || s.status}</td>
         <td>${s.updatedAt ? new Date(s.updatedAt).toLocaleString('ko-KR') : ''}</td>
-        <td>
-          <button type="button" class="btn-admin btn-admin-secondary" onclick="${openCall}">열기</button>
-          <button type="button" class="btn-admin btn-admin-danger" onclick="${deleteCall}">삭제</button>
+        <td style="white-space:nowrap;">
+          <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px; font-size:0.78rem;" onclick="${openCall}">열기</button>
+          <button type="button" class="btn-admin btn-admin-secondary" style="padding:4px 10px; font-size:0.78rem;" onclick="${deleteCall}">삭제</button>
         </td>
       </tr>
     `;
@@ -4252,6 +4256,10 @@ async function openShortsProject(id) {
   currentShortsProject.captionFontSize = scriptJson.captionFontSize;
   currentShortsProject.captionColor = scriptJson.captionColor;
   currentShortsProject.captionPosition = scriptJson.captionPosition;
+  currentShortsProject.hookFontSize = scriptJson.hookFontSize;
+  currentShortsProject.hookColor = scriptJson.hookColor;
+  currentShortsProject.hookPosition = scriptJson.hookPosition;
+  currentShortsProject.hookEffect = scriptJson.hookEffect;
   currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.2;
   currentShortsProject.extraCutSeconds = scriptJson.extraCutSeconds || 0;
   // frontUpload/backUploads are transient staging state (not persisted --
@@ -4332,6 +4340,10 @@ async function openLocalShortsDraft(localDraftId) {
     captionFontSize: draft.captionFontSize,
     captionColor: draft.captionColor,
     captionPosition: draft.captionPosition,
+    hookFontSize: draft.hookFontSize,
+    hookColor: draft.hookColor,
+    hookPosition: draft.hookPosition,
+    hookEffect: draft.hookEffect,
     narrationSpeed: draft.narrationSpeed || 1.2,
     extraCutSeconds: draft.extraCutSeconds || 0
   };
@@ -4520,6 +4532,10 @@ async function syncShortsScriptToSupabase() {
         captionFontSize: currentShortsProject.captionFontSize,
         captionColor: currentShortsProject.captionColor,
         captionPosition: currentShortsProject.captionPosition,
+        hookFontSize: currentShortsProject.hookFontSize,
+        hookColor: currentShortsProject.hookColor,
+        hookPosition: currentShortsProject.hookPosition,
+        hookEffect: currentShortsProject.hookEffect,
         narrationSpeed: currentShortsProject.narrationSpeed,
         extraCutSeconds: currentShortsProject.extraCutSeconds || 0
       },
@@ -5846,6 +5862,14 @@ async function generateShortsCutImagesOnly() {
 // currentShortsProject -- pure draw-time styling, so no need to rebuild
 // shortsAssets when these change, just re-preview/re-record.
 function populateShortsStyleSettingsUI() {
+  const hookSizeInput = document.getElementById("shorts-hook-caption-size");
+  const hookColorInput = document.getElementById("shorts-hook-caption-color");
+  const hookPositionInput = document.getElementById("shorts-hook-caption-position");
+  const hookEffectInput = document.getElementById("shorts-hook-caption-effect");
+  if (hookSizeInput) hookSizeInput.value = currentShortsProject.hookFontSize || currentShortsProject.captionFontSize || 72;
+  if (hookColorInput) hookColorInput.value = currentShortsProject.hookColor || currentShortsProject.captionColor || '#ffffff';
+  if (hookPositionInput) hookPositionInput.value = currentShortsProject.hookPosition || currentShortsProject.captionPosition || 'bottom';
+  if (hookEffectInput) hookEffectInput.value = currentShortsProject.hookEffect || 'none';
   const colorInput = document.getElementById("shorts-topbar-color");
   const heightInput = document.getElementById("shorts-topbar-height");
   const titleSizeInput = document.getElementById("shorts-topbar-title-size");
@@ -6046,6 +6070,10 @@ function updateShortsStyleSettings() {
   const sizeInput = document.getElementById("shorts-caption-size");
   const captionColorInput = document.getElementById("shorts-caption-color");
   const positionInput = document.getElementById("shorts-caption-position");
+  const hookSizeInput = document.getElementById("shorts-hook-caption-size");
+  const hookColorInput = document.getElementById("shorts-hook-caption-color");
+  const hookPositionInput = document.getElementById("shorts-hook-caption-position");
+  const hookEffectInput = document.getElementById("shorts-hook-caption-effect");
   const narrationSpeedInput = document.getElementById("shorts-narration-speed");
   currentShortsProject.topBarColor = colorInput ? colorInput.value : '#0b1a30';
   currentShortsProject.topBarHeight = heightInput ? (parseInt(heightInput.value, 10) || 360) : 360;
@@ -6057,6 +6085,10 @@ function updateShortsStyleSettings() {
   currentShortsProject.captionFontSize = sizeInput ? (parseInt(sizeInput.value, 10) || 72) : 72;
   currentShortsProject.captionColor = captionColorInput ? captionColorInput.value : '#ffffff';
   currentShortsProject.captionPosition = positionInput ? positionInput.value : 'bottom';
+  currentShortsProject.hookFontSize = hookSizeInput ? (parseInt(hookSizeInput.value, 10) || 72) : 72;
+  currentShortsProject.hookColor = hookColorInput ? hookColorInput.value : '#ffffff';
+  currentShortsProject.hookPosition = hookPositionInput ? hookPositionInput.value : 'bottom';
+  currentShortsProject.hookEffect = hookEffectInput ? hookEffectInput.value : 'none';
   currentShortsProject.narrationSpeed = narrationSpeedInput ? (parseFloat(narrationSpeedInput.value) || 1.2) : 1.2;
   shortsAssets = null; // playbackRate/timing baked into the built assets -- force a rebuild so the new speed actually takes effect
   saveShortsDraftLocally();
@@ -6344,10 +6376,25 @@ function wrapCaptionLine(ctx, text, maxWidth) {
   return [text.slice(0, splitAt).trim(), text.slice(splitAt + 1).trim()].filter(Boolean);
 }
 
-function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position) {
+// entrance effect duration in seconds -- how long fade/pop takes to reach
+// full opacity/size once the caption first appears.
+const SHORTS_CAPTION_EFFECT_DURATION = 0.4;
+
+// effect/effectElapsed are optional -- only the hook caption uses them
+// (drawShortsCaption is also used for the per-cut captions, which always
+// pass 'none' so they appear instantly as before).
+function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, position, effect, effectElapsed) {
   if (!text) return;
   const size = fontSize || 72;
   ctx.save();
+
+  let alpha = 1, scale = 1;
+  if ((effect === 'fade' || effect === 'pop') && effectElapsed != null) {
+    const t = Math.min(1, Math.max(0, effectElapsed / SHORTS_CAPTION_EFFECT_DURATION));
+    alpha = t;
+    if (effect === 'pop') scale = 0.7 + 0.3 * t;
+  }
+
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -6359,6 +6406,14 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
   const centerY = position === 'top' ? canvasH * 0.22
     : position === 'center' ? canvasH / 2
     : canvasH - 260; // 'bottom' (default) -- original position
+
+  if (scale !== 1) {
+    ctx.translate(canvasW / 2, centerY);
+    ctx.scale(scale, scale);
+    ctx.translate(-canvasW / 2, -centerY);
+  }
+  ctx.globalAlpha = alpha;
+
   const maxWidth = Math.max(...lines.map(l => ctx.measureText(l).width));
   const paddingX = 32, paddingY = 20;
   const boxH = lineHeight * lines.length + paddingY;
@@ -6603,7 +6658,15 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
           } else {
             drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
           }
-          if (elapsed < hookCaptionDuration) drawShortsCaption(ctx, project.hookText, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
+          if (elapsed < hookCaptionDuration) {
+            drawShortsCaption(
+              ctx, project.hookText, W, H,
+              project.hookFontSize || project.captionFontSize,
+              project.hookColor || project.captionColor,
+              project.hookPosition || project.captionPosition,
+              project.hookEffect || 'none', elapsed
+            );
+          }
         } else {
           let t = elapsed - frontDuration;
           let idx = 0;
