@@ -6487,7 +6487,7 @@ function drawShortsImageCutWatermark(ctx, canvasW, canvasH) {
   const boxH = Math.round(fontSize * 1.4); // comfortably taller than the text itself
   const paddingX = 14;
   const rightMargin = 40;
-  const bottomMargin = 60;
+  const bottomMargin = 80;
   ctx.save();
   ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = "center";
