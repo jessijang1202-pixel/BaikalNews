@@ -1054,7 +1054,7 @@
                 <p class="help-text" style="margin-bottom:16px;">대본은 자동 생성과 동일하게 AI가 작성합니다. 다만 영상(Veo)·이미지는 API로 자동 생성하지 않고, 아래 프롬프트를 복사해 Gemini에서 직접 만든 뒤 업로드하세요. 나레이션 생성과 그 이후(조립·녹화·다운로드)는 아래로 이어지는 공통 단계에서 자동 생성과 동일하게 진행됩니다.</p>
 
                 <div class="form-group-admin">
-                  <button type="button" id="shorts-manual-generate-script-btn" class="btn-admin btn-admin-primary" onclick="generateShortsScript()">대본 생성하기</button>
+                  <button type="button" id="shorts-manual-generate-script-btn" class="btn-admin btn-admin-primary" onclick="generateShortsScript()">① 대본 생성하기</button>
                 </div>
 
                 <div id="shorts-manual-review" style="display:none; margin-top:20px;">
@@ -1081,7 +1081,7 @@
                   </div>
 
                   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px;">
-                    <button type="button" class="btn-admin btn-admin-secondary" onclick="saveShortsManualEdits()">대본 저장</button>
+                    <button type="button" class="btn-admin btn-admin-primary" onclick="saveShortsManualEdits()">② 대본 저장</button>
                     <span class="help-text" id="shorts-manual-save-status"></span>
                   </div>
                 </div>
@@ -1176,6 +1176,8 @@
                   </label>
                 </div>
               </div>
+
+              <button type="button" class="btn-admin btn-admin-primary" onclick="updateShortsStyleSettings()">③ 영상 스타일 저장</button>
             </div>
           </div>
 
@@ -1205,7 +1207,7 @@
                   </label>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                  <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
+                  <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">④ 나레이션 생성</button>
                   <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">
                     <button type="button" class="shorts-narration-player-btn" id="shorts-narration-play-btn" onclick="toggleShortsNarrationPlayback()">▶</button>
                     <button type="button" class="shorts-narration-player-btn" onclick="stopShortsNarrationPlayback()">⏹</button>
@@ -1236,7 +1238,7 @@
             <div class="shorts-step-body" id="shorts-step-body-5">
               <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
               <div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <button type="button" id="shorts-preview-btn" class="btn-admin btn-admin-primary" onclick="previewShortsAssembly()">미리보기 재생</button>
+                <button type="button" id="shorts-preview-btn" class="btn-admin btn-admin-primary" onclick="previewShortsAssembly()">⑤ 미리보기 재생</button>
                 <button type="button" id="shorts-preview-stop-btn" class="btn-admin btn-admin-secondary" onclick="stopShortsPreview()" disabled>정지</button>
                 <button type="button" id="shorts-preview-restart-btn" class="btn-admin btn-admin-secondary" onclick="restartShortsPreview()">처음부터 다시 재생</button>
                 <button type="button" class="btn-admin btn-admin-outline-teal" onclick="extendShortsCutsAndPreview()">이미지 컷 1초씩 늘리기 &gt;&gt;</button>
@@ -1244,7 +1246,7 @@
                 <span class="help-text" id="shorts-extra-seconds-status"></span>
               </div>
               <div style="margin-top:14px;">
-                <button type="button" id="shorts-record-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" onclick="recordShortsVideo()">영상으로 녹화 (이 브라우저에만 보관)</button>
+                <button type="button" id="shorts-record-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" onclick="recordShortsVideo()">⑥ 영상으로 녹화 (이 브라우저에만 보관)</button>
               </div>
               <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
               <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>
