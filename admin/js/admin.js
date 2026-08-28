@@ -9565,15 +9565,13 @@ async function generateArticleImageNews() {
       return { wrapped, lineH, color: isEmphasis ? lightColor : "#ffffff", fontSize };
     });
 
+    // 마지막 줄의 아래쪽 끝이 항상 캔버스 하단에서 정확히 150px 지점에
+    // 오도록 고정한다 -- 글자 수가 많으면(전체 블록이 높으면) 시작 위치가
+    // 자연히 위로 올라가고, 적으면 아래로 내려온다.
     const contentGap = 20;
-    const bottomMargin = 48;
+    const bottomMargin = 150;
     const totalBlockH = titleBlockH + contentGap + summaryBlockH;
-    const idealStartY = Math.round(canvasH * 0.5);
-    let cursorY = Math.min(idealStartY, canvasH - bottomMargin - totalBlockH);
-    // 사진의 밝은 윗부분까지 밀려 올라가 가독성이 떨어지지 않도록 최소
-    // 시작 위치(높이의 30%)는 지켜준다 -- 그래도 다 안 들어가면 아래
-    // 여백을 줄여서라도 마지막 줄이 완전히 잘리는 것보다는 낫다.
-    cursorY = Math.max(cursorY, Math.round(canvasH * 0.3));
+    let cursorY = canvasH - bottomMargin - totalBlockH;
 
     ctx.font = `bold ${titleFontSize}px Pretendard, sans-serif`;
     titleLines.forEach((line) => {
