@@ -1004,12 +1004,6 @@
                 <div class="form-group-admin">
                   <label>0:08~0:30 이미지 컷 (대본을 그대로 나레이션으로 읽습니다 · 자막은 화면에 보이는 문구)</label>
                   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
-                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">나레이션 목소리
-                      <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
-                        <option value="Kore" selected>여성</option>
-                        <option value="Puck">남성</option>
-                      </select>
-                    </label>
                     <span class="help-text" id="shorts-narration-status">대본 승인 시 나레이션이 자동으로 생성됩니다.</span>
                   </div>
                   <div id="shorts-image-cuts-editor"></div>
@@ -1193,6 +1187,23 @@
             </div>
             <div class="shorts-step-body" id="shorts-step-body-4">
               <div class="shorts-card">
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:10px;">
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">목소리
+                    <select id="shorts-narration-voice" class="form-control-admin" style="width:90px;">
+                      <option value="Kore" selected>여성</option>
+                      <option value="Puck">남성</option>
+                    </select>
+                  </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">무드
+                    <select id="shorts-narration-mood" class="form-control-admin" style="width:150px;">
+                      <option value="" selected>자동 (기본)</option>
+                      <option value="bright">밝고 경쾌하게</option>
+                      <option value="calm">차분하고 신뢰감 있게</option>
+                      <option value="urgent">긴급하고 진지하게</option>
+                      <option value="warm">따뜻하고 친근하게</option>
+                    </select>
+                  </label>
+                </div>
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                   <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">나레이션 생성</button>
                   <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">

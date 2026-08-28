@@ -5580,6 +5580,23 @@ function blobToBase64DataUrl(blob) {
   });
 }
 
+// Gemini TTS has no separate "tone/mood" API parameter -- style is
+// controlled entirely by prefixing the spoken text with a natural-language
+// delivery instruction (Google's own documented pattern, e.g. "Say
+// cheerfully: ..."). The model treats the instruction as meta-guidance and
+// only voices the actual content after the colon.
+const SHORTS_NARRATION_MOOD_PREFIXES = {
+  bright: '밝고 경쾌한 톤으로, 활기차게 말하듯이 읽어주세요: ',
+  calm: '차분하고 신뢰감 있는 톤으로, 안정적으로 읽어주세요: ',
+  urgent: '다급하고 진지한 톤으로, 속보를 전하듯이 읽어주세요: ',
+  warm: '따뜻하고 친근한 톤으로, 다정하게 말하듯이 읽어주세요: '
+};
+function applyShortsNarrationMood(text) {
+  const moodSelect = document.getElementById("shorts-narration-mood");
+  const prefix = moodSelect && SHORTS_NARRATION_MOOD_PREFIXES[moodSelect.value];
+  return prefix ? prefix + text : text;
+}
+
 // Generates one narration clip for either the hook (cutObj=null) or a
 // specific image cut, storing it in IndexedDB and -- for a cut -- updating
 // its duration to match the clip's actual length. This is what keeps audio
@@ -5589,7 +5606,7 @@ function blobToBase64DataUrl(blob) {
 // Supabase later doesn't need to re-fetch and re-encode the local blob.
 async function generateCutNarration(cutObj, text, voiceName, draftId) {
   if (!text) return;
-  const wavBlob = await generateGeminiSpeech(text, voiceName);
+  const wavBlob = await generateGeminiSpeech(applyShortsNarrationMood(text), voiceName);
   const duration = await getAudioBlobDuration(wavBlob);
   const base64 = await blobToBase64DataUrl(wavBlob);
   if (cutObj) {
