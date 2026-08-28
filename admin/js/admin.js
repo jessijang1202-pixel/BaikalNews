@@ -6381,6 +6381,24 @@ function drawShortsTopBar(ctx, project, canvasW) {
   ctx.restore();
 }
 
+// Draws the front video at its OWN native pixel size -- no upscale,
+// downscale, or crop-to-fill -- horizontally centered, with its top edge
+// sitting right below the black title banner (or at the very top if there
+// is no banner). This is specifically for a manually-made Gemini/Veo clip
+// that's already vertical: stretching it to fill the 1080x1920 canvas (the
+// old behavior, plain `drawImage(el, 0, 0, W, H)`) distorted its aspect
+// ratio, and a horizontal clip stretched into portrait looked especially
+// bad. If the video is wider or taller than the available space, the
+// excess simply falls outside the canvas and is clipped by it -- never
+// resized to force a fit.
+function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW) {
+  const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+  if (!vw || !vh) return;
+  const bannerH = project.topBarTitle ? (project.topBarHeight || 360) : 0;
+  const x = (canvasW - vw) / 2;
+  ctx.drawImage(videoEl, x, bannerH, vw, vh);
+}
+
 // Slow zoom-in (Ken Burns) over the cut's duration so static images don't
 // look completely frozen against the Veo clip's motion.
 function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH) {
@@ -6559,7 +6577,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
         if (elapsed < frontDuration) {
           if (assets.front.type === 'video') {
             if (assets.front.el.readyState >= 2) {
-              ctx.drawImage(assets.front.el, 0, 0, W, H);
+              drawShortsFrontVideoNative(ctx, assets.front.el, project, W);
             }
           } else {
             drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
