@@ -652,7 +652,7 @@ async function switchTab(tabName) {
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
     'letter-send': "뉴스레터 발송",
-    sns: "SNS 카드뉴스 발행",
+    sns: "SNS 카드뉴스 생성",
     subscribers: "구독자 현황",
     curation: "홈화면 큐레이션 통제",
     expenses: "비용 관리",
@@ -1080,7 +1080,7 @@ async function renderArticlesList() {
     const statusInfo = getArticleStatusDisplay(art);
 
     let snsButton = '';
-    // SNS 카드뉴스 발행 탭의 기사 피커는 발행된 기사만 대상으로 하므로
+    // SNS 카드뉴스 생성 탭의 기사 피커는 발행된 기사만 대상으로 하므로
     // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
     // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
     if (art.status === 'published') {
@@ -1116,7 +1116,7 @@ async function renderArticlesList() {
   }).join('');
 }
 
-// 작업 열의 "SNS뉴스" 초록 박스 -- SNS 카드뉴스 발행 탭(카드뉴스 서브탭)으로
+// 작업 열의 "SNS뉴스" 초록 박스 -- SNS 카드뉴스 생성 탭(카드뉴스 서브탭)으로
 // 이동해 이 기사를 카드뉴스 피커에 미리 선택해 둔다.
 async function openCardNewsFromArticle(articleId) {
   await switchTab('sns');
@@ -8780,7 +8780,7 @@ async function sendKakaoBriefingNow() {
 const SNS_PLATFORMS = ['facebook', 'instagram', 'threads', 'x', 'youtube'];
 
 // ------------------------------------------------------------------
-// 공용 기사 검색 피커 -- "SNS 카드뉴스 발행"과 "SNS 발행용 콘텐츠" 두
+// 공용 기사 검색 피커 -- "SNS 카드뉴스 생성"과 "SNS 발행용 콘텐츠" 두
 // 서브탭이 각자 독립된 인스턴스로 재사용한다 (기사 선택 상태를 공유하지
 // 않음 -- 관리자가 서브탭마다 다른 기사를 고를 수 있어야 하므로). 펼침
 // 목록(검색어 없음)은 7일 이내 발행 기사로 좁힌다(approvedAt/
@@ -9153,7 +9153,7 @@ async function publishSnsOne(platform) {
 }
 
 // ==========================================
-// SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면 맥락 없이 어색해
+// SNS 카드뉴스 생성 -- 원본 기사 사진을 그대로 공유하면 맥락 없이 어색해
 // 보인다는 문제로 시작한 기능. 두 가지를 함께 보여준다: 1) 인포그래픽
 // 이미지는 Gemini Gem 등 외부 도구에서 만들기 때문에, 그곳에 붙여넣을
 // "인포그래픽용 기사 요약"을 AI로 생성 -> 2) SNS 게시글 캡션으로 그대로

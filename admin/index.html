@@ -69,11 +69,11 @@
       <li class="sidebar-item" data-tab="shorts">
         <a>숏폼 생성</a>
       </li>
+      <li class="sidebar-item" data-tab="sns">
+        <a>SNS 카드뉴스 생성</a>
+      </li>
       <li class="sidebar-item" data-tab="letter-send">
         <a>뉴스레터 발송</a>
-      </li>
-      <li class="sidebar-item" data-tab="sns">
-        <a>SNS 카드뉴스 발행</a>
       </li>
       <li class="sidebar-item" data-tab="subscribers">
         <a>구독자 현황</a>
@@ -1559,11 +1559,11 @@
            순서대로 원클릭 발행 버튼이 실제로 붙는다. -->
       <section id="tab-sns" class="tab-content">
         <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;">
-          <button type="button" class="btn-admin btn-admin-primary sns-subtab-btn" data-subtab="cardnews" onclick="switchSnsSubTab('cardnews', this)">SNS 카드뉴스 발행</button>
+          <button type="button" class="btn-admin btn-admin-primary sns-subtab-btn" data-subtab="cardnews" onclick="switchSnsSubTab('cardnews', this)">SNS 카드뉴스 생성</button>
           <button type="button" class="btn-admin btn-admin-secondary sns-subtab-btn" data-subtab="content" onclick="switchSnsSubTab('content', this)">SNS 발행용 콘텐츠</button>
         </div>
 
-        <!-- Sub-tab: SNS 카드뉴스 발행 -- 원본 기사 사진을 그대로 공유하면
+        <!-- Sub-tab: SNS 카드뉴스 생성 -- 원본 기사 사진을 그대로 공유하면
              맥락 없이 보여 어색하다는 문제로 시작한 기능. 두 가지를 함께
              보여준다: 1) 인포그래픽 이미지는 Gemini Gem 등 외부 도구에서
              만들기 때문에, 그곳에 붙여넣을 "인포그래픽용 기사 요약"을 AI로
