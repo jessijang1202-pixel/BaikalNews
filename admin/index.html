@@ -942,10 +942,10 @@
                나레이션(Step 4)과 그 이후(조립/녹화/다운로드/유튜브메타)는 두 모드 공통으로 하나만
                존재합니다 -- 미디어를 자동으로 만들었든 수동 업로드했든 조립 방식은 동일하기 때문입니다. -->
           <div style="display:flex; gap:10px; margin: 20px 0; flex-wrap:wrap;">
-            <!-- API 비용 절감을 위해 잠시 닫아둠 (2026-08-27) -- 되돌리려면 이 버튼의
-                 style="display:none;"만 지우고, 아래 두 패널의 기본 활성 상태를
+            <!-- API 비용 절감을 위해 잠시 비활성화 (2026-08-27) -- 되돌리려면 이 버튼의
+                 disabled 속성과 style만 지우고, 아래 두 패널의 기본 활성 상태를
                  auto/manual로 다시 바꾸면 됨. -->
-            <button type="button" class="btn-admin btn-admin-secondary shorts-mode-tab-btn" data-mode="auto" onclick="switchShortsModeTab('auto', this)" style="display:none;">숏폼 자동 생성</button>
+            <button type="button" class="btn-admin btn-admin-secondary shorts-mode-tab-btn" data-mode="auto" onclick="switchShortsModeTab('auto', this)" disabled style="opacity:0.45; cursor:not-allowed;" title="비용 절감을 위해 잠시 비활성화되었습니다">숏폼 자동 생성</button>
             <button type="button" class="btn-admin btn-admin-primary shorts-mode-tab-btn" data-mode="manual" onclick="switchShortsModeTab('manual', this)">숏폼 수동 생성</button>
           </div>
 
