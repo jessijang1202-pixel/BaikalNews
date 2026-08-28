@@ -9355,8 +9355,8 @@ function renderImageNewsPreview(article) {
 }
 
 // 포인트 컬러 팔레트 -- main은 제목 배경(선명한 색)에 쓴다. 요약 뒤 2줄
-// 텍스트 색(톤다운)은 고정 값이 아니라 scaleHexColor()로 main의 30%
-// 밝기를 그때그때 계산해서 쓴다.
+// 텍스트 색(라이트 톤)은 고정 값이 아니라 lightenHexColor()로 main을
+// 흰색 쪽으로 밝힌 파스텔 버전을 그때그때 계산해서 쓴다.
 const IMAGE_NEWS_COLOR_PALETTE = {
   orange: { main: '#f97316' },
   yellow: { main: '#facc15' },
@@ -9365,13 +9365,15 @@ const IMAGE_NEWS_COLOR_PALETTE = {
   green: { main: '#16a34a' }
 };
 
-// #rrggbb 색을 factor배 밝기로 스케일해 rgb() 문자열로 반환한다 (예: 0.3 ->
-// 메인 색상의 30% 밝기, 어둡게 가라앉은 톤다운 버전).
-function scaleHexColor(hex, factor) {
+// #rrggbb 색을 흰색 쪽으로 밝혀(라이트 톤) rgb() 문자열로 반환한다.
+// factor는 원래 색이 남는 비율 -- 0.3이면 메인 색상 30% + 흰색 70%를
+// 섞은 밝은 파스텔 톤(예: 주황 -> 라이트 오렌지, 파랑 -> 라이트 블루).
+function lightenHexColor(hex, factor) {
   const clean = hex.replace('#', '');
-  const r = Math.round(parseInt(clean.slice(0, 2), 16) * factor);
-  const g = Math.round(parseInt(clean.slice(2, 4), 16) * factor);
-  const b = Math.round(parseInt(clean.slice(4, 6), 16) * factor);
+  const mix = (mainChannel) => Math.round(mainChannel * factor + 255 * (1 - factor));
+  const r = mix(parseInt(clean.slice(0, 2), 16));
+  const g = mix(parseInt(clean.slice(2, 4), 16));
+  const b = mix(parseInt(clean.slice(4, 6), 16));
   return `rgb(${r},${g},${b})`;
 }
 
@@ -9485,7 +9487,7 @@ async function generateArticleImageNews() {
     const colorSelect = document.getElementById("imagenews-color-select");
     const colorKey = colorSelect ? colorSelect.value : 'orange';
     const colors = IMAGE_NEWS_COLOR_PALETTE[colorKey] || IMAGE_NEWS_COLOR_PALETTE.orange;
-    const tonedColor = scaleHexColor(colors.main, 0.3);
+    const lightColor = lightenHexColor(colors.main, 0.3);
 
     const paddingX = 56;
     let cursorY = Math.round(canvasH * 0.5); // 제목 시작 -- 높이 중앙
@@ -9533,7 +9535,7 @@ async function generateArticleImageNews() {
       const isEmphasis = i >= tonedStartIdx;
       const fontSize = isEmphasis ? summaryFontSizeEmphasis : summaryFontSizeNormal;
       ctx.font = `600 ${fontSize}px sans-serif`;
-      ctx.fillStyle = isEmphasis ? tonedColor : "#ffffff";
+      ctx.fillStyle = isEmphasis ? lightColor : "#ffffff";
       const lineH = Math.round(fontSize * 1.4);
       splitIntoDisplayLines(ctx, line, summaryWrapMax).forEach((wline) => {
         ctx.fillText(wline, paddingX + summaryIndent, cursorY + lineH / 2);
