@@ -9490,31 +9490,20 @@ async function generateArticleImageNews() {
     const lightColor = lightenHexColor(colors.main, 0.3);
 
     const paddingX = 56;
-    let cursorY = Math.round(canvasH * 0.5); // 제목 시작 -- 높이 중앙
 
     // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
     // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
     // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
     const titleFontSize = 50;
-    ctx.font = `bold ${titleFontSize}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
     const titleLineH = Math.round(titleFontSize * 1.35);
     const titleBoxPadX = 16, titleGap = 8;
+    const titleBlockH = titleLines.length * (titleLineH + titleGap);
 
-    titleLines.forEach((line) => {
-      const w = ctx.measureText(line).width;
-      ctx.fillStyle = colors.main;
-      ctx.fillRect(paddingX, cursorY, w + titleBoxPadX * 2, titleLineH);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(line, paddingX + titleBoxPadX, cursorY + titleLineH / 2 + 1);
-      cursorY += titleLineH + titleGap;
-    });
-    cursorY += 20;
-
-    // 요약 -- 마지막 2줄만 더 크게(50px) + 포인트 컬러의 30% 밝기 톤다운,
-    // 그 앞은 35px 흰색. 실제 줄 수를 기준으로 "마지막 2줄"을 계산한다
+    // 요약 -- 마지막 2줄만 더 크게(50px) + 포인트 컬러의 30% 밝기 라이트
+    // 톤, 그 앞은 35px 흰색. 실제 줄 수를 기준으로 "마지막 2줄"을 계산한다
     // (AI가 정확히 5줄을 안 지켜도 -- 4줄이든 6줄이든 -- 항상 끝에서
     // 2번째 줄부터 적용되도록. 고정된 인덱스로 판단하면 실제 줄 수가
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
@@ -9531,13 +9520,48 @@ async function generateArticleImageNews() {
     const summaryWrapMax = Math.round((canvasW - paddingX * 2 - summaryIndent) * (2 / 3));
     const tonedStartIdx = Math.max(0, summaryLines.length - 2);
 
-    summaryLines.forEach((line, i) => {
+    // 실제로 그리기 전에 각 줄의 줄바꿈 결과와 전체 높이를 먼저 계산해
+    // 둔다 -- 요약이 길어서 고정된 시작 위치(높이 중앙)로는 캔버스 아래로
+    // 넘쳐버리면, 특히 강조 처리되는 마지막 2줄이 화면 밖으로 잘려
+    // "색도 크기도 적용이 안 된 것처럼" 보이는 문제가 있었다. 아래에서
+    // 전체 블록 높이를 구해 시작 위치를 위로 밀어 올려 항상 캔버스 안에
+    // 들어오게 한다.
+    let summaryBlockH = 0;
+    const summaryRenderInfo = summaryLines.map((line, i) => {
       const isEmphasis = i >= tonedStartIdx;
       const fontSize = isEmphasis ? summaryFontSizeEmphasis : summaryFontSizeNormal;
       ctx.font = `600 ${fontSize}px sans-serif`;
-      ctx.fillStyle = isEmphasis ? lightColor : "#ffffff";
+      const wrapped = splitIntoDisplayLines(ctx, line, summaryWrapMax);
       const lineH = Math.round(fontSize * 1.4);
-      splitIntoDisplayLines(ctx, line, summaryWrapMax).forEach((wline) => {
+      summaryBlockH += wrapped.length * lineH;
+      return { wrapped, lineH, color: isEmphasis ? lightColor : "#ffffff", fontSize };
+    });
+
+    const contentGap = 20;
+    const bottomMargin = 48;
+    const totalBlockH = titleBlockH + contentGap + summaryBlockH;
+    const idealStartY = Math.round(canvasH * 0.5);
+    let cursorY = Math.min(idealStartY, canvasH - bottomMargin - totalBlockH);
+    // 사진의 밝은 윗부분까지 밀려 올라가 가독성이 떨어지지 않도록 최소
+    // 시작 위치(높이의 30%)는 지켜준다 -- 그래도 다 안 들어가면 아래
+    // 여백을 줄여서라도 마지막 줄이 완전히 잘리는 것보다는 낫다.
+    cursorY = Math.max(cursorY, Math.round(canvasH * 0.3));
+
+    ctx.font = `bold ${titleFontSize}px sans-serif`;
+    titleLines.forEach((line) => {
+      const w = ctx.measureText(line).width;
+      ctx.fillStyle = colors.main;
+      ctx.fillRect(paddingX, cursorY, w + titleBoxPadX * 2, titleLineH);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(line, paddingX + titleBoxPadX, cursorY + titleLineH / 2 + 1);
+      cursorY += titleLineH + titleGap;
+    });
+    cursorY += contentGap;
+
+    summaryRenderInfo.forEach(({ wrapped, lineH, color, fontSize }) => {
+      ctx.font = `600 ${fontSize}px sans-serif`;
+      ctx.fillStyle = color;
+      wrapped.forEach((wline) => {
         ctx.fillText(wline, paddingX + summaryIndent, cursorY + lineH / 2);
         cursorY += lineH;
       });
