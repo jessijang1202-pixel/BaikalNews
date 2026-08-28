@@ -6526,7 +6526,7 @@ function drawShortsBrandWatermark(ctx, canvasW, canvasH, logoImg) {
   const boxTop = boxBottom - boxH;
   const centerY = boxTop + boxH / 2;
 
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
   ctx.fillRect(boxLeft, boxTop, boxW, boxH);
 
   let cursorX = boxLeft + paddingX;
