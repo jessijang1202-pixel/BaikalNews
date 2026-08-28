@@ -6716,6 +6716,21 @@ async function extendShortsCutsAndPreview() {
   await previewShortsAssembly();
 }
 
+// "이미지 컷 1초씩 줄여서 다시 보기" -- mirrors extendShortsCutsAndPreview()
+// above, for undoing an over-extension or trimming a cut that's now running
+// too long. Each cut still can't go below 1s regardless of how negative
+// extraCutSeconds gets, since runShortsTimelineInner()'s cutDurations
+// calculation floors every individual cut at Math.max(1, ...).
+async function shrinkShortsCutsAndPreview() {
+  if (!currentShortsProject) return;
+  currentShortsProject.extraCutSeconds = (currentShortsProject.extraCutSeconds || 0) - 1;
+  shortsAssets = null;
+  saveShortsDraftLocally();
+  const statusEl = document.getElementById("shorts-extra-seconds-status");
+  if (statusEl) statusEl.textContent = `컷당 ${currentShortsProject.extraCutSeconds >= 0 ? '+' : ''}${currentShortsProject.extraCutSeconds}초 (총 ${currentShortsProject.extraCutSeconds >= 0 ? '+' : ''}${currentShortsProject.extraCutSeconds * (currentShortsProject.imageCuts || []).length}초)`;
+  await previewShortsAssembly();
+}
+
 async function previewShortsAssembly() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const previewBtn = document.getElementById("shorts-preview-btn");
