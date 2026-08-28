@@ -6376,9 +6376,13 @@ function wrapCaptionLine(ctx, text, maxWidth) {
   return [text.slice(0, splitAt).trim(), text.slice(splitAt + 1).trim()].filter(Boolean);
 }
 
-// entrance effect duration in seconds -- how long fade/pop takes to reach
-// full opacity/size once the caption first appears.
+// entrance effect duration in seconds -- how long an effect takes to
+// settle into its final resting state once the caption first appears.
+// Typing gets its own, longer duration -- revealing ~30자 in the same 0.4s
+// as a fade/slide would look instant instead of like typing.
 const SHORTS_CAPTION_EFFECT_DURATION = 0.4;
+const SHORTS_CAPTION_TYPING_DURATION = 1.4;
+const SHORTS_CAPTION_SLIDE_DISTANCE = { x: 260, y: 180 };
 
 // effect/effectElapsed are optional -- only the hook caption uses them
 // (drawShortsCaption is also used for the per-cut captions, which always
@@ -6388,18 +6392,33 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
   const size = fontSize || 72;
   ctx.save();
 
-  let alpha = 1, scale = 1;
-  if ((effect === 'fade' || effect === 'pop') && effectElapsed != null) {
-    const t = Math.min(1, Math.max(0, effectElapsed / SHORTS_CAPTION_EFFECT_DURATION));
-    alpha = t;
-    if (effect === 'pop') scale = 0.7 + 0.3 * t;
+  const hasEffect = effect && effect !== 'none' && effectElapsed != null;
+  const effectDuration = effect === 'typing' ? SHORTS_CAPTION_TYPING_DURATION : SHORTS_CAPTION_EFFECT_DURATION;
+  const t = hasEffect ? Math.min(1, Math.max(0, effectElapsed / effectDuration)) : 1;
+
+  // 'typing' reveals the text itself character by character instead of
+  // moving/fading the whole caption -- everything else (position, opacity)
+  // stays fixed so only the text length changes.
+  let displayText = text;
+  if (effect === 'typing' && hasEffect) {
+    displayText = text.slice(0, Math.max(1, Math.ceil(text.length * t)));
+  }
+
+  let alpha = 1, scale = 1, dx = 0, dy = 0;
+  if (hasEffect) {
+    if (effect === 'fade') { alpha = t; }
+    else if (effect === 'pop') { alpha = t; scale = 0.7 + 0.3 * t; }
+    else if (effect === 'slide-down') { alpha = t; dy = -SHORTS_CAPTION_SLIDE_DISTANCE.y * (1 - t); }
+    else if (effect === 'slide-up') { alpha = t; dy = SHORTS_CAPTION_SLIDE_DISTANCE.y * (1 - t); }
+    else if (effect === 'slide-right') { alpha = t; dx = SHORTS_CAPTION_SLIDE_DISTANCE.x * (1 - t); }
+    else if (effect === 'slide-left') { alpha = t; dx = -SHORTS_CAPTION_SLIDE_DISTANCE.x * (1 - t); }
   }
 
   ctx.font = `bold ${size}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const wrapMaxWidth = canvasW - 160;
-  const lines = text.split('\n').filter(l => l.trim().length > 0)
+  const lines = displayText.split('\n').filter(l => l.trim().length > 0)
     .flatMap(l => wrapCaptionLine(ctx, l, wrapMaxWidth));
   if (lines.length === 0) { ctx.restore(); return; }
   const lineHeight = size * 1.25;
@@ -6407,8 +6426,8 @@ function drawShortsCaption(ctx, text, canvasW, canvasH, fontSize, color, positio
     : position === 'center' ? canvasH / 2
     : canvasH - 260; // 'bottom' (default) -- original position
 
-  if (scale !== 1) {
-    ctx.translate(canvasW / 2, centerY);
+  if (scale !== 1 || dx !== 0 || dy !== 0) {
+    ctx.translate(canvasW / 2 + dx, centerY + dy);
     ctx.scale(scale, scale);
     ctx.translate(-canvasW / 2, -centerY);
   }
