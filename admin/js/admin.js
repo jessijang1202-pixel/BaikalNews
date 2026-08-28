@@ -6528,11 +6528,21 @@ function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH) {
 // prevent. This flag makes a second call fail fast with a clear message
 // instead of quietly doubling up.
 let shortsTimelineRunning = false;
+// Set by stopShortsPreview() to end a running PREVIEW early (never honored
+// during an actual recording -- see the `!record` check in step() below,
+// since cutting a recording short would just produce a broken partial
+// file). Reset at the start of every run so a stale flag from a previous
+// stop can't immediately kill the next one.
+let shortsPreviewStopRequested = false;
+function stopShortsPreview() {
+  shortsPreviewStopRequested = true;
+}
 async function runShortsTimeline(canvas, assets, project, { record } = {}) {
   if (shortsTimelineRunning) {
     throw new Error("이미 미리보기 또는 녹화가 진행 중입니다. 끝날 때까지 기다린 후 다시 시도해 주세요.");
   }
   shortsTimelineRunning = true;
+  shortsPreviewStopRequested = false;
   try {
     return await runShortsTimelineInner(canvas, assets, project, { record });
   } finally {
@@ -6711,7 +6721,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
         }
         drawShortsTopBar(ctx, project, W);
 
-        if (elapsed >= totalDuration) {
+        if (elapsed >= totalDuration || (!record && shortsPreviewStopRequested)) {
           if (assets.front.type === 'video') assets.front.el.pause();
           scheduledSources.forEach(src => { try { src.stop(); } catch (err) {} });
           resolve();
@@ -6839,6 +6849,8 @@ async function previewShortsAssembly() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const previewBtn = document.getElementById("shorts-preview-btn");
   const recordBtn = document.getElementById("shorts-record-btn");
+  const stopBtn = document.getElementById("shorts-preview-stop-btn");
+  const restartBtn = document.getElementById("shorts-preview-restart-btn");
   // Preview and recording share the same AudioContext (cached shortsAssets)
   // -- disabling both while either runs, not just the one that was clicked,
   // stops a second click from scheduling a second, overlapping set of
@@ -6847,20 +6859,39 @@ async function previewShortsAssembly() {
   // buttons themselves don't invite the double-click in the first place).
   if (previewBtn) previewBtn.disabled = true;
   if (recordBtn) recordBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = false;
   try {
     statusEl.textContent = "미리보기 준비 중...";
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
     const canvas = document.getElementById("shorts-canvas");
     statusEl.textContent = "미리보기 재생 중...";
     await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: false });
-    statusEl.textContent = "미리보기 재생 완료.";
+    statusEl.textContent = shortsPreviewStopRequested ? "미리보기를 정지했습니다." : "미리보기 재생 완료.";
   } catch (err) {
     console.error("숏폼 미리보기 실패:", err);
     statusEl.textContent = "미리보기 실패: " + err.message;
   } finally {
     if (previewBtn) previewBtn.disabled = false;
     if (recordBtn) recordBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
   }
+}
+
+// "정지" -- ends a running preview early without waiting for it to finish
+// (see shortsPreviewStopRequested / stopShortsPreview() near
+// runShortsTimeline -- never affects an actual recording).
+// "처음부터 다시 재생" -- if a preview is currently running, stops it first
+// (and waits for that to actually take effect, since Web Audio sources
+// can't be paused/resumed, only stopped -- restarting cleanly means
+// scheduling a fresh set from time 0) and starts a brand new one either way.
+async function restartShortsPreview() {
+  if (shortsTimelineRunning) {
+    stopShortsPreview();
+    for (let i = 0; i < 100 && shortsTimelineRunning; i++) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+  }
+  await previewShortsAssembly();
 }
 
 // Most browsers (Chrome/Edge/Firefox on desktop) can only MediaRecorder to
@@ -6978,8 +7009,10 @@ async function recordShortsVideo() {
   const statusEl = document.getElementById("shorts-assembly-status");
   const btn = document.getElementById("shorts-record-btn");
   const previewBtn = document.getElementById("shorts-preview-btn");
+  const restartBtn = document.getElementById("shorts-preview-restart-btn");
   if (btn) btn.disabled = true;
   if (previewBtn) previewBtn.disabled = true;
+  if (restartBtn) restartBtn.disabled = true;
 
   // Best-effort: stops the screen from auto-locking mid-recording on mobile
   // -- a locked/dimmed screen can throttle JS timers and corrupt the ~30s
@@ -7033,6 +7066,7 @@ async function recordShortsVideo() {
   } finally {
     if (btn) btn.disabled = false;
     if (previewBtn) previewBtn.disabled = false;
+    if (restartBtn) restartBtn.disabled = false;
     if (wakeLock) { try { await wakeLock.release(); } catch (err) { /* already released, ignore */ } }
     endShortsBusyOperation();
   }
