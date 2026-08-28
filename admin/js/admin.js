@@ -9365,8 +9365,8 @@ function renderImageNewsPreview(article) {
 }
 
 // 포인트 컬러 팔레트 -- main은 제목 배경(선명한 색)에 쓴다. 요약 뒤 2줄
-// 텍스트 색(라이트 톤)은 고정 값이 아니라 lightenHexColor()로 main을
-// 흰색 쪽으로 밝힌 파스텔 버전을 그때그때 계산해서 쓴다.
+// 텍스트 색(형광 톤)은 고정 값이 아니라 neonLightenHexColor()로 main을
+// 밝힌 버전을 그때그때 계산해서 쓴다.
 const IMAGE_NEWS_COLOR_PALETTE = {
   orange: { main: '#f97316' },
   yellow: { main: '#facc15' },
@@ -9375,16 +9375,55 @@ const IMAGE_NEWS_COLOR_PALETTE = {
   green: { main: '#16a34a' }
 };
 
-// #rrggbb 색을 흰색 쪽으로 밝혀(라이트 톤) rgb() 문자열로 반환한다.
-// factor는 원래 색이 남는 비율 -- 0.3이면 메인 색상 30% + 흰색 70%를
-// 섞은 밝은 파스텔 톤(예: 주황 -> 라이트 오렌지, 파랑 -> 라이트 블루).
-function lightenHexColor(hex, factor) {
+function hexToRgb(hex) {
   const clean = hex.replace('#', '');
-  const mix = (mainChannel) => Math.round(mainChannel * factor + 255 * (1 - factor));
-  const r = mix(parseInt(clean.slice(0, 2), 16));
-  const g = mix(parseInt(clean.slice(2, 4), 16));
-  const b = mix(parseInt(clean.slice(4, 6), 16));
-  return `rgb(${r},${g},${b})`;
+  return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16)];
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s;
+  const l = (max + min) / 2;
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+
+// #rrggbb 색을 밝히되, 흰색과 단순히 섞지 않고 HSL의 명도(L)만 올리고
+// 색상(H)·채도(S)는 그대로 유지한다 -- RGB를 흰색과 섞으면 채도가 같이
+// 빠져서 파스텔(뿌옇게 흐린 색)이 되는데, 명도만 올리면 색은 그대로
+// 쨍한 채 밝기만 오르는 "형광펜" 느낌이 난다. factor(0~1)는 남은 밝기
+// 여유분(100-L) 중 얼마나 밝히는지의 비율.
+function neonLightenHexColor(hex, factor) {
+  const [r, g, b] = hexToRgb(hex);
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const newL = l + (100 - l) * factor;
+  const [nr, ng, nb] = hslToRgb(h, s, newL);
+  return `rgb(${nr},${ng},${nb})`;
 }
 
 // "기사 요약" 버튼 -- 이미지 뉴스에 얹을 5줄 요약(사실 3줄 + 강조 2줄)을
@@ -9510,14 +9549,14 @@ async function generateArticleImageNews() {
     const colorSelect = document.getElementById("imagenews-color-select");
     const colorKey = colorSelect ? colorSelect.value : 'orange';
     const colors = IMAGE_NEWS_COLOR_PALETTE[colorKey] || IMAGE_NEWS_COLOR_PALETTE.orange;
-    const lightColor = lightenHexColor(colors.main, 0.2);
+    const lightColor = neonLightenHexColor(colors.main, 0.35);
 
     const paddingX = 56;
 
     // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
     // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
     // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
-    const titleFontSize = 45;
+    const titleFontSize = 50;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
@@ -9584,10 +9623,16 @@ async function generateArticleImageNews() {
     });
     cursorY += contentGap;
 
+    const summaryBoxPadX = 8;
     summaryRenderInfo.forEach(({ wrapped, lineH, color, fontSize }) => {
       ctx.font = `400 ${fontSize}px Pretendard, sans-serif`;
-      ctx.fillStyle = color;
       wrapped.forEach((wline) => {
+        // 사진 위에서도 잘 읽히도록 줄마다 텍스트 폭에 맞춘 30% 검정
+        // 배경을 먼저 깔고, 그 위에 글자를 그린다.
+        const w = ctx.measureText(wline).width;
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(paddingX + summaryIndent - summaryBoxPadX, cursorY, w + summaryBoxPadX * 2, lineH);
+        ctx.fillStyle = color;
         ctx.fillText(wline, paddingX + summaryIndent, cursorY + lineH / 2);
         cursorY += lineH;
       });
