@@ -697,6 +697,16 @@ body {
   color: var(--admin-text-primary);
 }
 
+.btn-admin-purple {
+  background-color: #7c3aed;
+  color: #ffffff;
+}
+
+.btn-admin-purple:hover {
+  background-color: #6d28d9;
+  transform: translateY(-1px);
+}
+
 /* Dashboard "빠른 작업" widget - square box buttons on desktop */
 .quick-actions-grid {
   display: grid;

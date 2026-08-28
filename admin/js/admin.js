@@ -5125,7 +5125,7 @@ function renderShortsManualCutsEditor() {
       <label class="shorts-field-label">이미지 생성 프롬프트 (Gemini에 붙여넣기용)</label>
       <div style="display:flex; gap:8px; align-items:flex-start;">
         <textarea class="form-control-admin shorts-manual-cut-prompt" readonly style="flex:1; min-height:60px; max-height:100px; resize:none; font-size:0.82rem;">${(cut.prompt || '').replace(/</g, '&lt;')}</textarea>
-        <button type="button" class="btn-admin btn-admin-secondary" onclick="copyShortsManualCutPrompt(${i})">복사</button>
+        <button type="button" class="btn-admin btn-admin-purple" onclick="copyShortsManualCutPrompt(${i})">복사</button>
       </div>
 
       <label class="shorts-field-label">대본 (나레이션으로 읽힙니다)</label>
