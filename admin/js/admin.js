@@ -6477,6 +6477,32 @@ function drawShortsTopBar(ctx, project, canvasW) {
   ctx.restore();
 }
 
+// Small "바이칼뉴스" badge over the bottom-right corner of every image cut
+// (0:08~0:30 구간 전체, 컷이 바뀌어도 계속 같은 자리에 유지) -- covers
+// Gemini's own watermark, which lands there on images made through the
+// 수동 모드 워크플로(Gemini에서 직접 생성 후 업로드). Never shown during
+// the front video (0:00~0:08), which doesn't carry that watermark.
+function drawShortsImageCutWatermark(ctx, canvasW, canvasH) {
+  const fontSize = 45;
+  const boxH = 40;
+  const paddingX = 14;
+  const rightMargin = 10;
+  const bottomMargin = 10;
+  ctx.save();
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const textWidth = ctx.measureText("바이칼뉴스").width;
+  const boxW = textWidth + paddingX * 2;
+  const boxRight = canvasW - rightMargin;
+  const boxBottom = canvasH - bottomMargin;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(boxRight - boxW, boxBottom - boxH, boxW, boxH);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("바이칼뉴스", boxRight - boxW / 2, boxBottom - boxH / 2 + 1);
+  ctx.restore();
+}
+
 // Draws the front video at its OWN native pixel size -- no upscale,
 // downscale, or crop-to-fill -- horizontally centered, with its top edge
 // sitting right below the black title banner (or at the very top if there
@@ -6718,6 +6744,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
             const activeCaption = (cut.caption2 && t >= halfDuration) ? cut.caption2 : cut.caption;
             drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
           }
+          drawShortsImageCutWatermark(ctx, W, H);
         }
         drawShortsTopBar(ctx, project, W);
 
