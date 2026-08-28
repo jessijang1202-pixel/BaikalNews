@@ -1079,17 +1079,20 @@ async function renderArticlesList() {
     const rowNumber = sortedArticles.length - i; // oldest = 1, even though newest displays first
     const statusInfo = getArticleStatusDisplay(art);
 
+    let snsButton = '';
+    // SNS 카드뉴스 발행 탭의 기사 피커는 발행된 기사만 대상으로 하므로
+    // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
+    // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
+    if (art.status === 'published') {
+      snsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">SNS뉴스</a>`;
+    }
+
     let shortsButton = '';
     if (shortsEligibleStatuses.includes(art.status)) {
       const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
-      if (completedShorts) {
-        shortsButton = `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`;
-      } else if (art.status === 'published') {
-        // SNS 카드뉴스 발행 탭의 기사 피커는 발행된 기사만 대상으로 하므로
-        // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
-        // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
-        shortsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">SNS뉴스</a>`;
-      }
+      shortsButton = completedShorts
+        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-done">숏폼완료</a>`
+        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-create">숏폼생성</a>`;
     }
 
     return `
@@ -1105,6 +1108,7 @@ async function renderArticlesList() {
       <td class="action-links">
         <a onclick="editArticle(${art.id})">편집</a>
         <a onclick="previewArticle(${art.id})">미리보기</a>
+        ${snsButton}
         ${shortsButton}
       </td>
     </tr>
@@ -1123,6 +1127,16 @@ async function openCardNewsFromArticle(articleId) {
   if (article) {
     selectSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', article);
   }
+}
+
+// 작업 열의 "숏폼생성" 초록 박스 -- 숏폼 탭으로 이동해 새 프로젝트를 시작하고
+// 원본 기사를 미리 선택해 둔다 (대본 자동생성 자체는 API 비용이 드니 관리자가
+// 직접 눌러 진행하도록 남겨둔다).
+async function createShortsFromArticle(articleId) {
+  await switchTab('shorts');
+  await startNewShortsProject();
+  const select = document.getElementById("shorts-article-select");
+  if (select) select.value = articleId;
 }
 
 // "숏폼완료" 주황 박스 -- 이미 완성된 숏폼 프로젝트를 바로 열어 확인/다운로드할
