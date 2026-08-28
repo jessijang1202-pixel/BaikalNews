@@ -8897,7 +8897,8 @@ function selectSnsArticlePicker(inputId, dropdownId, article) {
 async function initSnsTab() {
   await Promise.all([
     initSnsArticlePicker('sns-content-picker-input', 'sns-content-picker-dropdown', onSnsContentArticleSelected),
-    initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected)
+    initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected),
+    initSnsArticlePicker('imagenews-picker-input', 'imagenews-picker-dropdown', onImageNewsArticleSelected)
   ]);
 }
 
@@ -9209,6 +9210,127 @@ function renderCardNewsPreview(article) {
   if (titleEl) titleEl.textContent = article.title || '';
   if (dateEl) dateEl.textContent = article.date || '';
   if (leadEl) leadEl.textContent = (article.lead || '').trim();
+}
+
+// ------------------------------------------------------------------
+// 기사 이미지 뉴스 생성 -- AI 호출 없이, 기사에 실제 업로드된 원본 사진
+// 위에 제목을 텔롭(하단 자막바)으로 얹어 그 자리에서 캔버스로 합성한다.
+// 카드뉴스(일러스트 인포그래픽)와 달리 실제 취재 사진을 그대로 쓰는
+// 전통적인 "포토뉴스" 형태.
+// ------------------------------------------------------------------
+let imageNewsSelectedArticle = null;
+
+function onImageNewsArticleSelected(article) {
+  imageNewsSelectedArticle = article;
+  renderImageNewsPreview(article);
+  const resultWrap = document.getElementById("imagenews-result");
+  if (resultWrap) resultWrap.style.display = 'none';
+  const statusEl = document.getElementById("imagenews-status");
+  if (statusEl) statusEl.textContent = '';
+}
+
+function renderImageNewsPreview(article) {
+  const wrap = document.getElementById("imagenews-preview");
+  const img = document.getElementById("imagenews-preview-image");
+  const titleEl = document.getElementById("imagenews-preview-title");
+  const dateEl = document.getElementById("imagenews-preview-date");
+  if (!wrap) return;
+
+  if (!article) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  if (img) {
+    if (article.image) {
+      img.src = article.image;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  }
+  if (titleEl) titleEl.textContent = article.title || '';
+  if (dateEl) dateEl.textContent = article.date || '';
+}
+
+async function generateArticleImageNews() {
+  const statusEl = document.getElementById("imagenews-status");
+  const btn = document.getElementById("imagenews-generate-btn");
+  if (!imageNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+  if (!imageNewsSelectedArticle.image) {
+    alert("이 기사에는 업로드된 원본 사진이 없습니다.");
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.textContent = "이미지 뉴스 생성 중...";
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("원본 사진을 불러오지 못했습니다."));
+      el.src = imageNewsSelectedArticle.image;
+    });
+
+    // 원본 비율을 그대로 유지하되, 긴 변을 1200px로 맞춰 파일 용량을
+    // 적당히 유지한다 (원본이 그보다 작으면 확대하지 않고 그대로 둔다).
+    const maxSide = 1200;
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvasW = Math.round(img.naturalWidth * scale);
+    const canvasH = Math.round(img.naturalHeight * scale);
+
+    const canvas = document.getElementById("imagenews-canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvasW, canvasH);
+
+    // 하단 텔롭(자막바) -- 화면 너비에 비례한 글자 크기로 제목을 그리고,
+    // 한 줄에 안 들어가면 wrapCaptionLine으로 자동 줄바꿈한다(숏폼 자막과
+    // 동일한 로직 재사용).
+    const fontSize = Math.max(28, Math.round(canvasW * 0.05));
+    const paddingX = Math.round(canvasW * 0.04);
+    const paddingY = Math.round(fontSize * 0.6);
+    const lineHeight = Math.round(fontSize * 1.3);
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const wrapMaxWidth = canvasW - paddingX * 2;
+    const title = imageNewsSelectedArticle.title || '';
+    const lines = wrapCaptionLine(ctx, title, wrapMaxWidth);
+    const barH = lineHeight * lines.length + paddingY * 2;
+
+    ctx.fillStyle = "rgba(10,20,35,0.82)";
+    ctx.fillRect(0, canvasH - barH, canvasW, barH);
+    ctx.fillStyle = "#ffffff";
+    lines.forEach((line, i) => {
+      const y = canvasH - barH + paddingY + lineHeight * (i + 0.5);
+      ctx.fillText(line, paddingX, y);
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const previewImg = document.getElementById("imagenews-result-preview");
+    const downloadLink = document.getElementById("imagenews-download");
+    if (previewImg) previewImg.src = dataUrl;
+    if (downloadLink) {
+      downloadLink.href = dataUrl;
+      downloadLink.download = `image-news-${imageNewsSelectedArticle.id || Date.now()}.png`;
+    }
+    const resultWrap = document.getElementById("imagenews-result");
+    if (resultWrap) resultWrap.style.display = 'block';
+    if (statusEl) statusEl.textContent = "생성 완료.";
+  } catch (err) {
+    console.error("이미지 뉴스 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("이미지 뉴스 생성 실패: " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // 인포그래픽용 기사 요약: 관리자가 Gemini Gem 등 외부 도구에 붙여넣어
