@@ -652,7 +652,7 @@ async function switchTab(tabName) {
     'ai-training': "AI 글쓰기 학습",
     shorts: "숏폼 생성",
     'letter-send': "뉴스레터 발송",
-    sns: "SNS 카드뉴스 생성",
+    sns: "SNS 뉴스 생성",
     subscribers: "구독자 현황",
     curation: "홈화면 큐레이션 통제",
     expenses: "비용 관리",
