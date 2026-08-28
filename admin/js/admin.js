@@ -4054,12 +4054,15 @@ function resetShortsWizardSections() {
   shortsPendingUploads = [];
   renderShortsPendingUploads();
 
-  // Reset back to the 자동 생성 mode tab on every fresh/reopened project,
-  // same as the "every step reopens expanded" reset just below.
+  // Reset back to the 수동 생성 mode tab on every fresh/reopened project,
+  // same as the "every step reopens expanded" reset just below. (자동 생성
+  // is temporarily hidden -- 2026-08-27, API 비용 절감 -- so this resets to
+  // 수동 instead of 자동 for now; see the button's style="display:none" in
+  // admin/index.html to restore both.)
   const manualReviewEl = document.getElementById("shorts-manual-review");
   if (manualReviewEl) manualReviewEl.style.display = "none";
-  const autoModeBtn = document.querySelector('.shorts-mode-tab-btn[data-mode="auto"]');
-  if (autoModeBtn) switchShortsModeTab('auto', autoModeBtn);
+  const manualModeBtn = document.querySelector('.shorts-mode-tab-btn[data-mode="manual"]');
+  if (manualModeBtn) switchShortsModeTab('manual', manualModeBtn);
   renderShortsAssignedUploads();
 
   // Every step reopens expanded on a fresh/reopened project, regardless of

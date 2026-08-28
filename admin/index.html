@@ -942,12 +942,15 @@
                나레이션(Step 4)과 그 이후(조립/녹화/다운로드/유튜브메타)는 두 모드 공통으로 하나만
                존재합니다 -- 미디어를 자동으로 만들었든 수동 업로드했든 조립 방식은 동일하기 때문입니다. -->
           <div style="display:flex; gap:10px; margin: 20px 0; flex-wrap:wrap;">
-            <button type="button" class="btn-admin btn-admin-primary shorts-mode-tab-btn" data-mode="auto" onclick="switchShortsModeTab('auto', this)">숏폼 자동 생성</button>
-            <button type="button" class="btn-admin btn-admin-secondary shorts-mode-tab-btn" data-mode="manual" onclick="switchShortsModeTab('manual', this)">숏폼 수동 생성</button>
+            <!-- API 비용 절감을 위해 잠시 닫아둠 (2026-08-27) -- 되돌리려면 이 버튼의
+                 style="display:none;"만 지우고, 아래 두 패널의 기본 활성 상태를
+                 auto/manual로 다시 바꾸면 됨. -->
+            <button type="button" class="btn-admin btn-admin-secondary shorts-mode-tab-btn" data-mode="auto" onclick="switchShortsModeTab('auto', this)" style="display:none;">숏폼 자동 생성</button>
+            <button type="button" class="btn-admin btn-admin-primary shorts-mode-tab-btn" data-mode="manual" onclick="switchShortsModeTab('manual', this)">숏폼 수동 생성</button>
           </div>
 
           <!-- ===== 모드: 자동 생성 (기존 Step 2·3, 변경 없음) ===== -->
-          <div id="shorts-mode-auto" class="shorts-mode-panel">
+          <div id="shorts-mode-auto" class="shorts-mode-panel" style="display:none;">
 
           <!-- Step 2: 대본 생성 및 검토 -->
           <div class="shorts-step">
@@ -1038,7 +1041,7 @@
 
           <!-- ===== 모드: 수동 생성 (비용 절약 -- Gemini API를 호출하지 않고, 프롬프트를
                보여줘서 admin이 직접 Gemini에서 만든 영상/이미지를 업로드) ===== -->
-          <div id="shorts-mode-manual" class="shorts-mode-panel" style="display:none;">
+          <div id="shorts-mode-manual" class="shorts-mode-panel">
             <div class="shorts-step">
               <div class="shorts-step-header" onclick="toggleShortsStep('m2', this)">
                 <span class="shorts-step-kicker">Step 2</span>
