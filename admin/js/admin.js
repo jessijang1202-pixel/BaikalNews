@@ -9318,6 +9318,31 @@ function onImageNewsArticleSelected(article) {
     summaryEl.value = saved || '';
     if (summaryStatusEl) summaryStatusEl.textContent = saved ? '저장된 요약을 불러왔습니다.' : '';
   }
+
+  // SNS 복사용 콘텐츠 -- 다른 SNS 탭과 동일한 형식(제목+리드+링크+해시태그).
+  // buildCardNewsCopyText()는 카드뉴스 전용이 아니라 기사 하나만 있으면
+  // 되는 범용 함수라 그대로 재사용한다.
+  const copyTextEl = document.getElementById("imagenews-copy-text");
+  if (copyTextEl) copyTextEl.value = buildCardNewsCopyText(article);
+  const copyStatusEl = document.getElementById("imagenews-copy-status");
+  if (copyStatusEl) copyStatusEl.textContent = '';
+}
+
+async function copyImageNewsText() {
+  const textEl = document.getElementById("imagenews-copy-text");
+  const statusEl = document.getElementById("imagenews-copy-status");
+  const text = textEl ? textEl.value.trim() : '';
+  if (!text) {
+    alert("복사할 내용이 없습니다. 먼저 기사를 선택해 주세요.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    if (statusEl) statusEl.textContent = "클립보드에 복사했습니다.";
+  } catch (err) {
+    console.error("클립보드 복사 실패:", err);
+    alert("클립보드 복사에 실패했습니다. 직접 선택해서 복사해 주세요.");
+  }
 }
 
 // "요약 저장" -- 편집한 5줄 요약을 이 기사 ID에 연결해 로컬(localStorage)에
