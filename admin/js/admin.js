@@ -9254,6 +9254,69 @@ function renderImageNewsPreview(article) {
   if (dateEl) dateEl.textContent = article.date || '';
 }
 
+// 포인트 컬러 팔레트 -- main은 제목 배경(선명한 색), toned는 요약 뒤 2줄
+// 텍스트에 쓰는 톤다운(어둡게 가라앉힌) 버전.
+const IMAGE_NEWS_COLOR_PALETTE = {
+  orange: { main: '#f97316', toned: '#9a3412' },
+  yellow: { main: '#facc15', toned: '#854d0e' },
+  blue: { main: '#2563eb', toned: '#1e3a5f' },
+  purple: { main: '#9333ea', toned: '#5b21b6' },
+  green: { main: '#16a34a', toned: '#14532d' }
+};
+
+// "기사 요약" 버튼 -- 이미지 뉴스에 얹을 5줄 요약(사실 3줄 + 강조 2줄)을
+// AI로 생성. generateCardNewsSummary()와 같은 패턴, 5줄 고정이라는 점만 다름.
+async function generateImageNewsSummary() {
+  if (!imageNewsSelectedArticle) {
+    alert("먼저 기사를 선택해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById("imagenews-summarize-btn");
+  const summaryEl = document.getElementById("imagenews-summary");
+  const statusEl = document.getElementById("imagenews-summary-status");
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = "생성 중..."; }
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    const article = imageNewsSelectedArticle;
+    const bodyText = (article.content || "").replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const prompt = `
+아래 뉴스 기사를 SNS용 "포토뉴스" 이미지에 그대로 얹을 5줄짜리 요약으로 정리하십시오.
+
+[기사 제목]
+${article.title}
+
+[리드 문단]
+${article.lead || ''}
+
+[본문]
+${bodyText.substring(0, 4000)}
+
+[작성 방식 -- 반드시 정확히 5줄]
+- 1~3번째 줄: 기사의 핵심 사실을 담담하게 전달하는 문장 3개. 각 줄은 20~35자 내외, 완결된 문장.
+- 4~5번째 줄: 위 사실이 왜 중요한지, 그 함의나 파장을 강조하는 임팩트 있는 문장 2개 (질문형이나 단정적 결론형). 각 줄은 20~35자 내외.
+- 줄마다 줄바꿈만으로 구분하고, 번호·불릿·라벨은 절대 붙이지 마십시오. 정확히 5줄만 출력하십시오.
+
+[작성 지침]
+- 리드 문단을 그대로 옮기지 마십시오.
+- 뉴스 보도체("~했습니다", "~라고 밝혔습니다")가 아니라, 짧고 힘있는 문장으로 쓰십시오.
+- 마크다운이나 추가 설명 없이 5줄 본문만 출력하십시오.`;
+
+    const systemInstruction = "당신은 뉴스 기사를 SNS 포토뉴스 이미지용 5줄 요약으로 재구성하는 카피라이터입니다. 앞 3줄은 사실 전달, 뒤 2줄은 임팩트 있는 강조 문장으로 정확히 5줄만 작성하고, 번호·불릿·라벨 없이 줄바꿈으로만 구분하십시오.";
+    const resultText = await callGeminiTextApi(prompt, systemInstruction);
+    if (summaryEl) summaryEl.value = resultText.trim();
+  } catch (err) {
+    console.error("이미지 뉴스 요약 생성 실패:", err);
+    if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
+    alert("생성 실패: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
 async function generateArticleImageNews() {
   const statusEl = document.getElementById("imagenews-status");
   const btn = document.getElementById("imagenews-generate-btn");
@@ -9277,41 +9340,104 @@ async function generateArticleImageNews() {
       el.src = imageNewsSelectedArticle.image;
     });
 
-    // 원본 비율을 그대로 유지하되, 긴 변을 1200px로 맞춰 파일 용량을
-    // 적당히 유지한다 (원본이 그보다 작으면 확대하지 않고 그대로 둔다).
-    const maxSide = 1200;
-    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvasW = Math.round(img.naturalWidth * scale);
-    const canvasH = Math.round(img.naturalHeight * scale);
-
+    // 카드뉴스와 동일한 4:5 세로형 크기 -- 원본 비율과 무관하게 중앙
+    // 기준으로 꽉 채워 자른다(여백 없이 cover-fit, 반드시 세로로 크롭).
+    const canvasW = 1080, canvasH = 1350;
     const canvas = document.getElementById("imagenews-canvas");
     canvas.width = canvasW;
     canvas.height = canvasH;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, canvasW, canvasH);
 
-    // 하단 텔롭(자막바) -- 화면 너비에 비례한 글자 크기로 제목을 그리고,
-    // 한 줄에 안 들어가면 wrapCaptionLine으로 자동 줄바꿈한다(숏폼 자막과
-    // 동일한 로직 재사용).
-    const fontSize = Math.max(28, Math.round(canvasW * 0.05));
-    const paddingX = Math.round(canvasW * 0.04);
-    const paddingY = Math.round(fontSize * 0.6);
-    const lineHeight = Math.round(fontSize * 1.3);
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    const targetRatio = canvasW / canvasH;
+    const srcRatio = img.naturalWidth / img.naturalHeight;
+    let sx, sy, sw, sh;
+    if (srcRatio > targetRatio) {
+      sh = img.naturalHeight;
+      sw = sh * targetRatio;
+      sx = (img.naturalWidth - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.naturalWidth;
+      sh = sw / targetRatio;
+      sx = 0;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+
+    // 하단부를 어둡게 그라데이션 처리해 그 위에 얹는 흰 글자의 가독성을 확보.
+    const gradient = ctx.createLinearGradient(0, canvasH * 0.35, 0, canvasH);
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0.78)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, canvasH * 0.35, canvasW, canvasH * 0.65);
+
+    const colorSelect = document.getElementById("imagenews-color-select");
+    const colorKey = colorSelect ? colorSelect.value : 'orange';
+    const colors = IMAGE_NEWS_COLOR_PALETTE[colorKey] || IMAGE_NEWS_COLOR_PALETTE.orange;
+
+    const paddingX = 56;
+    let cursorY = Math.round(canvasH * 0.5); // 제목 시작 -- 높이 중앙
+
+    // 제목: 흰 글자 + 포인트 컬러 배경, 줄마다 텍스트 폭에 맞춘 개별 박스
+    // (긴 제목은 wrapCaptionLine으로 자동 줄바꿈, 숏폼 자막과 동일한 로직).
+    const titleFontSize = 60;
+    ctx.font = `bold ${titleFontSize}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const wrapMaxWidth = canvasW - paddingX * 2;
-    const title = imageNewsSelectedArticle.title || '';
-    const lines = wrapCaptionLine(ctx, title, wrapMaxWidth);
-    const barH = lineHeight * lines.length + paddingY * 2;
+    const titleWrapMax = canvasW - paddingX * 2 - 24;
+    const titleLines = wrapCaptionLine(ctx, imageNewsSelectedArticle.title || '', titleWrapMax);
+    const titleLineH = Math.round(titleFontSize * 1.35);
+    const titleBoxPadX = 16, titleGap = 8;
 
-    ctx.fillStyle = "rgba(10,20,35,0.82)";
-    ctx.fillRect(0, canvasH - barH, canvasW, barH);
-    ctx.fillStyle = "#ffffff";
-    lines.forEach((line, i) => {
-      const y = canvasH - barH + paddingY + lineHeight * (i + 0.5);
-      ctx.fillText(line, paddingX, y);
+    titleLines.forEach((line) => {
+      const w = ctx.measureText(line).width;
+      ctx.fillStyle = colors.main;
+      ctx.fillRect(paddingX, cursorY, w + titleBoxPadX * 2, titleLineH);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(line, paddingX + titleBoxPadX, cursorY + titleLineH / 2 + 1);
+      cursorY += titleLineH + titleGap;
     });
+    cursorY += 20;
+
+    // 요약 5줄 -- 앞 3줄은 흰색, 뒤 2줄은 포인트 컬러의 톤다운 버전.
+    const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
+    const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
+    const summaryFontSize = 50;
+    ctx.font = `600 ${summaryFontSize}px sans-serif`;
+    const summaryWrapMax = canvasW - paddingX * 2;
+    const summaryLineH = Math.round(summaryFontSize * 1.4);
+
+    summaryLines.forEach((line, i) => {
+      ctx.fillStyle = i < 3 ? "#ffffff" : colors.toned;
+      wrapCaptionLine(ctx, line, summaryWrapMax).forEach((wline) => {
+        ctx.fillText(wline, paddingX, cursorY + summaryLineH / 2);
+        cursorY += summaryLineH;
+      });
+    });
+
+    // 우측 상단 로고 + 바이칼뉴스 (숏폼 워터마크와 같은 로고 이미지 재사용).
+    const logoImg = await loadShortsWatermarkLogo();
+    const logoH = 44;
+    const logoW = (logoImg && logoImg.naturalWidth) ? logoH * (logoImg.naturalWidth / logoImg.naturalHeight) : 0;
+    ctx.font = `bold 34px sans-serif`;
+    const brandText = "바이칼뉴스";
+    const brandTextW = ctx.measureText(brandText).width;
+    const badgePadX = 16, badgePadY = 10, badgeGap = 10;
+    const badgeW = logoW + (logoW ? badgeGap : 0) + brandTextW + badgePadX * 2;
+    const badgeH = Math.max(logoH, 34) + badgePadY * 2;
+    const badgeRight = canvasW - 32;
+    const badgeTop = 32;
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(badgeRight - badgeW, badgeTop, badgeW, badgeH);
+    let bx = badgeRight - badgeW + badgePadX;
+    const by = badgeTop + badgeH / 2;
+    if (logoW) {
+      ctx.drawImage(logoImg, bx, by - logoH / 2, logoW, logoH);
+      bx += logoW + badgeGap;
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.textBaseline = "middle";
+    ctx.fillText(brandText, bx, by + 1);
 
     const dataUrl = canvas.toDataURL('image/png');
     const previewImg = document.getElementById("imagenews-result-preview");
