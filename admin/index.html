@@ -1205,7 +1205,12 @@
                       <option value="warm">따뜻하고 친근하게</option>
                     </select>
                   </label>
+                  <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                    <input type="checkbox" id="shorts-hook-narration-enabled" checked style="width:auto;">
+                    8초 영상 나레이션 포함
+                  </label>
                 </div>
+                <div class="help-text" style="margin-bottom:10px;">Gemini에서 만든 8초 영상 자체에 이미 대사가 들어있다면 체크 해제하세요 -- 우리 나레이션과 겹치지 않게 후킹 나레이션만 생성/재생하지 않습니다.</div>
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                   <button type="button" class="btn-admin btn-admin-primary" onclick="generateShortsNarrationFromAssembly()">④ 나레이션 생성</button>
                   <div id="shorts-narration-player" class="shorts-narration-player" style="display:none;">

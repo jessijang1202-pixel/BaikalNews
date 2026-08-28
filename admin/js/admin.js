@@ -3770,6 +3770,7 @@ function saveShortsDraftLocally() {
     hookColor: currentShortsProject.hookColor,
     hookPosition: currentShortsProject.hookPosition,
     hookEffect: currentShortsProject.hookEffect,
+    hookNarrationEnabled: currentShortsProject.hookNarrationEnabled,
     narrationSpeed: currentShortsProject.narrationSpeed,
     extraCutSeconds: currentShortsProject.extraCutSeconds || 0,
     createdBy: currentShortsProject.createdBy || '',
@@ -4260,6 +4261,7 @@ async function openShortsProject(id) {
   currentShortsProject.hookColor = scriptJson.hookColor;
   currentShortsProject.hookPosition = scriptJson.hookPosition;
   currentShortsProject.hookEffect = scriptJson.hookEffect;
+  currentShortsProject.hookNarrationEnabled = scriptJson.hookNarrationEnabled !== false;
   currentShortsProject.narrationSpeed = scriptJson.narrationSpeed || 1.0;
   currentShortsProject.extraCutSeconds = scriptJson.extraCutSeconds || 0;
   // frontUpload/backUploads are transient staging state (not persisted --
@@ -4344,6 +4346,7 @@ async function openLocalShortsDraft(localDraftId) {
     hookColor: draft.hookColor,
     hookPosition: draft.hookPosition,
     hookEffect: draft.hookEffect,
+    hookNarrationEnabled: draft.hookNarrationEnabled !== false,
     narrationSpeed: draft.narrationSpeed || 1.0,
     extraCutSeconds: draft.extraCutSeconds || 0
   };
@@ -4536,6 +4539,7 @@ async function syncShortsScriptToSupabase() {
         hookColor: currentShortsProject.hookColor,
         hookPosition: currentShortsProject.hookPosition,
         hookEffect: currentShortsProject.hookEffect,
+        hookNarrationEnabled: currentShortsProject.hookNarrationEnabled,
         narrationSpeed: currentShortsProject.narrationSpeed,
         extraCutSeconds: currentShortsProject.extraCutSeconds || 0
       },
@@ -5639,9 +5643,22 @@ async function generateShortsNarration() {
     const voiceName = voiceSelect ? voiceSelect.value : "Kore";
     const draftId = ensureShortsLocalDraftId();
 
-    if (currentShortsProject.hookText) {
+    // Veo가 대사가 포함된 영상을 만들어 온 경우, 우리 나레이션이 그 대사와
+    // 겹치므로 후킹 나레이션만 선택적으로 건너뛸 수 있게 한다. 체크
+    // 해제 상태로 생성하면 기존에 만들어둔 후킹 나레이션도 함께 지워서
+    // (남아있으면 조립 단계에서 그대로 재생되므로) 재생목록에서 확실히
+    // 빠지게 한다.
+    const hookNarrationEnabledEl = document.getElementById("shorts-hook-narration-enabled");
+    const hookNarrationEnabled = hookNarrationEnabledEl ? hookNarrationEnabledEl.checked : true;
+    currentShortsProject.hookNarrationEnabled = hookNarrationEnabled;
+
+    if (hookNarrationEnabled && currentShortsProject.hookText) {
       if (statusEl) statusEl.textContent = "나레이션 생성 중... (후킹 문구)";
       await generateCutNarration(null, currentShortsProject.hookText, voiceName, draftId);
+    } else if (!hookNarrationEnabled) {
+      currentShortsProject.hookNarrationUrl = '';
+      currentShortsProject.hookNarrationBase64 = '';
+      currentShortsProject.hookNarrationKey = null;
     }
 
     const cuts = currentShortsProject.imageCuts || [];
@@ -5887,6 +5904,8 @@ function populateShortsStyleSettingsUI() {
   if (hookColorInput) hookColorInput.value = currentShortsProject.hookColor || currentShortsProject.captionColor || '#ffffff';
   if (hookPositionInput) hookPositionInput.value = currentShortsProject.hookPosition || currentShortsProject.captionPosition || 'bottom';
   if (hookEffectInput) hookEffectInput.value = currentShortsProject.hookEffect || 'none';
+  const hookNarrationEnabledInput = document.getElementById("shorts-hook-narration-enabled");
+  if (hookNarrationEnabledInput) hookNarrationEnabledInput.checked = currentShortsProject.hookNarrationEnabled !== false;
   const colorInput = document.getElementById("shorts-topbar-color");
   const heightInput = document.getElementById("shorts-topbar-height");
   const titleSizeInput = document.getElementById("shorts-topbar-title-size");
