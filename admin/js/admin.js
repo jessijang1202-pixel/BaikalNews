@@ -6266,6 +6266,25 @@ async function deleteShortsCutImage(i) {
 // The 전반(0:00~0:08) slot is a <video> for AI/Veo-generated or uploaded video
 // clips, but a still <img> (held with Ken Burns motion, like the 후반 cuts)
 // when the admin uploaded a photo for that slot instead.
+// Static site asset, not per-project -- loaded once and cached for the
+// whole admin session rather than re-fetched every time a preview/record
+// starts.
+let shortsWatermarkLogoPromise = null;
+function loadShortsWatermarkLogo() {
+  if (!shortsWatermarkLogoPromise) {
+    shortsWatermarkLogoPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      // Best-effort -- if the logo fails to load, the watermark just draws
+      // the text alone rather than breaking the whole preview/recording.
+      img.onerror = () => resolve(null);
+      img.src = "https://baikalnews.com/images/baikal_logo_blue.png";
+    });
+  }
+  return shortsWatermarkLogoPromise;
+}
+
 async function buildShortsAssets(project) {
   let front;
   // A single shared AudioContext + MediaStreamDestination mixes the Veo
@@ -6352,7 +6371,9 @@ async function buildShortsAssets(project) {
     }
   }
 
-  return { front, images, audioCtx, mixDestination, hookNarrationBuffer };
+  const watermarkLogo = await loadShortsWatermarkLogo();
+
+  return { front, images, audioCtx, mixDestination, hookNarrationBuffer, watermarkLogo };
 }
 
 // Captions can now contain manual line breaks (Enter in the 자막 textarea),
@@ -6477,29 +6498,44 @@ function drawShortsTopBar(ctx, project, canvasW) {
   ctx.restore();
 }
 
-// Small "바이칼뉴스" badge over the bottom-right corner of every image cut
-// (0:08~0:30 구간 전체, 컷이 바뀌어도 계속 같은 자리에 유지) -- covers
-// Gemini's own watermark, which lands there on images made through the
-// 수동 모드 워크플로(Gemini에서 직접 생성 후 업로드). Never shown during
-// the front video (0:00~0:08), which doesn't carry that watermark.
-function drawShortsImageCutWatermark(ctx, canvasW, canvasH) {
+// 바이칼뉴스 로고 + 텍스트 워터마크 -- 영상 처음부터 끝까지(전반 영상 +
+// 이미지 컷 전체) 우측 하단 같은 자리에 계속 유지된다. logoImg가 아직
+// 로딩 전이거나 실패했으면(드묾, buildShortsAssets에서 미리 로딩해 둠)
+// 텍스트만 그린다.
+function drawShortsBrandWatermark(ctx, canvasW, canvasH, logoImg) {
   const fontSize = 60;
-  const boxH = Math.round(fontSize * 1.4); // comfortably taller than the text itself
-  const paddingX = 14;
+  const logoH = 100;
+  const gap = 16;
+  const paddingX = 18;
   const rightMargin = 40;
   const bottomMargin = 80;
+
   ctx.save();
   ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const textWidth = ctx.measureText("바이칼뉴스").width;
-  const boxW = textWidth + paddingX * 2;
+
+  const logoW = (logoImg && logoImg.naturalWidth) ? logoH * (logoImg.naturalWidth / logoImg.naturalHeight) : 0;
+  const contentW = logoW + (logoW ? gap : 0) + textWidth;
+  const boxH = Math.max(logoW ? logoH : 0, Math.round(fontSize * 1.4)) + paddingX;
+  const boxW = contentW + paddingX * 2;
   const boxRight = canvasW - rightMargin;
   const boxBottom = canvasH - bottomMargin;
+  const boxLeft = boxRight - boxW;
+  const boxTop = boxBottom - boxH;
+  const centerY = boxTop + boxH / 2;
+
   ctx.fillStyle = "#000000";
-  ctx.fillRect(boxRight - boxW, boxBottom - boxH, boxW, boxH);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText("바이칼뉴스", boxRight - boxW / 2, boxBottom - boxH / 2 + 1);
+  ctx.fillRect(boxLeft, boxTop, boxW, boxH);
+
+  let cursorX = boxLeft + paddingX;
+  if (logoW) {
+    ctx.drawImage(logoImg, cursorX, centerY - logoH / 2, logoW, logoH);
+    cursorX += logoW + gap;
+  }
+  ctx.fillStyle = "#0064f8";
+  ctx.fillText("바이칼뉴스", cursorX + textWidth / 2, centerY + 1);
   ctx.restore();
 }
 
@@ -6744,8 +6780,8 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
             const activeCaption = (cut.caption2 && t >= halfDuration) ? cut.caption2 : cut.caption;
             drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
           }
-          drawShortsImageCutWatermark(ctx, W, H);
         }
+        drawShortsBrandWatermark(ctx, W, H, assets.watermarkLogo);
         drawShortsTopBar(ctx, project, W);
 
         if (elapsed >= totalDuration || (!record && shortsPreviewStopRequested)) {
