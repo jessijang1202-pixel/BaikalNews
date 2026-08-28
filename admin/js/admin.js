@@ -6578,12 +6578,12 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
     for (let i = 0; i < cutDurations.length; i++) cutDurations[i] *= scale;
   }
   const totalDuration = frontDuration + cutDurations.reduce((s, d) => s + d, 0);
-  // 후킹은 "0:00~0:03" 구간으로 UI 전체에 표시되는 개념이므로, 나레이션이
-  // 그보다 짧게 녹음됐다고 자막까지 일찍 사라지면 안 된다 -- 최소 3초는
-  // 항상 보장하고, 나레이션이 더 길면(최대 전반 길이까지) 그만큼 늘어난다.
+  // 후킹 자막은 나레이션 길이와 무관하게 최소 7초는 유지한다 (전반
+  // 길이 자체가 8초로 제한되므로 사실상 거의 항상 7초). 나레이션이
+  // 그보다 더 길면(드문 경우) 잘리지 않도록 그만큼 더 늘어난다.
   const hookCaptionDuration = assets.hookNarrationBuffer
-    ? Math.min(Math.max(3, assets.hookNarrationBuffer.duration / narrationSpeed), frontDuration)
-    : Math.min(3, frontDuration);
+    ? Math.min(Math.max(7, assets.hookNarrationBuffer.duration / narrationSpeed), frontDuration)
+    : Math.min(7, frontDuration);
 
   let recorder = null;
   let chunks = [];
