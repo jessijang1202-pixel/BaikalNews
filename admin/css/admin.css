@@ -875,16 +875,19 @@ body {
   background-color: var(--color-green-deep);
 }
 
-.shorts-status-done {
-  background-color: #f97316;
-}
-
 .shorts-status-sns {
   background-color: var(--color-green-deep);
 }
 
 .shorts-status-shorts {
   background-color: #7c3aed;
+}
+
+/* 저장 또는 다운로드를 한 번이라도 한 기사는 회색으로 반전시켜
+   "이미 작업했다"는 걸 목록에서 바로 알아볼 수 있게 한다. 색상 클래스와
+   함께 붙는 두 클래스 조합이라 위 단일 클래스 규칙보다 항상 우선한다. */
+.shorts-status-box.shorts-status-done {
+  background-color: #9ca3af;
 }
 
 /* Tabs Panel routing switcher */

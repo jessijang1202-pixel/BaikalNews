@@ -1084,15 +1084,17 @@ async function renderArticlesList() {
     // (fetchSnsArticlePools 참고), 아직 발행 전인 기사는 이동해도 미리
     // 선택해 줄 수 없다 -- 발행된 기사에만 이 버튼을 보여준다.
     if (art.status === 'published') {
-      snsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-sns">SNS</a>`;
+      const snsDoneCls = isArticleWorkDone(art.id, 'sns') ? ' shorts-status-done' : '';
+      snsButton = `<a onclick="openCardNewsFromArticle(${art.id})" class="shorts-status-box shorts-status-sns${snsDoneCls}">SNS</a>`;
     }
 
     let shortsButton = '';
     if (shortsEligibleStatuses.includes(art.status)) {
       const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
+      const shortsDoneCls = isArticleWorkDone(art.id, 'shorts') ? ' shorts-status-done' : '';
       shortsButton = completedShorts
-        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-shorts">숏폼</a>`
-        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-shorts">숏폼</a>`;
+        ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-shorts${shortsDoneCls}">숏폼</a>`
+        : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-shorts${shortsDoneCls}">숏폼</a>`;
     }
 
     return `
@@ -1114,6 +1116,34 @@ async function renderArticlesList() {
     </tr>
   `;
   }).join('');
+}
+
+// 기사관리 목록의 SNS/숏폼 버튼 완료 표시 -- 해당 기사로 SNS 또는 숏폼
+// 작업을 하다가 "저장"이나 "다운로드"를 한 번이라도 하면 버튼을 회색으로
+// 반전시켜 이미 작업했다는 걸 목록에서 바로 알아볼 수 있게 한다. 단순히
+// 탭을 열어 기사를 선택만 해 본 경우는 반전하지 않는다.
+function getArticleWorkDoneMap() {
+  try {
+    return JSON.parse(localStorage.getItem('baikal_article_work_done') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function isArticleWorkDone(articleId, kind) {
+  const entry = getArticleWorkDoneMap()[String(articleId)];
+  return !!(entry && entry[kind]);
+}
+
+function markArticleWorkDone(articleId, kind) {
+  if (!articleId) return;
+  const map = getArticleWorkDoneMap();
+  const key = String(articleId);
+  map[key] = map[key] || {};
+  if (map[key][kind]) return; // already marked -- skip the re-render
+  map[key][kind] = true;
+  localStorage.setItem('baikal_article_work_done', JSON.stringify(map));
+  renderArticlesList();
 }
 
 // 작업 열의 "SNS뉴스" 초록 박스 -- SNS 카드뉴스 생성 탭(카드뉴스 서브탭)으로
@@ -4613,6 +4643,7 @@ async function archiveShortsProject() {
   currentShortsProject.status = 'archived';
   await persistCurrentShortsProject();
   alert("숏폼을 보관 완료로 표시했습니다. 대본·자막·나레이션은 Supabase에도 백업되었고, 대본·자막·나레이션·이미지·영상 모두 이 브라우저에 그대로 저장되어 있어 목록에서 다시 열면 이어서 작업할 수 있습니다.");
+  markArticleWorkDone(currentShortsProject.articleId, 'shorts');
 }
 
 // Uploads a file to Gemini's Files API (supports up to 2GB per file, unlike
@@ -5231,6 +5262,7 @@ async function saveShortsManualEdits() {
     statusEl.textContent = "저장되었습니다.";
     setTimeout(() => { statusEl.textContent = ""; }, 2500);
   }
+  markArticleWorkDone(currentShortsProject.articleId, 'shorts');
 }
 
 // Shows caption + narration side by side per cut, with an individual
@@ -5318,6 +5350,7 @@ async function saveShortsScriptManually() {
     clearTimeout(saveShortsScriptManually._clearTimer);
     saveShortsScriptManually._clearTimer = setTimeout(() => { statusEl.textContent = ""; }, 4000);
   }
+  markArticleWorkDone(currentShortsProject.articleId, 'shorts');
 }
 
 // Same immediate-save reasoning as syncShortsCutEdits(), for the hook text
@@ -6157,6 +6190,7 @@ function updateShortsStyleSettings() {
   currentShortsProject.narrationSpeed = narrationSpeedInput ? (parseFloat(narrationSpeedInput.value) || 1.0) : 1.0;
   shortsAssets = null; // playbackRate/timing baked into the built assets -- force a rebuild so the new speed actually takes effect
   saveShortsDraftLocally();
+  markArticleWorkDone(currentShortsProject.articleId, 'shorts');
 }
 
 // Media previews link to their own object URL with `download` so the admin
@@ -9420,6 +9454,7 @@ function saveImageNewsSummary() {
   }
   localStorage.setItem(`baikal_imagenews_summary_${imageNewsSelectedArticle.id}`, text);
   if (statusEl) statusEl.textContent = "저장되었습니다.";
+  markArticleWorkDone(imageNewsSelectedArticle.id, 'sns');
 }
 
 function renderImageNewsPreview(article) {
