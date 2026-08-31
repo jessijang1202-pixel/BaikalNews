@@ -1122,10 +1122,23 @@ async function openCardNewsFromArticle(articleId) {
   await switchTab('sns');
   const cardnewsBtn = document.querySelector('.sns-subtab-btn[data-subtab="cardnews"]');
   switchSnsSubTab('cardnews', cardnewsBtn);
-  const state = snsArticlePickers['cardnews-picker-input'];
-  const article = state && state.allArticles.find(a => a.id === articleId);
+
+  let state = snsArticlePickers['cardnews-picker-input'];
+  let article = state && state.allArticles.find(a => a.id === articleId);
+  if (!article) {
+    // 드물게 피커가 채워지기 전 목록이거나(타이밍) 방금 발행된 기사가
+    // 아직 캐시에 없을 수 있으니, 한 번 더 최신 데이터로 다시 초기화해
+    // 재시도한다 -- 조용히 "선택 안 됨"으로 끝나지 않도록.
+    await initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected);
+    state = snsArticlePickers['cardnews-picker-input'];
+    article = state && state.allArticles.find(a => a.id === articleId);
+  }
+
   if (article) {
     selectSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', article);
+  } else {
+    console.error("openCardNewsFromArticle: 기사를 카드뉴스 피커 목록에서 찾지 못함", { articleId, poolSize: state ? state.allArticles.length : null });
+    alert("이 기사를 SNS 카드뉴스 목록에서 찾지 못했습니다. 기사가 '발행' 상태인지 확인하고, 위 검색창에서 직접 검색해서 선택해 주세요.");
   }
 }
 
