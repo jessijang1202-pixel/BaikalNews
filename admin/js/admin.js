@@ -4039,6 +4039,8 @@ function resetShortsWizardSections() {
   document.getElementById("shorts-final-preview").style.display = "none";
   const downloadEl = document.getElementById("shorts-final-download");
   if (downloadEl) downloadEl.style.display = "none";
+  const originalDownloadEl = document.getElementById("shorts-original-download");
+  if (originalDownloadEl) originalDownloadEl.style.display = "none";
   const convertMp4Btn = document.getElementById("shorts-convert-mp4-btn");
   if (convertMp4Btn) convertMp4Btn.style.display = "none";
   const narrationStatusEl = document.getElementById("shorts-narration-status");
@@ -4446,6 +4448,15 @@ async function openLocalShortsDraft(localDraftId) {
       downloadEl.href = currentShortsProject.finalVideoUrl;
       downloadEl.download = `shorts-${localDraftId}.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
       downloadEl.style.display = "inline-block";
+    }
+    // 이 프로젝트를 다시 열었을 때는 아직 mp4로 변환해 원본을 덮어썼는지
+    // 알 수 없으므로, 지금 저장돼 있는 파일(원본이든 이미 변환된 mp4든)을
+    // 그대로 원본 다운로드 버튼에도 연결해 둔다.
+    const originalDownloadEl = document.getElementById("shorts-original-download");
+    if (originalDownloadEl) {
+      originalDownloadEl.href = currentShortsProject.finalVideoUrl;
+      originalDownloadEl.download = `shorts-${localDraftId}-original.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
+      originalDownloadEl.style.display = "inline-block";
     }
     updateShortsConvertMp4ButtonVisibility();
     renderShortsYoutubeMetadata();
@@ -7151,7 +7162,18 @@ async function convertShortsFinalVideoToMp4() {
     const webmBlob = await idbGetBlob(`${draftId}:final`);
     if (!webmBlob) throw new Error("이 브라우저에 저장된 원본 영상을 찾을 수 없습니다. 다시 녹화해 주세요.");
 
-    const mp4Blob = await convertShortsWebmToMp4(webmBlob, (msg) => { if (statusEl) statusEl.textContent = msg; });
+    // ffmpeg.wasm 로딩/변환이 멈춘 채 끝나지 않는 경우(네트워크 문제,
+    // 브라우저 호환성 등)에도 "안 되고 있어"만 계속 보이는 대신, 일정
+    // 시간 후엔 명확한 에러로 실패 처리한다 -- 그동안은 위에서 추가한
+    // "원본 파일 다운로드" 버튼이 안전망 역할을 한다.
+    const MP4_CONVERT_TIMEOUT_MS = 5 * 60 * 1000;
+    const mp4Blob = await Promise.race([
+      convertShortsWebmToMp4(webmBlob, (msg) => { if (statusEl) statusEl.textContent = msg; }),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error("mp4 변환이 5분 넘게 끝나지 않았습니다. 네트워크 상태를 확인하거나, 위 \"원본 파일 다운로드\"로 webm 그대로 사용해 주세요.")),
+        MP4_CONVERT_TIMEOUT_MS
+      ))
+    ]);
     const publicUrl = await keepShortsBlobLocal(mp4Blob, `${draftId}:final`);
     currentShortsProject.finalVideoUrl = publicUrl;
     currentShortsProject.finalVideoMimeType = mp4Blob.type;
@@ -7225,6 +7247,15 @@ async function recordShortsVideo() {
       downloadEl.href = publicUrl;
       downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.${shortsVideoExtFromMime(videoBlob.type)}`;
       downloadEl.style.display = "inline-block";
+    }
+    // 원본 형식 다운로드는 이후 mp4 변환 버튼이 무엇을 하든 절대 건드리지
+    // 않는다 -- mp4 변환이 실패하거나 오래 걸려도 방금 녹화한 파일을 잃지
+    // 않도록 하는 안전망.
+    const originalDownloadEl = document.getElementById("shorts-original-download");
+    if (originalDownloadEl) {
+      originalDownloadEl.href = publicUrl;
+      originalDownloadEl.download = `shorts-${currentShortsProject.id || Date.now()}-original.${shortsVideoExtFromMime(videoBlob.type)}`;
+      originalDownloadEl.style.display = "inline-block";
     }
     updateShortsConvertMp4ButtonVisibility();
     await renderShortsYoutubeMetadata();
