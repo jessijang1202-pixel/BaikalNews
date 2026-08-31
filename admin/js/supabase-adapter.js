@@ -31,7 +31,9 @@
       isYMYL: row.is_ymyl,
       isPinned: row.is_pinned,
       isFeatured: row.is_featured,
-      views: row.views || 0
+      views: row.views || 0,
+      snsWorkDone: row.sns_work_done || false,
+      shortsWorkDone: row.shorts_work_done || false
     };
   }
 
@@ -219,6 +221,26 @@
       const filtered = articles.filter(a => a.id !== id);
       localStorage.setItem("baikal_articles", JSON.stringify(filtered));
       return true;
+    },
+
+    // 5b. 기사관리 목록의 SNS/숏폼 완료 표시 -- 여러 관리자가 함께 보는
+    // 공유 플래그라 이 브라우저만의 localStorage가 아니라 Supabase 컬럼에
+    // 직접 기록한다. saveArticle()의 전체 upsert를 쓰지 않는 이유는, 다른
+    // 관리자가 동시에 편집 중인 기사의 나머지 필드를 이 오래된 로컬
+    // article 객체로 덮어쓰는 사고를 막기 위해서다 -- 이 플래그 하나만
+    // 정확히 업데이트한다.
+    markArticleWorkDone: async function(articleId, kind) {
+      const client = this.isConfigured() && this.getClient();
+      if (!client) return false;
+      const column = kind === 'shorts' ? 'shorts_work_done' : 'sns_work_done';
+      try {
+        const { error } = await client.from('articles').update({ [column]: true }).eq('id', articleId);
+        if (error) throw error;
+        return true;
+      } catch (err) {
+        console.error("Supabase markArticleWorkDone error:", err);
+        return false;
+      }
     },
 
     // 6. Homepage Curation
