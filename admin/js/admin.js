@@ -3450,11 +3450,14 @@ const IMAGE_ASPECT_RATIO_RULE = "\n\nCOMPOSITION: Wide horizontal 16:9 landscape
 // Gemini key lives in Vercel env vars instead of this browser's
 // localStorage -- no more re-entering it on every device (phones
 // especially) and no raw provider key visible in devtools.
-async function generateGeminiImage(promptText) {
+async function generateGeminiImage(promptText, imageConfig) {
   const response = await fetch("https://baikalnews.com/api/gemini-image-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + IMAGE_NO_LETTERBOX_RULE + MEDIA_KOREAN_PEOPLE_RULE })
+    body: JSON.stringify({
+      prompt: promptText + IMAGE_REALISM_RULE + IMAGE_TEXT_LANGUAGE_RULE + IMAGE_NO_RAIN_RULE + IMAGE_NO_LETTERBOX_RULE + MEDIA_KOREAN_PEOPLE_RULE,
+      imageConfig
+    })
   });
 
   if (!response.ok) {
@@ -5806,7 +5809,12 @@ async function generateShortsMedia() {
 
       statusEl.textContent = `이미지 컷 생성 중... (${i + 1}/${currentShortsProject.imageCuts.length})`;
       const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
-      const dataUrl = await generateGeminiImage(verticalPrompt);
+      // 프롬프트 텍스트만으로는 모델이 세로 비율을 무시하고 정사각형
+      // (1024x1024)으로 내놓는 경우가 잦았다 -- 그러면 숏폼 캔버스(9:16)에
+      // 맞춰 크게 잘리고 확대(업스케일)되면서 화질이 눈에 띄게 나빠졌다.
+      // imageConfig로 실제 API에 세로 비율을 강제하면 모델이 처음부터
+      // 세로 프레임 전체를 채워 생성하므로 크롭/확대 폭이 훨씬 줄어든다.
+      const dataUrl = await generateGeminiImage(verticalPrompt, { aspectRatio: '9:16', imageSize: '2K' });
       const blob = await (await fetch(dataUrl)).blob();
       if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
       cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);
@@ -5913,7 +5921,12 @@ async function generateShortsCutImagesOnly() {
 
       statusEl.textContent = `이미지 컷 생성 중... (${i + 1}/${cuts.length})`;
       const verticalPrompt = `${cut.prompt}, vertical 9:16 portrait composition, documentary photography style, natural lighting`;
-      const dataUrl = await generateGeminiImage(verticalPrompt);
+      // 프롬프트 텍스트만으로는 모델이 세로 비율을 무시하고 정사각형
+      // (1024x1024)으로 내놓는 경우가 잦았다 -- 그러면 숏폼 캔버스(9:16)에
+      // 맞춰 크게 잘리고 확대(업스케일)되면서 화질이 눈에 띄게 나빠졌다.
+      // imageConfig로 실제 API에 세로 비율을 강제하면 모델이 처음부터
+      // 세로 프레임 전체를 채워 생성하므로 크롭/확대 폭이 훨씬 줄어든다.
+      const dataUrl = await generateGeminiImage(verticalPrompt, { aspectRatio: '9:16', imageSize: '2K' });
       const blob = await (await fetch(dataUrl)).blob();
       if (!cut.imageKey) cut.imageKey = `${ensureShortsLocalDraftId()}:cut:${Date.now()}-${Math.random().toString(36).slice(2)}`;
       cut.imageUrl = await keepShortsImageLocal(blob, cut.imageKey);

@@ -33,28 +33,22 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   if (!GEMINI_API_KEY) { res.status(500).json({ error: 'GEMINI_API_KEY not configured' }); return; }
 
-  const { prompt, costSaving, debugListModels } = req.body || {};
-  if (debugListModels) {
-    try {
-      const res2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
-      const data = await res2.json();
-      const names = (data.models || []).filter(m => /veo/i.test(m.name)).map(m => m.name);
-      res.status(200).json({ names });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-    return;
-  }
+  const { prompt, costSaving } = req.body || {};
   if (!prompt) { res.status(400).json({ error: 'prompt is required' }); return; }
 
   try {
     const model = await resolveVeoModel(GEMINI_API_KEY, !!costSaving);
+    // 8초는 이미 고정값이고, 현재 이 키로 쓸 수 있는 Veo 모델은 전부
+    // 3.1세대(veo-3.1-generate-preview/fast/lite)라 셋 다 1080p+8초 조합을
+    // 지원한다 (구글 문서: "1080p"는 8초 길이에서만 지원). 이전엔 해상도를
+    // 지정하지 않아 기본값(더 낮은 해상도)으로 나왔던 것으로 보임 --
+    // 다운로드해서 유튜브/SNS에 올렸을 때 화질이 안 좋다는 신고의 원인.
     const startRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{ prompt }],
-        parameters: { aspectRatio: '9:16', durationSeconds: 8 }
+        parameters: { aspectRatio: '9:16', durationSeconds: 8, resolution: '1080p' }
       })
     });
     if (!startRes.ok) {
