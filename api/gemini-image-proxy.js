@@ -39,14 +39,16 @@ async function fetchWithTimeout(url, options) {
   }
 }
 
-async function tryImageModel(model, prompt) {
+async function tryImageModel(model, prompt, imageConfig) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const body = { contents: [{ parts: [{ text: prompt }] }] };
+  if (imageConfig) body.generationConfig = { imageConfig };
   let response;
   try {
     response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      body: JSON.stringify(body)
     });
   } catch (err) {
     return { ok: false, timedOut: true };
@@ -92,7 +94,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { prompt } = req.body || {};
+  const { prompt, imageConfig } = req.body || {};
   if (!prompt) {
     res.status(400).json({ error: 'prompt is required' });
     return;
@@ -103,7 +105,7 @@ module.exports = async (req, res) => {
     let lastFailure = null;
 
     for (const model of candidates.slice(0, MAX_CANDIDATES)) {
-      const result = await tryImageModel(model, prompt);
+      const result = await tryImageModel(model, prompt, imageConfig);
       if (!result.ok) {
         if (result.timedOut) {
           lastFailure = { error: `모델(${model})이 응답하지 않았습니다 (타임아웃).` };
