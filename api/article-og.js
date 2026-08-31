@@ -65,6 +65,13 @@ module.exports = async (req, res) => {
   const pageUrl = `https://baikalnews.com/article.html${id ? `?id=${encodeURIComponent(id)}` : ''}`;
 
   if (!article || !isLive(article)) {
+    // 아카이브(편집국이 명시적으로 내린) 기사는 "영구 삭제"(410)로,
+    // 그 외(승인 대기 등 아직 존재하지 않거나 나중에 살아날 수 있는 경우)는
+    // "찾을 수 없음"(404)으로 구분한다. 이전에는 둘 다 200 OK로 응답해
+    // 예전에 색인됐던 기사 URL이 검색엔진 눈엔 "정상인데 내용이 없는"
+    // 소프트 404로 보였다 -- 실제 상태 코드를 내려줘서 구글이 이런
+    // URL을 빠르게, 명확하게 색인에서 제외하도록 한다.
+    const isGone = article && article.status === 'archived';
     const html = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -79,7 +86,7 @@ module.exports = async (req, res) => {
 </body>
 </html>`;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(html);
+    res.status(isGone ? 410 : 404).send(html);
     return;
   }
 
