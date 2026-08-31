@@ -9626,7 +9626,7 @@ async function generateArticleImageNews() {
     // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
     // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
     // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
-    const titleFontSize = 50;
+    const titleFontSize = 52;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
@@ -9641,8 +9641,8 @@ async function generateArticleImageNews() {
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
     const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
-    const summaryFontSizeNormal = 35;
-    const summaryFontSizeEmphasis = 37;
+    const summaryFontSizeNormal = 37;
+    const summaryFontSizeEmphasis = 39;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
     // 5줄 전부(위 3줄 + 아래 2줄) 동일한 기준: 폭 제한 없이 전체 폭을 다
@@ -9712,7 +9712,7 @@ async function generateArticleImageNews() {
     const logoImg = await loadImageNewsLogo();
     const logoH = 44;
     const logoW = (logoImg && logoImg.naturalWidth) ? logoH * (logoImg.naturalWidth / logoImg.naturalHeight) : 0;
-    ctx.font = `bold 34px sans-serif`;
+    ctx.font = `bold 36px sans-serif`;
     const brandText = "바이칼뉴스";
     const brandTextW = ctx.measureText(brandText).width;
     const badgeGap = 10;
