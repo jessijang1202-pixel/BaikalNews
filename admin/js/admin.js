@@ -3058,19 +3058,21 @@ async function resizeAndCompressImage(fileOrBlob, options) {
 
 // Raw upload of an already-processed blob to the "article-images" bucket --
 // no resizing/compression here, callers decide whether that already happened.
-// sourceTag prefixes the filename (e.g. "upload-", "ai-") so the public site
-// can tell a manually-uploaded photo from an AI-generated one purely from
-// its URL -- css/pages.css uses an [src*="/upload-"] attribute selector to
-// show manual uploads at their original aspect ratio while keeping
-// AI-generated images in the fixed 16:9 crop. No DB column needed for this.
+// sourceTag puts the file in a subfolder (e.g. "upload/", "ai/") rather than
+// the filename itself, so the public site can still tell a manually-uploaded
+// photo from an AI-generated one purely from its URL -- css/pages.css uses an
+// [src*="/upload/"] attribute selector to show manual uploads at their
+// original aspect ratio while keeping AI-generated images in the fixed 16:9
+// crop -- but the filename the admin actually sees stays plain. No DB column
+// needed for this.
 async function uploadRawBlobToStorage(blob, ext, sourceTag) {
   const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
   if (!client) {
     throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
 
-  const prefix = sourceTag ? `${sourceTag}-` : '';
-  const path = `articles/${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const folder = sourceTag ? `${sourceTag}/` : '';
+  const path = `articles/${folder}${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const contentType = ext === 'jpg' ? 'image/jpeg' : (blob.type || `image/${ext}`);
 
   const { error } = await client.storage.from('article-images').upload(path, blob, {
