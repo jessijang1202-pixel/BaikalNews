@@ -33,7 +33,18 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   if (!GEMINI_API_KEY) { res.status(500).json({ error: 'GEMINI_API_KEY not configured' }); return; }
 
-  const { prompt, costSaving } = req.body || {};
+  const { prompt, costSaving, debugListModels } = req.body || {};
+  if (debugListModels) {
+    try {
+      const res2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+      const data = await res2.json();
+      const names = (data.models || []).filter(m => /veo/i.test(m.name)).map(m => m.name);
+      res.status(200).json({ names });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+    return;
+  }
   if (!prompt) { res.status(400).json({ error: 'prompt is required' }); return; }
 
   try {
