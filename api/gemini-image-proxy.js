@@ -94,7 +94,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { prompt, imageConfig, debugListModels } = req.body || {};
+  const { prompt, imageConfig, debugListModels, debugVerbose } = req.body || {};
   if (debugListModels) {
     try {
       const candidates = await listCandidateImageModels(GEMINI_API_KEY);
@@ -112,15 +112,18 @@ module.exports = async (req, res) => {
   try {
     const candidates = await listCandidateImageModels(GEMINI_API_KEY);
     let lastFailure = null;
+    const attemptLog = [];
 
     for (const model of candidates.slice(0, MAX_CANDIDATES)) {
       const result = await tryImageModel(model, prompt, imageConfig);
       if (!result.ok) {
         if (result.timedOut) {
           lastFailure = { error: `모델(${model})이 응답하지 않았습니다 (타임아웃).` };
+          attemptLog.push({ model, note: 'timeout' });
         } else {
           const errText = await result.response.text();
           lastFailure = { status: result.response.status, error: `AI 이미지 생성 실패 (모델: ${model}): ${errText}` };
+          attemptLog.push({ model, status: result.response.status, errText: errText.slice(0, 300) });
         }
         continue;
       }
@@ -130,13 +133,14 @@ module.exports = async (req, res) => {
       const imagePart = parts.find(p => p.inlineData && p.inlineData.data);
       if (!imagePart) {
         lastFailure = { error: `AI가 이미지를 반환하지 않았습니다 (모델: ${model}).` };
+        attemptLog.push({ model, note: 'no image part' });
         continue;
       }
       const mimeType = imagePart.inlineData.mimeType || 'image/png';
       // model도 함께 반환 -- 어떤 모델이 실제로 그렸는지 프론트/콘솔에서
       // 바로 확인할 수 있게 해서, 모델 선택 로직이 의도대로 동작하는지
       // (특히 텍스트 렌더링 품질 이슈) 나중에 다시 진단하기 쉽게 한다.
-      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model });
+      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model, attemptLog: debugVerbose ? attemptLog : undefined });
       return;
     }
 
