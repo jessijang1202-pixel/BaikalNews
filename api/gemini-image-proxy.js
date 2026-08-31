@@ -94,7 +94,16 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { prompt, imageConfig } = req.body || {};
+  const { prompt, imageConfig, debugListModels } = req.body || {};
+  if (debugListModels) {
+    try {
+      const candidates = await listCandidateImageModels(GEMINI_API_KEY);
+      res.status(200).json({ candidates });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+    return;
+  }
   if (!prompt) {
     res.status(400).json({ error: 'prompt is required' });
     return;
