@@ -1091,7 +1091,10 @@ async function renderArticlesList() {
     let shortsButton = '';
     if (shortsEligibleStatuses.includes(art.status)) {
       const completedShorts = shorts.find(s => s.articleId === art.id && s.status === 'video_ready');
-      const shortsDoneCls = isArticleWorkDone(art.id, 'shorts') ? ' shorts-status-done' : '';
+      // video_ready는 Supabase에 저장되는 상태라 기기/브라우저가 달라도
+      // 항상 알 수 있다 -- localStorage 표시(isArticleWorkDone)가 이 브라우저에
+      // 없더라도 이미 완성된 숏폼이 있으면 그것만으로도 회색으로 반전시킨다.
+      const shortsDoneCls = (completedShorts || isArticleWorkDone(art.id, 'shorts')) ? ' shorts-status-done' : '';
       shortsButton = completedShorts
         ? `<a onclick="openShortsFromArticleList(${completedShorts.id})" class="shorts-status-box shorts-status-shorts${shortsDoneCls}">숏폼</a>`
         : `<a onclick="createShortsFromArticle(${art.id})" class="shorts-status-box shorts-status-shorts${shortsDoneCls}">숏폼</a>`;
@@ -7289,6 +7292,7 @@ async function recordShortsVideo() {
     currentShortsProject.finalVideoMimeType = videoBlob.type;
     currentShortsProject.status = 'video_ready';
     await persistCurrentShortsProject();
+    markArticleWorkDone(currentShortsProject.articleId, 'shorts');
 
     const previewEl = document.getElementById("shorts-final-preview");
     previewEl.src = publicUrl;
@@ -9787,6 +9791,7 @@ async function generateArticleImageNews() {
     const resultWrap = document.getElementById("imagenews-result");
     if (resultWrap) resultWrap.style.display = 'block';
     if (statusEl) statusEl.textContent = "생성 완료.";
+    markArticleWorkDone(imageNewsSelectedArticle.id, 'sns');
   } catch (err) {
     console.error("이미지 뉴스 생성 실패:", err);
     if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
@@ -10003,6 +10008,7 @@ async function generateCardNewsImage() {
     if (downloadLink) downloadLink.href = data.dataUri;
     if (resultWrap) resultWrap.style.display = 'block';
     if (statusEl) statusEl.textContent = "카드뉴스 이미지가 생성되었습니다.";
+    if (cardNewsSelectedArticle) markArticleWorkDone(cardNewsSelectedArticle.id, 'sns');
   } catch (err) {
     console.error("카드뉴스 이미지 생성 실패:", err);
     if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
