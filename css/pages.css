@@ -97,12 +97,15 @@
 }
 
 /* Default: fixed 16:9 crop (matches AI-generated images and legacy uploads
-   whose URL predates the upload//ai/ subfolder tagging below). Manually
+   whose URL predates the upload/ subfolder tagging below). Manually
    uploaded images are stored in an "upload/" subfolder (see
    uploadRawBlobToStorage in admin/js/admin.js -- the filename itself stays
    plain, only the folder distinguishes it) and shown at their full original
    aspect ratio instead -- no DB column needed, the distinction lives
-   entirely in the stored image URL. */
+   entirely in the stored image URL. The "/upload-" selector is kept
+   alongside "/upload/" for images uploaded before this moved from a
+   filename prefix to a subfolder, so their aspect ratio doesn't change
+   retroactively. */
 .article-featured-image img {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -110,6 +113,7 @@
   display: block;
 }
 
+.article-featured-image img[src*="/upload-"],
 .article-featured-image img[src*="/upload/"] {
   width: auto;
   max-width: 100%;
