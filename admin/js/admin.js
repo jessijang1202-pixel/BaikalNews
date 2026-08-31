@@ -4445,9 +4445,14 @@ async function openLocalShortsDraft(localDraftId) {
     previewEl.style.display = "block";
     const downloadEl = document.getElementById("shorts-final-download");
     if (downloadEl) {
-      downloadEl.href = currentShortsProject.finalVideoUrl;
-      downloadEl.download = `shorts-${localDraftId}.${shortsVideoExtFromMime(currentShortsProject.finalVideoMimeType)}`;
-      downloadEl.style.display = "inline-block";
+      const isMp4 = (currentShortsProject.finalVideoMimeType || '').includes('mp4');
+      if (isMp4) {
+        downloadEl.href = currentShortsProject.finalVideoUrl;
+        downloadEl.download = `shorts-${localDraftId}.mp4`;
+        downloadEl.style.display = "inline-block";
+      } else {
+        downloadEl.style.display = "none";
+      }
     }
     // 이 프로젝트를 다시 열었을 때는 아직 mp4로 변환해 원본을 덮어썼는지
     // 알 수 없으므로, 지금 저장돼 있는 파일(원본이든 이미 변환된 mp4든)을
@@ -7242,11 +7247,19 @@ async function recordShortsVideo() {
     previewEl.src = publicUrl;
     previewEl.style.display = "block";
 
+    // "mp4 다운로드" 버튼은 실제로 mp4일 때만 보여준다 -- Safari는 녹화
+    // 결과물이 이미 mp4라 바로 표시되고, 그 외(대부분 webm)는 아래 mp4
+    // 변환이 성공한 뒤에야 나타난다. 그 전까지는 "원본 파일 다운로드"만
+    // 보여서, 아직 webm인데 "mp4 다운로드"라고 잘못 표시되는 일이 없다.
     const downloadEl = document.getElementById("shorts-final-download");
     if (downloadEl) {
-      downloadEl.href = publicUrl;
-      downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.${shortsVideoExtFromMime(videoBlob.type)}`;
-      downloadEl.style.display = "inline-block";
+      if (videoBlob.type.includes('mp4')) {
+        downloadEl.href = publicUrl;
+        downloadEl.download = `shorts-${currentShortsProject.id || Date.now()}.mp4`;
+        downloadEl.style.display = "inline-block";
+      } else {
+        downloadEl.style.display = "none";
+      }
     }
     // 원본 형식 다운로드는 이후 mp4 변환 버튼이 무엇을 하든 절대 건드리지
     // 않는다 -- mp4 변환이 실패하거나 오래 걸려도 방금 녹화한 파일을 잃지
