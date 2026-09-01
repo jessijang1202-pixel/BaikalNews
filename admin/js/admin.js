@@ -1136,27 +1136,45 @@ async function markArticleWorkDone(articleId, kind) {
 
 // 작업 열의 "SNS뉴스" 초록 박스 -- SNS 카드뉴스 생성 탭(카드뉴스 서브탭)으로
 // 이동해 이 기사를 카드뉴스 피커에 미리 선택해 둔다.
-async function openCardNewsFromArticle(articleId) {
-  await switchTab('sns');
-  const cardnewsBtn = document.querySelector('.sns-subtab-btn[data-subtab="cardnews"]');
-  switchSnsSubTab('cardnews', cardnewsBtn);
-
-  let state = snsArticlePickers['cardnews-picker-input'];
+// 세 서브탭(카드뉴스/이미지뉴스/콘텐츠) 피커 중 하나에 기사를 선택해
+// 넣는다. 실패 시 최신 데이터로 한 번 재시도하는 로직은 세 피커 모두
+// 동일해 여기로 뽑아냈다. 성공하면 true, 목록에서 못 찾으면 false를
+// 반환해 호출부가 어느 탭이 실패했는지 모아서 안내할 수 있게 한다.
+async function selectArticleInSnsPicker(inputId, dropdownId, onSelect, articleId) {
+  let state = snsArticlePickers[inputId];
   let article = state && state.allArticles.find(a => a.id === articleId);
   if (!article) {
     // 드물게 피커가 채워지기 전 목록이거나(타이밍) 방금 발행된 기사가
     // 아직 캐시에 없을 수 있으니, 한 번 더 최신 데이터로 다시 초기화해
     // 재시도한다 -- 조용히 "선택 안 됨"으로 끝나지 않도록.
-    await initSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected);
-    state = snsArticlePickers['cardnews-picker-input'];
+    await initSnsArticlePicker(inputId, dropdownId, onSelect);
+    state = snsArticlePickers[inputId];
     article = state && state.allArticles.find(a => a.id === articleId);
   }
+  if (!article) return false;
+  selectSnsArticlePicker(inputId, dropdownId, article);
+  return true;
+}
 
-  if (article) {
-    selectSnsArticlePicker('cardnews-picker-input', 'cardnews-picker-dropdown', article);
-  } else {
-    console.error("openCardNewsFromArticle: 기사를 카드뉴스 피커 목록에서 찾지 못함", { articleId, poolSize: state ? state.allArticles.length : null });
-    alert("이 기사를 SNS 카드뉴스 목록에서 찾지 못했습니다. 기사가 '발행' 상태인지 확인하고, 위 검색창에서 직접 검색해서 선택해 주세요.");
+async function openCardNewsFromArticle(articleId) {
+  await switchTab('sns');
+  const cardnewsBtn = document.querySelector('.sns-subtab-btn[data-subtab="cardnews"]');
+  switchSnsSubTab('cardnews', cardnewsBtn);
+
+  // 탭을 전환해도 세 서브탭의 피커는 전부 이미 초기화되어 있으므로(SNS
+  // 탭에 처음 들어올 때 initSnsTab이 세 개를 한꺼번에 채운다), 지금
+  // 보이는 카드뉴스뿐 아니라 이미지뉴스/콘텐츠 서브탭에도 같은 기사를
+  // 미리 선택해 둔다 -- 관리자가 서브탭을 옮겨 다녀도 매번 다시 검색할
+  // 필요가 없도록.
+  const results = await Promise.all([
+    selectArticleInSnsPicker('cardnews-picker-input', 'cardnews-picker-dropdown', onCardNewsArticleSelected, articleId),
+    selectArticleInSnsPicker('imagenews-picker-input', 'imagenews-picker-dropdown', onImageNewsArticleSelected, articleId),
+    selectArticleInSnsPicker('sns-content-picker-input', 'sns-content-picker-dropdown', onSnsContentArticleSelected, articleId)
+  ]);
+
+  if (results.some(ok => !ok)) {
+    console.error("openCardNewsFromArticle: 일부 탭에서 기사를 피커 목록에서 찾지 못함", { articleId, results });
+    alert("이 기사를 일부 SNS 탭 목록에서 찾지 못했습니다. 기사가 '발행' 상태인지 확인하고, 해당 탭 검색창에서 직접 검색해서 선택해 주세요.");
   }
 }
 
