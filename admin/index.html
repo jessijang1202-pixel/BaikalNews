@@ -1245,8 +1245,27 @@
             </div>
             <div class="shorts-step-body" id="shorts-step-body-5">
               <canvas id="shorts-canvas" width="1080" height="1920" style="width:220px; height:391px; background:#000; border-radius:10px; display:block;"></canvas>
-              <div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <button type="button" id="shorts-preview-btn" class="btn-admin btn-admin-primary" onclick="previewShortsAssembly()">⑤ 미리보기 재생</button>
+
+              <!-- 구독 유도 엔딩 영상 -- 프로젝트별이 아니라 사이트 전체
+                   숏폼이 공유하는 기본 영상. 한 번 삽입해두면 이후 모든
+                   숏폼 끝에 자동으로(디폴트로) 붙는다(고정 나레이션 포함) --
+                   개별 프로젝트에서 다른 영상으로 바꾸고 싶을 때만 다시
+                   삽입하면 된다. 미리보기 전에 먼저 오도록 배치. -->
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; background: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                  <span style="font-size:0.85rem; font-weight:600;">⑤ 아웃트로 삽입하기 (전체 숏폼 공통 기본값)</span>
+                  <video id="shorts-outro-video-preview" src="" muted controls style="display:none; height:64px; border-radius:6px;"></video>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input type="file" id="shorts-outro-video-input" accept="video/*" style="max-width:200px; font-size:0.8rem;">
+                  <button type="button" class="btn-admin btn-admin-primary" onclick="insertShortsOutroVideo()">삽입</button>
+                </div>
+              </div>
+              <p class="help-text" style="margin: 4px 0 0;">파일을 고른 뒤 "삽입"을 눌러야 반영됩니다. 한 번 삽입하면 전체 숏폼 공통 기본값으로 저장되어, 별도로 다시 삽입하지 않는 한 앞으로 만드는 모든 숏폼 끝부분에 이 영상과 함께 "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요." 나레이션이 자동으로 붙습니다. 이 프로젝트만 다른 영상으로 바꾸고 싶으면 여기서 다시 삽입하면 됩니다. 아직 한 번도 삽입한 적이 없으면 엔딩 없이 기존 길이 그대로 만들어집니다.</p>
+              <div class="help-text" id="shorts-outro-video-status"></div>
+
+              <div style="margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <button type="button" id="shorts-preview-btn" class="btn-admin btn-admin-primary" onclick="previewShortsAssembly()">⑥ 미리보기 재생</button>
                 <button type="button" id="shorts-preview-stop-btn" class="btn-admin btn-admin-secondary" onclick="stopShortsPreview()" disabled>정지</button>
                 <button type="button" id="shorts-preview-restart-btn" class="btn-admin btn-admin-secondary" onclick="restartShortsPreview()">처음부터 다시 재생</button>
                 <button type="button" class="btn-admin btn-admin-outline-teal" onclick="extendShortsCutsAndPreview()">이미지 컷 1초씩 늘리기 &gt;&gt;</button>
@@ -1254,24 +1273,8 @@
                 <span class="help-text" id="shorts-extra-seconds-status"></span>
               </div>
 
-              <!-- 구독 유도 엔딩 영상 -- 프로젝트별이 아니라 사이트 전체
-                   숏폼이 공유하는 기본 영상. 한 번 업로드해두면 이후 모든
-                   숏폼 끝에 자동으로 붙는다(고정 나레이션 포함). -->
-              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; background: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; margin-top:14px;">
-                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                  <span style="font-size:0.85rem; font-weight:600;">구독 유도 엔딩 영상 (전체 숏폼 공통)</span>
-                  <video id="shorts-outro-video-preview" src="" muted controls style="display:none; height:64px; border-radius:6px;"></video>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <input type="file" id="shorts-outro-video-input" accept="video/*" style="max-width:200px; font-size:0.8rem;">
-                  <button type="button" class="btn-admin btn-admin-primary" onclick="insertShortsOutroVideo()">아웃트로 삽입하기</button>
-                </div>
-              </div>
-              <p class="help-text" style="margin: 4px 0 0;">파일을 고른 뒤 "아웃트로 삽입하기"를 눌러야 반영됩니다 (한 번 삽입하면 전체 숏폼 공통으로 저장되어, 앞으로 만드는 모든 숏폼 끝부분에 이 영상과 함께 "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요." 나레이션이 자동으로 붙습니다). 삽입 후 "⑤ 미리보기 재생"을 다시 눌러보면 엔딩까지 포함해서 보입니다. 아직 삽입 전이면 엔딩 없이 기존 길이 그대로 만들어집니다.</p>
-              <div class="help-text" id="shorts-outro-video-status"></div>
-
               <div style="margin-top:14px;">
-                <button type="button" id="shorts-record-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" onclick="recordShortsVideo()">⑥ 영상으로 녹화 (이 브라우저에만 보관)</button>
+                <button type="button" id="shorts-record-btn" class="btn-admin shorts-lg-btn shorts-btn-orange" onclick="recordShortsVideo()">⑦ 영상으로 녹화 (이 브라우저에만 보관)</button>
               </div>
               <div class="help-text" id="shorts-assembly-status">녹화 중에는 이 탭을 벗어나지 마세요 (화면을 그대로 녹화합니다). 완성된 영상은 Supabase에 올라가지 않으니 다운로드해서 보관하세요.</div>
               <video id="shorts-final-preview" controls style="display:none; width:220px; margin-top:12px; border-radius:10px;"></video>

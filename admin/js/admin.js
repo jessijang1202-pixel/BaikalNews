@@ -3146,7 +3146,7 @@ async function uploadShortsOutroVideo(file) {
 // "아웃트로 삽입하기" 버튼 -- 파일 선택만으로 자동 업로드하지 않고, 명시적
 // 버튼 클릭으로만 동작한다. 영상을 올리는 것과 별개로 (1) 이 프로젝트에
 // 아직 엔딩 나레이션이 없으면 여기서 바로 생성하고, (2) 캐시된
-// shortsAssets를 비워서 다음 "⑤ 미리보기 재생"이 새 엔딩을 반영해 다시
+// shortsAssets를 비워서 다음 "⑥ 미리보기 재생"이 새 엔딩을 반영해 다시
 // 조립하도록 한다 -- 이걸 안 하면 방금 올린 영상이 미리보기에 안 보이는
 // 상태로 남는다.
 async function insertShortsOutroVideo() {
@@ -3166,7 +3166,10 @@ async function insertShortsOutroVideo() {
       previewEl.style.display = "inline-block";
     }
 
-    if (currentShortsProject && !currentShortsProject.outroNarrationUrl) {
+    // 이미 나레이션이 있어도(다른 프로젝트에서 만든 값이 남아있거나, 옛
+    // 문구로 만들어진 경우 등) 버튼을 눌렀다는 건 지금 확실히 반영하고
+    // 싶다는 뜻이므로, 있든 없든 매번 현재 고정 문구로 새로 만든다.
+    if (currentShortsProject) {
       if (statusEl) statusEl.textContent = "삽입 중... (엔딩 나레이션 생성)";
       const voiceSelect = document.getElementById("shorts-narration-voice");
       const voiceName = voiceSelect ? voiceSelect.value : "Kore";
@@ -3178,7 +3181,7 @@ async function insertShortsOutroVideo() {
 
     shortsAssets = null; // 다음 미리보기/녹화가 새 엔딩으로 다시 조립되도록
     if (fileInput) fileInput.value = '';
-    if (statusEl) statusEl.textContent = "삽입 완료. \"⑤ 미리보기 재생\"을 눌러 확인해 보세요.";
+    if (statusEl) statusEl.textContent = "삽입 완료. \"⑥ 미리보기 재생\"을 눌러 확인해 보세요.";
   } catch (err) {
     console.error("구독 유도 영상 삽입 실패:", err);
     if (statusEl) statusEl.textContent = "삽입 실패: " + err.message;
