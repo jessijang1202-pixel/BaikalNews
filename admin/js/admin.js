@@ -4821,7 +4821,7 @@ async function generateShortsScript() {
 
     const frontInstruction = hasFrontUpload
       ? `- 0:00~0:08 (전반)은 관리자가 이미 준비한 영상/사진을 사용합니다. "veoPrompt"는 빈 문자열("")로 반환하십시오.`
-      : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 프롬프트 맨 앞에 반드시 "[세로 9:16 비율, 1080x1920px, 8초 분량]"라고 영상 규격을 명시한 뒤 줄바꿈하고 이어서 장면을 묘사하십시오 (관리자가 이 프롬프트를 그대로 복사해 Google Flow, Gemini 등 외부 영상 생성 도구에 직접 붙여넣어 쓰는 경우가 있으므로, 규격 정보가 프롬프트 문장 자체에 항상 포함되어 있어야 합니다). 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오.`;
+      : `- 0:00~0:08 (Veo): 실사 다큐멘터리/기록영상 톤의 8초 연속 장면 하나를 한글 프롬프트로 묘사하십시오. 프롬프트 맨 앞에 반드시 "[세로 9:16 비율, 1080x1920px, 8초 분량]"라고 영상 규격을 명시한 뒤 줄바꿈하고 이어서 장면을 묘사하십시오 (관리자가 이 프롬프트를 그대로 복사해 Google Flow, Gemini 등 외부 영상 생성 도구에 직접 붙여넣어 쓰는 경우가 있으므로, 규격 정보가 프롬프트 문장 자체에 항상 포함되어 있어야 합니다). 카메라 움직임, 장소, 분위기를 구체적으로 묘사하되 일러스트/애니메이션 스타일은 피하십시오. 인물이 등장하더라도 대화하거나 말하는 모습으로 연출하지 마십시오 (별도 제작되는 한국어 나레이션과 겹치므로, 입을 벌리고 말하는 순간이 카메라에 잡히지 않도록 장면을 구성하십시오) -- 대신 상황에 맞는 자연스러운 동작이나 표정 위주로 묘사하십시오. 코드가 프롬프트 끝에 오디오 지침을 자동으로 덧붙일 것이므로 별도로 오디오를 언급할 필요는 없습니다.`;
     const backInstruction = neededAiCuts > 0
       ? `- 0:08~0:30 (이미지, 22초): ${neededAiCuts}개의 정지 이미지 컷을 작성하십시오. (전체 ${SHORTS_TARGET_CUT_COUNT}컷 중 ${backUploads.length}개는 관리자가 이미 준비한 자료를 사용하므로 나머지 ${neededAiCuts}개만 작성하면 됩니다.) 각 컷의 "prompt"는 한글 이미지 생성 프롬프트로, 맨 앞에 반드시 "[세로 9:16 비율, 1080x1920px]"라고 이미지 규격을 명시한 뒤 줄바꿈하고 이어서 장면(다큐멘터리 사진 스타일, 세로 구도)을 묘사하십시오 (veoPrompt와 마찬가지로, 관리자가 이 프롬프트를 그대로 복사해 외부 이미지 생성 도구에 붙여넣어 쓰는 경우가 있으므로 규격 정보가 프롬프트 문장 자체에 항상 포함되어야 합니다). 나레이션으로 읽을 자연스러운 한 문장(자막보다 길고 설명적으로 -- 단, 소리 내어 읽었을 때 ${perCutDuration}초 안팎(약 ${targetNarrationChars}자 내외)에 끝나는 것을 목표로 하고, 내용이 중간에 끊기지 않도록 자연스럽게 마무리하십시오), 화면에 표시할 한국어 자막 2개(caption1, caption2 -- 이 컷이 보여지는 동안 순서대로 화면에 표시됩니다. 각각 30자 내외로 화면에 다 담을 수 있는 분량으로(길면 화면에서 자동으로 2줄로 나뉘어 표시되니 괜찮습니다) 작성하고, 나레이션 문장의 요약이 아니라 완전히 별도의 문구여야 하며, caption1과 caption2는 서로 다른 내용이어야 합니다 -- 예: 상황 제시 -> 핵심 포인트, 또는 질문 -> 답 형태로 자연스럽게 이어지게), 지속 시간(초, ${perCutDuration}초 내외)을 포함해야 합니다.`
       : `- 0:08~0:30 구간에 쓸 이미지는 관리자가 이미 모두 준비했으므로, "imageCuts"는 빈 배열([])로 반환하십시오.`;
@@ -4875,10 +4875,20 @@ ${backInstruction}
       prompt: '', caption: '', caption2: '', narrationText: '', duration: perCutDuration, imageUrl: u.url, uploaded: true, imageKey: u.imageKey || null
     }));
 
+    // AI가 이 규칙을 매번 프롬프트 안에 자연스럽게 녹여 쓸 거라고 믿기보다,
+    // 생성된 veoPrompt 끝에 코드로 확정적으로 덧붙인다 -- Veo가 대사가
+    // 있는 영상을 만들면 별도 제작되는 한국어 나레이션과 소리가 겹치는
+    // 문제가 있었기 때문에 "대사 절대 금지"는 매번 빠짐없이 지켜져야
+    // 하고, 관리자가 프롬프트를 복사해 Google Flow 등 외부 도구에 직접
+    // 붙여넣어 쓰는 경우도 있어 API 호출 시점이 아니라 저장되는
+    // veoPrompt 문자열 자체에 포함시켜야 한다.
+    const veoAudioRule = "\n\n오디오 지침(필수): 상황에 어울리는 효과음이나 배경음을 작게(낮은 볼륨으로) 반드시 넣으십시오 -- 예: 불꽃놀이 소리, 자동차 소음, 배경 음악, 아이들 웃음소리, 물소리, 새소리 등 자연의 소리. 사람의 대사나 말소리는 어떤 경우에도 절대 넣지 마십시오(인물이 등장해도 말하는 모습으로 연출하지 마십시오) -- 별도 제작되는 한국어 나레이션과 겹치기 때문입니다.";
+    const rawVeoPrompt = hasFrontUpload ? '' : (script.veoPrompt || '');
+
     currentShortsProject.articleId = articleId;
     currentShortsProject.styleGuide = styleGuide;
     currentShortsProject.hookText = script.hookText || '';
-    currentShortsProject.veoPrompt = hasFrontUpload ? '' : (script.veoPrompt || '');
+    currentShortsProject.veoPrompt = rawVeoPrompt ? rawVeoPrompt + veoAudioRule : '';
     currentShortsProject.imageCuts = [...uploadedCuts, ...aiCuts];
     currentShortsProject.scriptMd = script.scriptMd || '';
     currentShortsProject.topBarTitle = script.topBarTitleLine1 || '';
