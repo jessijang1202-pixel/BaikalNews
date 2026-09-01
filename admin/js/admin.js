@@ -3115,20 +3115,24 @@ async function uploadImageToStorage(fileOrBlob, extHint, sourceTag) {
 }
 
 // 구독 유도 엔딩 영상 -- 프로젝트별이 아니라 사이트 전체 숏폼이 공유하는
-// 딱 하나의 기본 영상이라, 매번 새 파일명을 만드는 uploadRawBlobToStorage와
-// 달리 항상 같은 고정 경로에 upsert(덮어쓰기)한다. 그래서 URL 자체가
-// 고정되어 별도 설정값 저장 없이 항상 같은 주소로 불러올 수 있다. 영상은
-// 캔버스 리사이즈를 거치는 이미지와 달리 원본 그대로 올린다.
-// article-images 버킷의 Storage RLS 정책이 "articles/"로 시작하는 경로만
-// 쓰기를 허용하도록 되어 있어(다른 모든 업로드가 전부 이 접두어를 씀),
-// 처음엔 shorts/... 로 뒀다가 "new row violates row-level security
-// policy" 에러가 나서 articles/ 아래로 옮겼다.
-const SHORTS_OUTRO_VIDEO_PATH = 'articles/shorts/outro-subscribe-video';
+// 딱 하나의 기본 영상. 처음엔 고정 경로에 upsert(덮어쓰기)하는 방식으로
+// 만들었는데, 두 번째로 같은 경로에 다시 올릴 때(=UPDATE) "new row
+// violates row-level security policy" 에러가 났다 -- 이 프로젝트의
+// Storage RLS 정책이 이 버킷에 새 파일 추가(INSERT)는 허용해도 기존
+// 파일 덮어쓰기(UPDATE)는 막고 있는 것으로 보인다. 그래서 다른 모든
+// 업로드와 마찬가지로 매번 새 파일명으로 올리고(항상 INSERT라 안전),
+// "지금 기본으로 쓸 URL이 무엇인지"만 app_settings 테이블(키/값 저장소,
+// 반복 업데이트가 이미 카카오 발송 모드에서 검증됨)에 기록해 바꾼다.
+const SHORTS_OUTRO_VIDEO_SETTING_KEY = 'shorts_outro_video_url';
 
-function getShortsOutroVideoUrl() {
-  const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
-  if (!client) return null;
-  return client.storage.from('article-images').getPublicUrl(SHORTS_OUTRO_VIDEO_PATH).data.publicUrl;
+async function getShortsOutroVideoUrl() {
+  if (!window.SupabaseAdapter) return null;
+  try {
+    return await window.SupabaseAdapter.getAppSetting(SHORTS_OUTRO_VIDEO_SETTING_KEY);
+  } catch (err) {
+    console.warn("구독 유도 영상 설정 조회 실패:", err);
+    return null;
+  }
 }
 
 async function uploadShortsOutroVideo(file) {
@@ -3136,15 +3140,20 @@ async function uploadShortsOutroVideo(file) {
   if (!client) {
     throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
-  const { error } = await client.storage.from('article-images').upload(SHORTS_OUTRO_VIDEO_PATH, file, {
+  const ext = ((file.name || '').split('.').pop() || 'mp4').toLowerCase();
+  const path = `articles/shorts-outro/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await client.storage.from('article-images').upload(path, file, {
     cacheControl: '3600',
-    upsert: true,
+    upsert: false,
     contentType: file.type || 'video/mp4'
   });
   if (error) {
     throw new Error(`${error.message || error}  (버킷 "article-images"가 없거나 업로드 정책이 설정되지 않았을 수 있습니다.)`);
   }
-  return getShortsOutroVideoUrl();
+  const { data } = client.storage.from('article-images').getPublicUrl(path);
+  const url = data.publicUrl;
+  await window.SupabaseAdapter.setAppSetting(SHORTS_OUTRO_VIDEO_SETTING_KEY, url);
+  return url;
 }
 
 // "아웃트로 삽입하기" 버튼 -- 파일 선택만으로 자동 업로드하지 않고, 명시적
@@ -3196,9 +3205,9 @@ async function insertShortsOutroVideo() {
 // 페이지를 열거나 숏폼 탭으로 이동할 때 이미 업로드된 기본 영상이
 // 있으면 미리보기에 보여준다 -- 아직 한 번도 업로드하지 않았다면
 // 404이므로 조용히 미리보기를 숨긴 채로 둔다.
-function loadShortsOutroVideoPreview() {
+async function loadShortsOutroVideoPreview() {
   const previewEl = document.getElementById("shorts-outro-video-preview");
-  const url = getShortsOutroVideoUrl();
+  const url = await getShortsOutroVideoUrl();
   if (!previewEl || !url) return;
   const probe = document.createElement('video');
   probe.preload = 'metadata';
@@ -6633,8 +6642,8 @@ async function buildShortsAssets(project) {
   // 전(404)이면 세그먼트 자체를 조용히 생략한다.
   let outro = null;
   try {
-    const outroVideoUrl = getShortsOutroVideoUrl();
-    if (!outroVideoUrl) throw new Error("Supabase가 연결되어 있지 않습니다.");
+    const outroVideoUrl = await getShortsOutroVideoUrl();
+    if (!outroVideoUrl) throw new Error("아직 삽입된 엔딩 영상이 없습니다.");
     const outroEl = document.createElement('video');
     outroEl.src = `${outroVideoUrl}?t=${Date.now()}`;
     outroEl.crossOrigin = "anonymous";
