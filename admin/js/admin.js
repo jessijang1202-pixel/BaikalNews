@@ -6730,12 +6730,29 @@ function drawShortsBrandWatermark(ctx, canvasW, canvasH, logoImg) {
 // bad. If the video is wider or taller than the available space, the
 // excess simply falls outside the canvas and is clipped by it -- never
 // resized to force a fit.
-function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW) {
+// Veo's actual output resolution doesn't always match the 1080x1920 canvas
+// exactly (requesting 1080p/9:16 doesn't guarantee those literal pixel
+// dimensions) -- drawing the video at its native size just centered it,
+// leaving black bars all around whenever it came back smaller than the
+// canvas. Cover-fit it instead, same approach as drawShortsKenBurnsImage.
+function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW, canvasH) {
   const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
   if (!vw || !vh) return;
   const bannerH = project.topBarTitle ? (project.topBarHeight || 360) : 0;
-  const x = (canvasW - vw) / 2;
-  ctx.drawImage(videoEl, x, bannerH, vw, vh);
+  const areaH = canvasH - bannerH;
+  const areaRatio = canvasW / areaH;
+  const vidRatio = vw / vh;
+  let drawW, drawH;
+  if (vidRatio > areaRatio) {
+    drawH = areaH;
+    drawW = drawH * vidRatio;
+  } else {
+    drawW = canvasW;
+    drawH = drawW / vidRatio;
+  }
+  const x = (canvasW - drawW) / 2;
+  const y = bannerH + (areaH - drawH) / 2;
+  ctx.drawImage(videoEl, x, y, drawW, drawH);
 }
 
 // Slow zoom-in (Ken Burns) over the cut's duration so static images don't
@@ -6929,7 +6946,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
         if (elapsed < frontDuration) {
           if (assets.front.type === 'video') {
             if (assets.front.el.readyState >= 2) {
-              drawShortsFrontVideoNative(ctx, assets.front.el, project, W);
+              drawShortsFrontVideoNative(ctx, assets.front.el, project, W, H);
             }
           } else {
             drawShortsKenBurnsImage(ctx, assets.front.el, Math.min(elapsed / frontDuration, 1), W, H);
