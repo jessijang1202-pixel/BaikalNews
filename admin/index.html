@@ -1262,9 +1262,12 @@
                   <span style="font-size:0.85rem; font-weight:600;">구독 유도 엔딩 영상 (전체 숏폼 공통)</span>
                   <video id="shorts-outro-video-preview" src="" muted controls style="display:none; height:64px; border-radius:6px;"></video>
                 </div>
-                <input type="file" id="shorts-outro-video-input" accept="video/*" style="max-width:240px; font-size:0.8rem;" onchange="handleShortsOutroVideoUpload(event)">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input type="file" id="shorts-outro-video-input" accept="video/*" style="max-width:200px; font-size:0.8rem;">
+                  <button type="button" class="btn-admin btn-admin-primary" onclick="insertShortsOutroVideo()">아웃트로 삽입하기</button>
+                </div>
               </div>
-              <p class="help-text" style="margin: 4px 0 0;">한 번 업로드하면 앞으로 만드는 모든 숏폼 끝부분에 이 영상과 함께 "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요." 나레이션이 자동으로 붙습니다. 아직 업로드 전이면 엔딩 없이 기존 길이 그대로 만들어집니다.</p>
+              <p class="help-text" style="margin: 4px 0 0;">파일을 고른 뒤 "아웃트로 삽입하기"를 눌러야 반영됩니다 (한 번 삽입하면 전체 숏폼 공통으로 저장되어, 앞으로 만드는 모든 숏폼 끝부분에 이 영상과 함께 "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요." 나레이션이 자동으로 붙습니다). 삽입 후 "⑤ 미리보기 재생"을 다시 눌러보면 엔딩까지 포함해서 보입니다. 아직 삽입 전이면 엔딩 없이 기존 길이 그대로 만들어집니다.</p>
               <div class="help-text" id="shorts-outro-video-status"></div>
 
               <div style="margin-top:14px;">

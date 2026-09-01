@@ -3143,11 +3143,21 @@ async function uploadShortsOutroVideo(file) {
   return getShortsOutroVideoUrl();
 }
 
-async function handleShortsOutroVideoUpload(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
+// "아웃트로 삽입하기" 버튼 -- 파일 선택만으로 자동 업로드하지 않고, 명시적
+// 버튼 클릭으로만 동작한다. 영상을 올리는 것과 별개로 (1) 이 프로젝트에
+// 아직 엔딩 나레이션이 없으면 여기서 바로 생성하고, (2) 캐시된
+// shortsAssets를 비워서 다음 "⑤ 미리보기 재생"이 새 엔딩을 반영해 다시
+// 조립하도록 한다 -- 이걸 안 하면 방금 올린 영상이 미리보기에 안 보이는
+// 상태로 남는다.
+async function insertShortsOutroVideo() {
+  const fileInput = document.getElementById("shorts-outro-video-input");
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  if (!file) {
+    alert("먼저 아웃트로 영상 파일을 선택해 주세요.");
+    return;
+  }
   const statusEl = document.getElementById("shorts-outro-video-status");
-  if (statusEl) statusEl.textContent = "업로드 중...";
+  if (statusEl) statusEl.textContent = "삽입 중...";
   try {
     const url = await uploadShortsOutroVideo(file);
     const previewEl = document.getElementById("shorts-outro-video-preview");
@@ -3155,13 +3165,24 @@ async function handleShortsOutroVideoUpload(event) {
       previewEl.src = `${url}?t=${Date.now()}`; // 고정 경로라 캐시 버스팅 없인 방금 올린 새 영상이 안 보일 수 있음
       previewEl.style.display = "inline-block";
     }
-    if (statusEl) statusEl.textContent = "업로드 완료. 앞으로 모든 숏폼 끝부분에 자동으로 사용됩니다.";
+
+    if (currentShortsProject && !currentShortsProject.outroNarrationUrl) {
+      if (statusEl) statusEl.textContent = "삽입 중... (엔딩 나레이션 생성)";
+      const voiceSelect = document.getElementById("shorts-narration-voice");
+      const voiceName = voiceSelect ? voiceSelect.value : "Kore";
+      const draftId = ensureShortsLocalDraftId();
+      await generateCutNarration(null, SHORTS_OUTRO_NARRATION_TEXT, voiceName, draftId, 'outro');
+      saveShortsDraftLocally();
+      await syncShortsScriptToSupabase();
+    }
+
+    shortsAssets = null; // 다음 미리보기/녹화가 새 엔딩으로 다시 조립되도록
+    if (fileInput) fileInput.value = '';
+    if (statusEl) statusEl.textContent = "삽입 완료. \"⑤ 미리보기 재생\"을 눌러 확인해 보세요.";
   } catch (err) {
-    console.error("구독 유도 영상 업로드 실패:", err);
-    if (statusEl) statusEl.textContent = "업로드 실패: " + err.message;
-    alert("구독 유도 영상 업로드 실패: " + err.message);
-  } finally {
-    event.target.value = '';
+    console.error("구독 유도 영상 삽입 실패:", err);
+    if (statusEl) statusEl.textContent = "삽입 실패: " + err.message;
+    alert("구독 유도 영상 삽입 실패: " + err.message);
   }
 }
 
