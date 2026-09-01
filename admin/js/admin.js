@@ -686,7 +686,7 @@ async function switchTab(tabName) {
   } else if (tabName === 'shorts') {
     loadGeminiApiKey();
     await renderShortsList();
-    loadShortsOutroImagePreview();
+    loadShortsOutroVideoPreview();
   } else if (tabName === 'letter-send') {
     await loadOrGenerateNewsletterDraft();
     loadGeminiApiKey();
@@ -3114,66 +3114,67 @@ async function uploadImageToStorage(fileOrBlob, extHint, sourceTag) {
   return publicUrl;
 }
 
-// 구독 유도 엔딩 이미지 -- 프로젝트별이 아니라 사이트 전체 숏폼이 공유하는
-// 딱 하나의 기본 이미지라, 매번 새 파일명을 만드는 uploadRawBlobToStorage와
+// 구독 유도 엔딩 영상 -- 프로젝트별이 아니라 사이트 전체 숏폼이 공유하는
+// 딱 하나의 기본 영상이라, 매번 새 파일명을 만드는 uploadRawBlobToStorage와
 // 달리 항상 같은 고정 경로에 upsert(덮어쓰기)한다. 그래서 URL 자체가
-// 고정되어 별도 설정값 저장 없이 항상 같은 주소로 불러올 수 있다.
-const SHORTS_OUTRO_IMAGE_PATH = 'shorts/outro-subscribe.jpg';
+// 고정되어 별도 설정값 저장 없이 항상 같은 주소로 불러올 수 있다. 영상은
+// 캔버스 리사이즈를 거치는 이미지와 달리 원본 그대로 올린다.
+const SHORTS_OUTRO_VIDEO_PATH = 'shorts/outro-subscribe-video';
 
-function getShortsOutroImageUrl() {
+function getShortsOutroVideoUrl() {
   const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
   if (!client) return null;
-  return client.storage.from('article-images').getPublicUrl(SHORTS_OUTRO_IMAGE_PATH).data.publicUrl;
+  return client.storage.from('article-images').getPublicUrl(SHORTS_OUTRO_VIDEO_PATH).data.publicUrl;
 }
 
-async function uploadShortsOutroImage(file) {
+async function uploadShortsOutroVideo(file) {
   const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
   if (!client) {
     throw new Error("Supabase가 연결되어 있지 않습니다.");
   }
-  const blob = await resizeAndCompressImage(file, { maxWidth: 1080, quality: 0.85 });
-  const { error } = await client.storage.from('article-images').upload(SHORTS_OUTRO_IMAGE_PATH, blob, {
+  const { error } = await client.storage.from('article-images').upload(SHORTS_OUTRO_VIDEO_PATH, file, {
     cacheControl: '3600',
     upsert: true,
-    contentType: 'image/jpeg'
+    contentType: file.type || 'video/mp4'
   });
   if (error) {
     throw new Error(`${error.message || error}  (버킷 "article-images"가 없거나 업로드 정책이 설정되지 않았을 수 있습니다.)`);
   }
-  return getShortsOutroImageUrl();
+  return getShortsOutroVideoUrl();
 }
 
-async function handleShortsOutroImageUpload(event) {
+async function handleShortsOutroVideoUpload(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  const statusEl = document.getElementById("shorts-outro-image-status");
+  const statusEl = document.getElementById("shorts-outro-video-status");
   if (statusEl) statusEl.textContent = "업로드 중...";
   try {
-    const url = await uploadShortsOutroImage(file);
-    const previewEl = document.getElementById("shorts-outro-image-preview");
+    const url = await uploadShortsOutroVideo(file);
+    const previewEl = document.getElementById("shorts-outro-video-preview");
     if (previewEl) {
-      previewEl.src = `${url}?t=${Date.now()}`; // 고정 경로라 캐시 버스팅 없인 방금 올린 새 이미지가 안 보일 수 있음
+      previewEl.src = `${url}?t=${Date.now()}`; // 고정 경로라 캐시 버스팅 없인 방금 올린 새 영상이 안 보일 수 있음
       previewEl.style.display = "inline-block";
     }
     if (statusEl) statusEl.textContent = "업로드 완료. 앞으로 모든 숏폼 끝부분에 자동으로 사용됩니다.";
   } catch (err) {
-    console.error("구독 유도 이미지 업로드 실패:", err);
+    console.error("구독 유도 영상 업로드 실패:", err);
     if (statusEl) statusEl.textContent = "업로드 실패: " + err.message;
-    alert("구독 유도 이미지 업로드 실패: " + err.message);
+    alert("구독 유도 영상 업로드 실패: " + err.message);
   } finally {
     event.target.value = '';
   }
 }
 
-// 페이지를 열거나 숏폼 탭으로 이동할 때 이미 업로드된 기본 이미지가
+// 페이지를 열거나 숏폼 탭으로 이동할 때 이미 업로드된 기본 영상이
 // 있으면 미리보기에 보여준다 -- 아직 한 번도 업로드하지 않았다면
 // 404이므로 조용히 미리보기를 숨긴 채로 둔다.
-function loadShortsOutroImagePreview() {
-  const previewEl = document.getElementById("shorts-outro-image-preview");
-  const url = getShortsOutroImageUrl();
+function loadShortsOutroVideoPreview() {
+  const previewEl = document.getElementById("shorts-outro-video-preview");
+  const url = getShortsOutroVideoUrl();
   if (!previewEl || !url) return;
-  const probe = new Image();
-  probe.onload = () => { previewEl.src = url; previewEl.style.display = "inline-block"; };
+  const probe = document.createElement('video');
+  probe.preload = 'metadata';
+  probe.onloadedmetadata = () => { previewEl.src = url; previewEl.style.display = "inline-block"; };
   probe.onerror = () => { previewEl.style.display = "none"; };
   probe.src = `${url}?t=${Date.now()}`;
 }
@@ -3853,7 +3854,6 @@ function saveShortsDraftLocally() {
     hasFinal: !!currentShortsProject.finalVideoUrl,
     hasHookNarration: !!currentShortsProject.hookNarrationUrl,
     hasOutroNarration: !!currentShortsProject.outroNarrationUrl,
-    outroRawDuration: currentShortsProject.outroRawDuration || 0,
     imageCuts: (currentShortsProject.imageCuts || []).map(c => ({
       prompt: c.prompt, narrationText: c.narrationText || '', caption: c.caption, caption2: c.caption2 || '', duration: c.duration,
       uploaded: !!c.uploaded, imageKey: c.imageKey || null, narrationKey: c.narrationKey || null
@@ -4353,7 +4353,6 @@ async function openShortsProject(id) {
   currentShortsProject.hookNarrationBase64 = scriptJson.hookNarrationAudio || '';
   currentShortsProject.outroNarrationUrl = scriptJson.outroNarrationAudio || '';
   currentShortsProject.outroNarrationBase64 = scriptJson.outroNarrationAudio || '';
-  currentShortsProject.outroRawDuration = scriptJson.outroRawDuration || 0;
   currentShortsProject.topBarTitle = scriptJson.topBarTitle || '';
   currentShortsProject.topBarTitleLine2 = scriptJson.topBarTitleLine2 || '';
   currentShortsProject.topBarColor = scriptJson.topBarColor;
@@ -4455,8 +4454,7 @@ async function openLocalShortsDraft(localDraftId) {
     hookEffect: draft.hookEffect,
     hookNarrationEnabled: draft.hookNarrationEnabled !== false,
     narrationSpeed: draft.narrationSpeed || 1.0,
-    extraCutSeconds: draft.extraCutSeconds || 0,
-    outroRawDuration: draft.outroRawDuration || 0
+    extraCutSeconds: draft.extraCutSeconds || 0
   };
   shortsAssets = null;
 
@@ -4658,7 +4656,6 @@ async function syncShortsScriptToSupabase() {
       scriptJson: {
         hookNarrationAudio: currentShortsProject.hookNarrationBase64 || '',
         outroNarrationAudio: currentShortsProject.outroNarrationBase64 || '',
-        outroRawDuration: currentShortsProject.outroRawDuration || 0,
         topBarTitle: currentShortsProject.topBarTitle || '',
         topBarTitleLine2: currentShortsProject.topBarTitleLine2 || '',
         topBarColor: currentShortsProject.topBarColor,
@@ -5756,7 +5753,7 @@ function applyShortsNarrationMood(text) {
 // Supabase later doesn't need to re-fetch and re-encode the local blob.
 // 영상 말미 "구독 유도" 엔딩 세그먼트의 고정 나레이션 문구 -- 기사/스타일과
 // 무관하게 항상 동일하다.
-const SHORTS_OUTRO_NARRATION_TEXT = "구독 좋아요 알림 설정하고 바이칼 TV의 새로운 소식 받아보세요.";
+const SHORTS_OUTRO_NARRATION_TEXT = "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요.";
 
 async function generateCutNarration(cutObj, text, voiceName, draftId, target) {
   if (!text) return;
@@ -5774,7 +5771,6 @@ async function generateCutNarration(cutObj, text, voiceName, draftId, target) {
     currentShortsProject.outroNarrationKey = `${draftId}:narration:outro`;
     currentShortsProject.outroNarrationUrl = await keepShortsBlobLocal(wavBlob, currentShortsProject.outroNarrationKey);
     currentShortsProject.outroNarrationBase64 = base64;
-    currentShortsProject.outroRawDuration = duration + 0.5;
   } else {
     currentShortsProject.hookNarrationKey = `${draftId}:narration:hook`;
     currentShortsProject.hookNarrationUrl = await keepShortsBlobLocal(wavBlob, currentShortsProject.hookNarrationKey);
@@ -6603,21 +6599,34 @@ async function buildShortsAssets(project) {
 
   const watermarkLogo = await loadShortsWatermarkLogo();
 
-  // 구독 유도 엔딩 -- 사이트 전체가 공유하는 고정 이미지가 한 번이라도
-  // 업로드돼 있으면 영상 말미에 붙인다. 아직 업로드 전(404)이면 세그먼트
-  // 자체를 조용히 생략한다 -- 나레이션만 있고 이미지가 없는 상태로
-  // 재생되는 것을 막기 위해서다.
+  // 구독 유도 엔딩 -- 사이트 전체가 공유하는 고정 영상이 한 번이라도
+  // 업로드돼 있으면 영상 말미에 붙인다 (전반 Veo 영상과 같은 방식으로
+  // cover-fit 재생 + 자체 오디오를 나레이션과 함께 믹싱). 아직 업로드
+  // 전(404)이면 세그먼트 자체를 조용히 생략한다.
   let outro = null;
   try {
-    const outroImageUrl = getShortsOutroImageUrl();
-    if (!outroImageUrl) throw new Error("Supabase가 연결되어 있지 않습니다.");
-    const outroImg = await new Promise((resolve, reject) => {
-      const el = new Image();
-      el.crossOrigin = "anonymous";
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error("엔딩 이미지가 아직 업로드되지 않았습니다."));
-      el.src = `${outroImageUrl}?t=${Date.now()}`;
+    const outroVideoUrl = getShortsOutroVideoUrl();
+    if (!outroVideoUrl) throw new Error("Supabase가 연결되어 있지 않습니다.");
+    const outroEl = document.createElement('video');
+    outroEl.src = `${outroVideoUrl}?t=${Date.now()}`;
+    outroEl.crossOrigin = "anonymous";
+    outroEl.muted = false;
+    outroEl.playsInline = true;
+    await new Promise((resolve, reject) => {
+      outroEl.onloadedmetadata = resolve;
+      outroEl.onerror = () => reject(new Error("엔딩 영상이 아직 업로드되지 않았습니다."));
     });
+
+    try {
+      const mix = ensureAudioMix();
+      await mix.audioCtx.resume().catch(() => {});
+      const source = mix.audioCtx.createMediaElementSource(outroEl);
+      source.connect(mix.destination);
+      source.connect(mix.audioCtx.destination);
+    } catch (err) {
+      console.warn("엔딩 영상 오디오 트랙을 연결하지 못했습니다:", err);
+    }
+
     let outroNarrationBuffer = null;
     if (project.outroNarrationUrl) {
       try {
@@ -6629,8 +6638,7 @@ async function buildShortsAssets(project) {
         console.warn("엔딩 나레이션 디코딩 실패:", err);
       }
     }
-    const rawDuration = outroNarrationBuffer ? outroNarrationBuffer.duration + 0.5 : (project.outroRawDuration || 4);
-    outro = { img: outroImg, rawDuration, narrationBuffer: outroNarrationBuffer };
+    outro = { el: outroEl, duration: Math.min(outroEl.duration || 6, 6), narrationBuffer: outroNarrationBuffer };
   } catch (err) {
     outro = null;
   }
@@ -6885,12 +6893,12 @@ function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW, canvasH) {
 // completely frozen against the Veo clip's motion. Each cut is randomly
 // assigned one of 4 effects once at asset-build time (see
 // buildShortsAssets) so consecutive cuts don't all move the same way:
-// 'zoom-in' (center zoom up to 8%), 'zoom-out' (mirror, starts at +8% and
-// settles to 1x), 'pan-right' (fixed slight overscan, crop window slides
-// right), 'pan-diagonal-left' (crop window drifts toward the upper-left).
-// All pan/overscan amounts are capped to a small fraction of the canvas so
-// the motion stays gentle ("너무 어지럽지 않게") regardless of how close
-// the source image's aspect ratio is to the 9:16 canvas.
+// 'zoom-in' (center zoom up to 16%), 'zoom-out' (mirror, starts at +16%
+// and settles to 1x), 'pan-right' (fixed overscan, crop window slides
+// right up to 12% of canvas width), 'pan-diagonal-left' (crop window
+// drifts toward the upper-left, up to 10%/8% of canvas width/height).
+// Doubled from the original 8%/6%/5% magnitudes per admin feedback that
+// the initial pass read as too subtle to notice.
 function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH, effect) {
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const canvasRatio = canvasW / canvasH;
@@ -6916,27 +6924,27 @@ function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH, effect) {
   };
 
   if (effect === 'zoom-out') {
-    const { drawW, drawH } = coverFitAt(1.08 - 0.08 * progress);
+    const { drawW, drawH } = coverFitAt(1.16 - 0.16 * progress);
     ctx.drawImage(img, (canvasW - drawW) / 2, (canvasH - drawH) / 2, drawW, drawH);
     return;
   }
   if (effect === 'pan-right') {
-    const { drawW, drawH } = coverFitAt(1.02);
-    const x = panAxis(drawW, canvasW, 0.06, true);
+    const { drawW, drawH } = coverFitAt(1.04);
+    const x = panAxis(drawW, canvasW, 0.12, true);
     const y = (canvasH - drawH) / 2;
     ctx.drawImage(img, x, y, drawW, drawH);
     return;
   }
   if (effect === 'pan-diagonal-left') {
-    const { drawW, drawH } = coverFitAt(1.05);
-    const x = panAxis(drawW, canvasW, 0.05, false);
-    const y = panAxis(drawH, canvasH, 0.04, false);
+    const { drawW, drawH } = coverFitAt(1.10);
+    const x = panAxis(drawW, canvasW, 0.10, false);
+    const y = panAxis(drawH, canvasH, 0.08, false);
     ctx.drawImage(img, x, y, drawW, drawH);
     return;
   }
 
   // default: zoom-in
-  const { drawW, drawH } = coverFitAt(1 + 0.08 * progress);
+  const { drawW, drawH } = coverFitAt(1 + 0.16 * progress);
   ctx.drawImage(img, (canvasW - drawW) / 2, (canvasH - drawH) / 2, drawW, drawH);
 }
 
@@ -7021,8 +7029,10 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
     : Math.min(7, frontDuration);
   // 구독 유도 엔딩은 기존 30초 예산과 무관하게 뒤에 그대로 덧붙인다
   // (이미지 컷처럼 30초에 맞추려고 줄어들지 않는다) -- extraCutSeconds와
-  // 같은 맥락으로, 정해진 분량을 놓치지 않는 쪽을 우선한다.
-  const outroDuration = assets.outro ? Math.max(3, assets.outro.rawDuration / narrationSpeed) : 0;
+  // 같은 맥락으로, 정해진 분량을 놓치지 않는 쪽을 우선한다. 길이는 전반
+  // Veo 영상과 동일하게 영상 자체의 실제 재생 길이를 그대로 쓴다
+  // (나레이션 속도로 늘리거나 줄이지 않음).
+  const outroDuration = assets.outro ? assets.outro.duration : 0;
   const grandTotalDuration = totalDuration + outroDuration;
 
   let recorder = null;
@@ -7106,6 +7116,9 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
       const playPromise = assets.front.el.play();
       if (playPromise && playPromise.catch) playPromise.catch(() => {});
     }
+    // 엔딩 영상은 타임라인 중간(totalDuration 시점)에 시작되므로, 맨
+    // 처음이 아니라 그 구간에 처음 들어가는 순간에 play()를 건다.
+    let outroStarted = false;
 
     // A video element that hasn't decoded a frame yet (readyState < 2,
     // HAVE_CURRENT_DATA) throws if drawImage() is called on it in some
@@ -7159,14 +7172,22 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
             drawShortsCaption(ctx, activeCaption, W, H, project.captionFontSize, project.captionColor, project.captionPosition);
           }
         } else if (assets.outro) {
-          const t = elapsed - totalDuration;
-          drawShortsKenBurnsImage(ctx, assets.outro.img, Math.min(t / (outroDuration || 1), 1), W, H, 'zoom-in');
+          if (!outroStarted) {
+            outroStarted = true;
+            assets.outro.el.currentTime = 0;
+            const playPromise = assets.outro.el.play();
+            if (playPromise && playPromise.catch) playPromise.catch(() => {});
+          }
+          if (assets.outro.el.readyState >= 2) {
+            drawShortsFrontVideoNative(ctx, assets.outro.el, project, W, H);
+          }
         }
         drawShortsBrandWatermark(ctx, W, H, assets.watermarkLogo);
         drawShortsTopBar(ctx, project, W);
 
         if (elapsed >= grandTotalDuration || (!record && shortsPreviewStopRequested)) {
           if (assets.front.type === 'video') assets.front.el.pause();
+          if (assets.outro) assets.outro.el.pause();
           scheduledSources.forEach(src => { try { src.stop(); } catch (err) {} });
           resolve();
           return;
