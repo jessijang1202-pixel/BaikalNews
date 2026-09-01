@@ -7356,6 +7356,20 @@ async function previewShortsAssembly() {
   try {
     statusEl.textContent = "미리보기 준비 중...";
     shortsAssets = shortsAssets || await buildShortsAssets(currentShortsProject);
+    // 임시 진단 -- 엔딩 나레이션이 안 들린다는 신고가 있어, 콘솔을 안 열어도
+    // 바로 원인을 좁힐 수 있게 화면 상태 문구에도 남긴다. 원인이 확인되면
+    // 제거할 예정.
+    const outroDiag = {
+      outroExists: !!shortsAssets.outro,
+      outroDuration: shortsAssets.outro && shortsAssets.outro.duration,
+      outroHasNarrationBuffer: !!(shortsAssets.outro && shortsAssets.outro.narrationBuffer),
+      outroNarrationBufferDuration: shortsAssets.outro && shortsAssets.outro.narrationBuffer && shortsAssets.outro.narrationBuffer.duration,
+      projectHasOutroNarrationUrl: !!currentShortsProject.outroNarrationUrl,
+      audioCtxState: shortsAssets.audioCtx && shortsAssets.audioCtx.state
+    };
+    console.log("[아웃트로 진단]", outroDiag);
+    const outroDiagEl = document.getElementById("shorts-extra-seconds-status");
+    if (outroDiagEl) outroDiagEl.textContent = `[진단] ${JSON.stringify(outroDiag)}`;
     const canvas = document.getElementById("shorts-canvas");
     statusEl.textContent = "미리보기 재생 중...";
     await runShortsTimeline(canvas, shortsAssets, currentShortsProject, { record: false });
