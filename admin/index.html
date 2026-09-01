@@ -863,6 +863,19 @@
             <div id="shorts-recovery-list"></div>
           </div>
 
+          <!-- 구독 유도 엔딩 이미지 -- 프로젝트별이 아니라 사이트 전체 숏폼이
+               공유하는 기본 이미지. 한 번 업로드해두면 이후 모든 숏폼 끝에
+               자동으로 붙는다(고정 나레이션 포함). -->
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; background: var(--admin-bg-body); border: 1px solid var(--admin-border); border-radius: 8px; margin-bottom: 4px;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <span style="font-size:0.85rem; font-weight:600;">구독 유도 엔딩 이미지 (전체 숏폼 공통)</span>
+              <img id="shorts-outro-image-preview" src="" alt="엔딩 이미지 미리보기" style="display:none; height:48px; border-radius:6px; object-fit:cover;">
+            </div>
+            <input type="file" id="shorts-outro-image-input" accept="image/*" style="max-width:240px; font-size:0.8rem;" onchange="handleShortsOutroImageUpload(event)">
+          </div>
+          <p class="help-text" style="margin: 0 0 16px;">한 번 업로드하면 앞으로 만드는 모든 숏폼 끝부분에 이 이미지와 함께 "구독 좋아요 알림 설정하고 바이칼 TV의 새로운 소식 받아보세요." 나레이션이 자동으로 붙습니다. 아직 업로드 전이면 엔딩 없이 기존 길이 그대로 만들어집니다.</p>
+          <div class="help-text" id="shorts-outro-image-status" style="margin: -12px 0 16px;"></div>
+
           <div class="admin-table-wrapper">
             <table class="admin-table">
               <thead>
