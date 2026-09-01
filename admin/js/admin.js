@@ -6463,7 +6463,12 @@ async function buildShortsAssets(project) {
   const images = await Promise.all((project.imageCuts || []).map(cut => new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl });
+    // 컷마다 줌인/오른쪽 이동 중 하나를 무작위로 골라 매번 같은 움직임이
+    // 반복되지 않게 한다 -- 이 빌드(미리보기/녹화 1회) 동안은 고정되도록
+    // 여기서 한 번만 뽑아 저장한다 (매 프레임 다시 뽑으면 화면이 계속
+    // 바뀌어 버린다).
+    const kenBurnsEffect = Math.random() < 0.5 ? 'zoom' : 'pan-right';
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl, kenBurnsEffect });
     img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
     img.src = cut.imageUrl;
   })));
@@ -6755,21 +6760,38 @@ function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW, canvasH) {
   ctx.drawImage(videoEl, x, y, drawW, drawH);
 }
 
-// Slow zoom-in (Ken Burns) over the cut's duration so static images don't
-// look completely frozen against the Veo clip's motion.
-function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH) {
-  const scale = 1 + 0.08 * progress;
+// Slow zoom-in or lateral pan (Ken Burns) over the cut's duration so static
+// images don't look completely frozen against the Veo clip's motion. Each
+// cut is randomly assigned 'zoom' or 'pan-right' once at asset-build time
+// (see buildShortsAssets) -- 'zoom' keeps the original center-zoom-in
+// behavior, 'pan-right' holds a fixed slight overscan and instead slides
+// the crop window across the image. Both are capped to a small movement so
+// the motion stays subtle regardless of the source image's aspect ratio.
+function drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH, effect) {
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const canvasRatio = canvasW / canvasH;
   const imgRatio = iw / ih;
-  let drawW, drawH;
-  if (imgRatio > canvasRatio) {
-    drawH = canvasH * scale;
-    drawW = drawH * imgRatio;
-  } else {
-    drawW = canvasW * scale;
-    drawH = drawW / imgRatio;
+  const coverFitAt = (scale) => {
+    if (imgRatio > canvasRatio) {
+      const drawH = canvasH * scale;
+      return { drawW: drawH * imgRatio, drawH };
+    }
+    const drawW = canvasW * scale;
+    return { drawW, drawH: drawW / imgRatio };
+  };
+
+  if (effect === 'pan-right') {
+    const { drawW, drawH } = coverFitAt(1.02);
+    const naturalOverflow = drawW - canvasW;
+    const maxPanX = Math.min(naturalOverflow, canvasW * 0.06);
+    const startX = -(naturalOverflow - maxPanX) / 2;
+    const x = startX - maxPanX * progress;
+    const y = (canvasH - drawH) / 2;
+    ctx.drawImage(img, x, y, drawW, drawH);
+    return;
   }
+
+  const { drawW, drawH } = coverFitAt(1 + 0.08 * progress);
   const x = (canvasW - drawW) / 2;
   const y = (canvasH - drawH) / 2;
   ctx.drawImage(img, x, y, drawW, drawH);
@@ -6969,7 +6991,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
           }
           const cut = assets.images[idx];
           if (cut) {
-            drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H);
+            drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H, cut.kenBurnsEffect);
             // caption2 (if present) takes over for the back half of the cut --
             // two short captions shown one after another rather than one long
             // one. Falls back to caption alone for the whole duration when
