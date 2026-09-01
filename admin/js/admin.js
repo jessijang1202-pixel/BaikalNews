@@ -3119,7 +3119,11 @@ async function uploadImageToStorage(fileOrBlob, extHint, sourceTag) {
 // 달리 항상 같은 고정 경로에 upsert(덮어쓰기)한다. 그래서 URL 자체가
 // 고정되어 별도 설정값 저장 없이 항상 같은 주소로 불러올 수 있다. 영상은
 // 캔버스 리사이즈를 거치는 이미지와 달리 원본 그대로 올린다.
-const SHORTS_OUTRO_VIDEO_PATH = 'shorts/outro-subscribe-video';
+// article-images 버킷의 Storage RLS 정책이 "articles/"로 시작하는 경로만
+// 쓰기를 허용하도록 되어 있어(다른 모든 업로드가 전부 이 접두어를 씀),
+// 처음엔 shorts/... 로 뒀다가 "new row violates row-level security
+// policy" 에러가 나서 articles/ 아래로 옮겼다.
+const SHORTS_OUTRO_VIDEO_PATH = 'articles/shorts/outro-subscribe-video';
 
 function getShortsOutroVideoUrl() {
   const client = window.SupabaseAdapter && window.SupabaseAdapter.getClient();
