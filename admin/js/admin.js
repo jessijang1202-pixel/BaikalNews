@@ -6708,9 +6708,8 @@ async function buildShortsAssets(project) {
 // actual line break.
 // Finds the space nearest a given fraction of the way through text (0.5 =
 // midpoint) and splits there; falls back to a hard character split if no
-// space exists nearby. Shared by wrapCaptionLine (only splits if the text
-// is actually too wide) and forceTwoLines (always splits, regardless of
-// width -- used where the caller wants exactly two lines every time).
+// space exists nearby. Used by wrapCaptionLine, which only calls this when
+// the text is actually too wide for the available space.
 function findNearestSpaceSplit(text, fraction) {
   const target = Math.round(text.length * fraction);
   let splitAt = -1;
@@ -6730,38 +6729,6 @@ function findNearestSpaceSplit(text, fraction) {
 function wrapCaptionLine(ctx, text, maxWidth, targetFraction) {
   if (ctx.measureText(text).width <= maxWidth) return [text];
   return findNearestSpaceSplit(text, targetFraction != null ? targetFraction : 0.5);
-}
-
-// Finds the comma/middle-dot nearest a given fraction through the text and
-// splits right after it (keeping the mark on the first line), or null if
-// the text has none. A comma is almost always the actual clause boundary
-// in a Korean headline ("평택 간선도로 3개 노선, 7천억 규모 예타 통과" should
-// break at the comma, not at whatever word happens to sit nearest the
-// character-count target), so this is tried before the plain space split.
-function findNearestPunctuationSplit(text, fraction, punctuation) {
-  const target = Math.round(text.length * fraction);
-  let bestIdx = -1, bestDist = Infinity;
-  for (let i = 0; i < text.length; i++) {
-    if (punctuation.includes(text[i])) {
-      const dist = Math.abs(i - target);
-      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-    }
-  }
-  if (bestIdx === -1) return null;
-  return [text.slice(0, bestIdx + 1).trim(), text.slice(bestIdx + 1).trim()].filter(Boolean);
-}
-
-// Always splits into exactly two lines, preferring a natural clause break
-// (comma/middle-dot) over a bare word-boundary split -- a title split
-// "문맥에 맞춰서" (by context/meaning) rather than by raw character position.
-// Falls back to the space nearest the target fraction (default 2/3) only
-// when the text has no comma to split at.
-function forceTwoLines(text, fraction) {
-  const frac = fraction != null ? fraction : 2 / 3;
-  const punctuationSplit = findNearestPunctuationSplit(text, frac, ',，·');
-  if (punctuationSplit && punctuationSplit.length === 2) return punctuationSplit;
-  const parts = findNearestSpaceSplit(text, frac);
-  return parts.length === 2 ? parts : [parts[0] || '', ''];
 }
 
 // Splits one block of text into display lines, preferring sentence
@@ -9702,13 +9669,15 @@ function onImageNewsArticleSelected(article) {
   const statusEl = document.getElementById("imagenews-status");
   if (statusEl) statusEl.textContent = '';
 
-  // 이 기사에 저장된 요약이 있으면 자동으로 불러온다 (없으면 비워서
-  // "기사 요약" 버튼으로 새로 생성하도록 유도).
+  // 이 기사에 저장된 요약이 있으면 자동으로 불러온다. 없으면 요약은
+  // 비워 "기사 요약" 버튼으로 새로 생성하도록 유도하되, 제목은 미리
+  // 채워 둬서 요약을 만들기 전에도 제목 줄바꿈 위치를 바로 조정할 수
+  // 있게 한다.
   const summaryEl = document.getElementById("imagenews-summary");
   const summaryStatusEl = document.getElementById("imagenews-summary-status");
   if (summaryEl) {
     const saved = article ? localStorage.getItem(`baikal_imagenews_summary_${article.id}`) : null;
-    summaryEl.value = saved || '';
+    summaryEl.value = saved || (article ? `${article.title || ''}\n\n` : '');
     if (summaryStatusEl) summaryStatusEl.textContent = saved ? '저장된 요약을 불러왔습니다.' : '';
   }
 
@@ -9888,7 +9857,10 @@ ${bodyText.substring(0, 4000)}
 
     const systemInstruction = "당신은 뉴스 기사를 SNS 포토뉴스 이미지용 5줄 요약으로 재구성하는 카피라이터입니다. 앞 3줄은 사실 전달, 뒤 2줄은 임팩트 있는 강조 문장으로 정확히 5줄만 작성하고, 번호·불릿·라벨 없이 줄바꿈으로만 구분하십시오.";
     const resultText = await callGeminiTextApi(prompt, systemInstruction);
-    if (summaryEl) summaryEl.value = resultText.trim();
+    // 맨 위에 제목을 넣어 둔다 -- 빈 줄로 요약과 구분되고, 관리자가 이
+    // 제목 줄에 직접 Enter를 넣어 이미지에서 줄이 나뉘는 위치를 정할 수
+    // 있다 (parseImageNewsTitleAndSummary 참고).
+    if (summaryEl) summaryEl.value = `${article.title || ''}\n\n${resultText.trim()}`;
   } catch (err) {
     console.error("이미지 뉴스 요약 생성 실패:", err);
     if (statusEl) statusEl.textContent = "생성 실패: " + err.message;
@@ -9896,6 +9868,27 @@ ${bodyText.substring(0, 4000)}
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
   }
+}
+
+// #imagenews-summary textarea는 "제목 (직접 줄바꿈 가능) + 빈 줄 + 5줄
+// 요약" 형식이다. 첫 빈 줄을 기준으로 앞쪽을 제목, 뒤쪽을 요약으로 나눈다.
+// 빈 줄이 없으면(이 기능이 생기기 전에 저장해 둔 예전 형식이거나, 관리자가
+// 실수로 빈 줄을 지운 경우) 전체를 요약으로 보고 제목은 article.title로
+// 대신한다 -- 예전에 저장해 둔 요약도 그대로 계속 쓸 수 있게.
+function parseImageNewsTitleAndSummary(rawText, fallbackTitle) {
+  const text = rawText || '';
+  const blankLineMatch = text.match(/\n[ \t]*\n/);
+  let titleBlock, summaryBlock;
+  if (blankLineMatch) {
+    titleBlock = text.slice(0, blankLineMatch.index);
+    summaryBlock = text.slice(blankLineMatch.index + blankLineMatch[0].length);
+  } else {
+    titleBlock = fallbackTitle || '';
+    summaryBlock = text;
+  }
+  const titleLines = titleBlock.split('\n').map(l => l.trim()).filter(Boolean);
+  const summaryLines = summaryBlock.split('\n').map(l => l.trim()).filter(Boolean);
+  return { titleLines: titleLines.length ? titleLines : [fallbackTitle || ''], summaryLines };
 }
 
 async function generateArticleImageNews() {
@@ -9972,15 +9965,24 @@ async function generateArticleImageNews() {
 
     const paddingX = 56;
 
-    // 제목: 흰 글자 + 포인트 컬러 배경, 길이와 상관없이 항상 정확히 2줄로
-    // 강제 분할한다 (forceTwoLines, 왼쪽에서 2/3 지점 근처 공백 기준) --
-    // 2:1 안팎으로 나뉘어 자연히 화면 전체 폭을 채우지 않게 된다.
+    // 제목: 흰 글자 + 포인트 컬러 배경. 예전엔 forceTwoLines()로 글자 수
+    // 비율(왼쪽에서 2/3 지점) 기준으로 항상 2줄 강제 분할했는데, 실제
+    // 렌더링 폭을 전혀 재지 않다 보니 제목이 긴 기획기사에서 줄이 캔버스
+    // 밖으로 삐져나가는 문제가 있었다. 이제 제목은 기사요약 textarea 맨
+    // 위 줄(들)에서 직접 가져와 -- 관리자가 원하는 위치에 Enter로 줄바꿈을
+    // 넣을 수 있다 -- 그래도 한 줄이 여전히 캔버스보다 넓으면
+    // wrapCaptionLine으로 안전하게 한 번 더 나눈다.
     const titleFontSize = 52;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const titleLines = forceTwoLines(imageNewsSelectedArticle.title || '');
     const titleLineH = Math.round(titleFontSize * 1.35);
     const titleBoxPadX = 16, titleGap = 8;
+    ctx.font = `bold ${titleFontSize}px Pretendard, sans-serif`;
+    const maxTitleTextWidth = canvasW - paddingX * 2 - titleBoxPadX * 2;
+
+    const rawTextareaValue = (document.getElementById("imagenews-summary").value || '').trim();
+    const parsed = parseImageNewsTitleAndSummary(rawTextareaValue, imageNewsSelectedArticle.title);
+    const titleLines = parsed.titleLines.flatMap(line => wrapCaptionLine(ctx, line, maxTitleTextWidth, 0.5));
     const titleBlockH = titleLines.length * (titleLineH + titleGap);
 
     // 요약 -- 마지막 2줄만 더 크게(50px) + 포인트 컬러의 30% 밝기 라이트
@@ -9988,8 +9990,7 @@ async function generateArticleImageNews() {
     // (AI가 정확히 5줄을 안 지켜도 -- 4줄이든 6줄이든 -- 항상 끝에서
     // 2번째 줄부터 적용되도록. 고정된 인덱스로 판단하면 실제 줄 수가
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
-    const summaryText = (document.getElementById("imagenews-summary").value || '').trim();
-    const summaryLines = summaryText.split('\n').map(l => l.trim()).filter(Boolean);
+    const summaryLines = parsed.summaryLines;
     const summaryFontSizeNormal = 37;
     const summaryFontSizeEmphasis = 39;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.

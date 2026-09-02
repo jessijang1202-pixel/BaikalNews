@@ -1743,13 +1743,13 @@
 
           <div class="panel" style="padding: 24px; margin-bottom: 20px;">
             <div class="panel-header">
-              <h3 class="panel-title">기사 요약 (5줄)</h3>
+              <h3 class="panel-title">기사 제목 + 요약 (5줄)</h3>
               <button type="button" id="imagenews-summarize-btn" class="btn-admin btn-admin-secondary" onclick="generateImageNewsSummary()">기사 요약</button>
             </div>
             <p style="font-size: 0.8rem; color: var(--admin-text-secondary); margin-bottom: 16px;">
-              앞 3줄은 흰색으로, 뒤 2줄은 포인트 컬러(강조)로 표시됩니다. 검토하고 자유롭게 수정하세요.
+              첫 줄은 제목입니다 -- 제목이 길어 이미지 밖으로 나가면, 원하는 위치에서 직접 Enter로 줄을 나눠 주세요. 한 줄 띄운 뒤가 5줄 요약(앞 3줄 흰색, 뒤 2줄 포인트 컬러)입니다. 검토하고 자유롭게 수정하세요.
             </p>
-            <textarea id="imagenews-summary" class="form-control-admin" style="min-height:140px; font-family:inherit; line-height:1.6;" placeholder="아직 생성된 요약이 없습니다. 위 &quot;기사 요약&quot; 버튼을 눌러주세요. (5줄: 흰색 3줄 + 강조색 2줄)"></textarea>
+            <textarea id="imagenews-summary" class="form-control-admin" style="min-height:170px; font-family:inherit; line-height:1.6;" placeholder="기사를 선택하면 제목이 자동으로 채워집니다. 요약은 위 &quot;기사 요약&quot; 버튼을 눌러주세요.&#10;(형식: 제목 / 빈 줄 / 5줄 요약 -- 흰색 3줄 + 강조색 2줄)"></textarea>
             <button type="button" class="btn-admin btn-admin-secondary" style="margin-top:10px;" onclick="saveImageNewsSummary()">요약 저장</button>
             <p class="help-text" id="imagenews-summary-status" style="margin-top:10px;"></p>
           </div>
