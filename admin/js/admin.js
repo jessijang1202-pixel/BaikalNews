@@ -9973,7 +9973,7 @@ async function generateArticleImageNews() {
     // 위 줄(들)에서 직접 가져와 -- 관리자가 원하는 위치에 Enter로 줄바꿈을
     // 넣을 수 있다 -- 그래도 한 줄이 여전히 캔버스보다 넓으면
     // wrapCaptionLine으로 안전하게 한 번 더 나눈다.
-    const titleFontSize = 52;
+    const titleFontSize = 54;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const titleLineH = Math.round(titleFontSize * 1.35);
@@ -9992,8 +9992,8 @@ async function generateArticleImageNews() {
     // 2번째 줄부터 적용되도록. 고정된 인덱스로 판단하면 실제 줄 수가
     // 5줄이 아닐 때 엉뚱한 줄에 색이 입혀진다).
     const summaryLines = parsed.summaryLines;
-    const summaryFontSizeNormal = 37;
-    const summaryFontSizeEmphasis = 39;
+    const summaryFontSizeNormal = 39;
+    const summaryFontSizeEmphasis = 41;
     // 요약 블록만 왼쪽에 10px 추가 들여쓰기.
     const summaryIndent = 10;
     // 5줄 전부(위 3줄 + 아래 2줄) 동일한 기준: 폭 제한 없이 전체 폭을 다
@@ -10063,7 +10063,7 @@ async function generateArticleImageNews() {
     const logoImg = await loadImageNewsLogo();
     const logoH = 44;
     const logoW = (logoImg && logoImg.naturalWidth) ? logoH * (logoImg.naturalWidth / logoImg.naturalHeight) : 0;
-    ctx.font = `bold 36px sans-serif`;
+    ctx.font = `bold 38px sans-serif`;
     const brandText = "바이칼뉴스";
     const brandTextW = ctx.measureText(brandText).width;
     const badgeGap = 10;
