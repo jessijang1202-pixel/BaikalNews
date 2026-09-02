@@ -5844,7 +5844,14 @@ async function generateShortsNarration() {
 
   beginShortsBusyOperation();
   try {
-    currentShortsProject.imageCuts = readImageCutsFromDom();
+    // 예전엔 여기서 항상 자동생성 모드 편집기(#shorts-image-cuts-editor)의
+    // DOM을 다시 읽어 currentShortsProject.imageCuts를 덮어썼는데, 관리자가
+    // 수동 생성 모드에서 나레이션을 고친 경우 그 편집기 DOM은 건드리지
+    // 않으므로 여전히 예전(수정 전) 상태로 남아있어 -- 방금 저장한 수동
+    // 수정 내용이 여기서 조용히 되돌아가 버렸다. 두 모드 모두 편집할
+    // 때마다(수동은 저장 버튼, 자동은 입력할 때마다) 이미
+    // currentShortsProject.imageCuts에 직접 반영해 두므로, 굳이 특정
+    // 편집기의 DOM을 다시 읽어올 필요가 없다 -- 그대로 신뢰한다.
     const voiceSelect = document.getElementById("shorts-narration-voice");
     const voiceName = voiceSelect ? voiceSelect.value : "Kore";
     const draftId = ensureShortsLocalDraftId();
