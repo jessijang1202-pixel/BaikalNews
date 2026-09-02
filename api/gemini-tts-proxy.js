@@ -26,7 +26,18 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   if (!GEMINI_API_KEY) { res.status(500).json({ error: 'GEMINI_API_KEY not configured' }); return; }
 
-  const { text, voiceName } = req.body || {};
+  const { text, voiceName, debugListModels } = req.body || {};
+  if (debugListModels) {
+    try {
+      const res2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+      const data = await res2.json();
+      const names = (data.models || []).filter(m => /tts/i.test(m.name)).map(m => m.name);
+      res.status(200).json({ names });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+    return;
+  }
   if (!text) { res.status(400).json({ error: 'text is required' }); return; }
 
   try {
@@ -51,10 +62,10 @@ module.exports = async (req, res) => {
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     const audioPart = parts.find(p => p.inlineData && p.inlineData.data);
     if (!audioPart) {
-      res.status(502).json({ error: 'AI가 음성 데이터를 반환하지 않았습니다.' });
+      res.status(502).json({ error: 'AI가 음성 데이터를 반환하지 않았습니다.', model, debugRaw: JSON.stringify(data).slice(0, 1500) });
       return;
     }
-    res.status(200).json({ audioData: audioPart.inlineData.data, mimeType: audioPart.inlineData.mimeType || 'audio/L16;rate=24000' });
+    res.status(200).json({ audioData: audioPart.inlineData.data, mimeType: audioPart.inlineData.mimeType || 'audio/L16;rate=24000', model });
   } catch (err) {
     console.error('gemini-tts-proxy error:', err);
     res.status(500).json({ error: err.message });
