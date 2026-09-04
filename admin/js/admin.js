@@ -5808,7 +5808,7 @@ function applyShortsNarrationMood(text) {
 // Supabase later doesn't need to re-fetch and re-encode the local blob.
 // 영상 말미 "구독 유도" 엔딩 세그먼트의 고정 나레이션 문구 -- 기사/스타일과
 // 무관하게 항상 동일하다.
-const SHORTS_OUTRO_NARRATION_TEXT = "바이칼뉴스입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요.";
+const SHORTS_OUTRO_NARRATION_TEXT = "바이칼TV입니다. 구독 좋아요 알림 설정하고 새로운 소식 받아보세요.";
 
 async function generateCutNarration(cutObj, text, voiceName, draftId, target) {
   if (!text) return;
