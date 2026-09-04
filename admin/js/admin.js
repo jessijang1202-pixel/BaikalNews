@@ -6625,7 +6625,7 @@ async function buildShortsAssets(project) {
     // 여기서 한 번만 뽑아 저장한다 (매 프레임 다시 뽑으면 화면이 계속
     // 바뀌어 버린다).
     const kenBurnsEffect = SHORTS_KEN_BURNS_EFFECTS[Math.floor(Math.random() * SHORTS_KEN_BURNS_EFFECTS.length)];
-    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl, kenBurnsEffect });
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl, kenBurnsEffect, uploaded: !!cut.uploaded });
     img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
     img.src = cut.imageUrl;
   })));
@@ -6960,6 +6960,35 @@ function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW, canvasH) {
   ctx.drawImage(videoEl, x, y, drawW, drawH);
 }
 
+// 관리자가 직접 업로드한 이미지 컷(cut.uploaded)은 나머지(AI 생성) 컷과
+// 달리 Ken Burns cover-fit으로 잘라내지 않는다 -- 본인이 고른 사진이라
+// 일부가 crop되어 안 보이면 원치 않는 내용이 잘릴 수 있다. 원본 비율을
+// 유지한 채 늘리지도 줄이지도 않는 선에서(contain-fit) 줄이기만 하고,
+// 화면 하단(캔버스 맨 아래)에 붙여서 배치한다 -- 위쪽은 상단 배너(검정
+// 바탕 제목)가 이미 차지하고 있으므로, 남는 여백이 생기면 배너와
+// 자연스럽게 이어지는 위쪽에 남는다(step()이 매 프레임 검정으로 먼저
+// 채우므로 별도 배경 처리가 필요 없다). Ken Burns 모션은 적용하지
+// 않는다 -- 원본 비율을 그대로 지키는 게 목적이라 확대/이동과는 상충한다.
+function drawShortsImageContainBottom(ctx, img, project, canvasW, canvasH) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  if (!iw || !ih) return;
+  const bannerH = project.topBarTitle ? (project.topBarHeight || 360) : 0;
+  const areaH = canvasH - bannerH;
+  const areaRatio = canvasW / areaH;
+  const imgRatio = iw / ih;
+  let drawW, drawH;
+  if (imgRatio > areaRatio) {
+    drawW = canvasW;
+    drawH = drawW / imgRatio;
+  } else {
+    drawH = areaH;
+    drawW = drawH * imgRatio;
+  }
+  const x = (canvasW - drawW) / 2;
+  const y = bannerH + (areaH - drawH);
+  ctx.drawImage(img, x, y, drawW, drawH);
+}
+
 // Ken Burns motion over the cut's duration so static images don't look
 // completely frozen against the Veo clip's motion. Each cut is randomly
 // assigned one of 4 effects once at asset-build time (see
@@ -7233,7 +7262,11 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
           }
           const cut = assets.images[idx];
           if (cut) {
-            drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H, cut.kenBurnsEffect);
+            if (cut.uploaded) {
+              drawShortsImageContainBottom(ctx, cut.img, project, W, H);
+            } else {
+              drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H, cut.kenBurnsEffect);
+            }
             // caption2 (if present) takes over for the back half of the cut --
             // two short captions shown one after another rather than one long
             // one. Falls back to caption alone for the whole duration when
