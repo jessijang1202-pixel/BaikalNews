@@ -6625,7 +6625,7 @@ async function buildShortsAssets(project) {
     // 여기서 한 번만 뽑아 저장한다 (매 프레임 다시 뽑으면 화면이 계속
     // 바뀌어 버린다).
     const kenBurnsEffect = SHORTS_KEN_BURNS_EFFECTS[Math.floor(Math.random() * SHORTS_KEN_BURNS_EFFECTS.length)];
-    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl, kenBurnsEffect, uploaded: !!cut.uploaded });
+    img.onload = () => resolve({ img, duration: cut.duration, caption: cut.caption, caption2: cut.caption2 || '', narrationUrl: cut.narrationUrl, kenBurnsEffect });
     img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다: " + cut.imageUrl));
     img.src = cut.imageUrl;
   })));
@@ -6960,33 +6960,36 @@ function drawShortsFrontVideoNative(ctx, videoEl, project, canvasW, canvasH) {
   ctx.drawImage(videoEl, x, y, drawW, drawH);
 }
 
-// 관리자가 직접 업로드한 이미지 컷(cut.uploaded)은 나머지(AI 생성) 컷과
-// 달리 Ken Burns cover-fit으로 잘라내지 않는다 -- 본인이 고른 사진이라
-// 일부가 crop되어 안 보이면 원치 않는 내용이 잘릴 수 있다. 원본 비율을
-// 유지한 채 늘리지도 줄이지도 않는 선에서(contain-fit) 줄이기만 하고,
-// 화면 하단(캔버스 맨 아래)에 붙여서 배치한다 -- 위쪽은 상단 배너(검정
-// 바탕 제목)가 이미 차지하고 있으므로, 남는 여백이 생기면 배너와
-// 자연스럽게 이어지는 위쪽에 남는다(step()이 매 프레임 검정으로 먼저
-// 채우므로 별도 배경 처리가 필요 없다). Ken Burns 모션은 적용하지
-// 않는다 -- 원본 비율을 그대로 지키는 게 목적이라 확대/이동과는 상충한다.
-function drawShortsImageContainBottom(ctx, img, project, canvasW, canvasH) {
+// cut.uploaded는 "인터넷에서 받은 자료 사진"과 "수동 생성 모드에서
+// Gemini로 만든 뒤 업로드한 이미지"를 구분하지 못한다 -- 수동 모드는 둘 다
+// 같은 업로드 칸을 거치므로, 이 플래그만으로는 컷 전체가 조용히
+// 작게(cover-fit 없이) 나오는 결과가 됐다. 대신 이미지 자체의 실제
+// 가로:세로 비율이 세로형 캔버스 영역과 "유난히" 다른 경우에만(가로로
+// 넓은 인터넷 사진 등) 잘라내지 않고 중앙 정렬로 보여주고, 나머지(비율이
+// 비슷한 대부분의 컷, AI 생성 이미지 포함)는 기존처럼 Ken Burns
+// cover-fit + 모션을 그대로 적용해 화면을 꽉 채운다.
+function drawShortsCutImage(ctx, img, progress, project, canvasW, canvasH, kenBurnsEffect) {
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   if (!iw || !ih) return;
   const bannerH = project.topBarTitle ? (project.topBarHeight || 360) : 0;
   const areaH = canvasH - bannerH;
   const areaRatio = canvasW / areaH;
   const imgRatio = iw / ih;
-  let drawW, drawH;
-  if (imgRatio > areaRatio) {
-    drawW = canvasW;
-    drawH = drawW / imgRatio;
-  } else {
-    drawH = areaH;
-    drawW = drawH * imgRatio;
+
+  // 세로형 영역 비율보다 40% 이상 옆으로 넓으면(가로 사진, 정사각형 사진
+  // 등) "유난히 다른" 경우로 본다 -- 이 정도면 cover-fit으로 채울 때
+  // 좌우가 크게 잘려나가 사진의 핵심 내용을 잃기 쉽다.
+  if (imgRatio > areaRatio * 1.4) {
+    let drawW, drawH;
+    if (imgRatio > areaRatio) { drawW = canvasW; drawH = drawW / imgRatio; }
+    else { drawH = areaH; drawW = drawH * imgRatio; }
+    const x = (canvasW - drawW) / 2;
+    const y = bannerH + (areaH - drawH) / 2; // 세로 중앙 정렬
+    ctx.drawImage(img, x, y, drawW, drawH);
+    return;
   }
-  const x = (canvasW - drawW) / 2;
-  const y = bannerH + (areaH - drawH);
-  ctx.drawImage(img, x, y, drawW, drawH);
+
+  drawShortsKenBurnsImage(ctx, img, progress, canvasW, canvasH, kenBurnsEffect);
 }
 
 // Ken Burns motion over the cut's duration so static images don't look
@@ -7262,11 +7265,7 @@ async function runShortsTimelineInner(canvas, assets, project, { record } = {}) 
           }
           const cut = assets.images[idx];
           if (cut) {
-            if (cut.uploaded) {
-              drawShortsImageContainBottom(ctx, cut.img, project, W, H);
-            } else {
-              drawShortsKenBurnsImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), W, H, cut.kenBurnsEffect);
-            }
+            drawShortsCutImage(ctx, cut.img, Math.min(t / (cutDurations[idx] || 1), 1), project, W, H, cut.kenBurnsEffect);
             // caption2 (if present) takes over for the back half of the cut --
             // two short captions shown one after another rather than one long
             // one. Falls back to caption alone for the whole duration when
