@@ -112,16 +112,6 @@
     "api/gemini-text-proxy.js": { "maxDuration": 60 },
     "api/gemini-image-proxy.js": { "maxDuration": 60 }
   },
-  "crons": [
-    {
-      "path": "/api/generate-daily-briefing",
-      "schedule": "0 23 * * *"
-    },
-    {
-      "path": "/api/send-kakao-briefing",
-      "schedule": "15 23 * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/admin/(.*)",

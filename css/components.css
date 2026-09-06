@@ -604,6 +604,12 @@
    choose between the two. */
 .newsletter-block.kakao-block {
   background: #FFF6C8;
+  /* 애드센스 재심사 기간 동안 3분 뉴스 브리핑 기능 전체(자동 생성 cron,
+     공개 페이지 briefing.html, 이 신청 박스)를 잠시 멈춰둔다. 다시 켜려면
+     이 display 줄 자체를 지우면 사이트 전체(홈/카테고리/기사 사이드바)에
+     한 번에 다시 보인다 -- 아래 .compact 변형과 specificity가 같아서
+     !important 없이는 어느 쪽이 이길지 선언 순서에 좌우된다. */
+  display: none !important;
 }
 .newsletter-block.kakao-block .newsletter-input:focus {
   border-color: #FEE500;
