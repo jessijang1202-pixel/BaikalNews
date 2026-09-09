@@ -94,7 +94,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { prompt, imageConfig } = req.body || {};
+  const { prompt, imageConfig, debugVerbose } = req.body || {};
+  if (req.body && req.body.debugListModels) {
+    try {
+      res.status(200).json({ candidates: await listCandidateImageModels(GEMINI_API_KEY) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+    return;
+  }
   if (!prompt) {
     res.status(400).json({ error: 'prompt is required' });
     return;
@@ -103,15 +111,18 @@ module.exports = async (req, res) => {
   try {
     const candidates = await listCandidateImageModels(GEMINI_API_KEY);
     let lastFailure = null;
+    const attemptLog = [];
 
     for (const model of candidates.slice(0, MAX_CANDIDATES)) {
       const result = await tryImageModel(model, prompt, imageConfig);
       if (!result.ok) {
         if (result.timedOut) {
           lastFailure = { error: `모델(${model})이 응답하지 않았습니다 (타임아웃).` };
+          attemptLog.push({ model, note: 'timeout' });
         } else {
           const errText = await result.response.text();
           lastFailure = { status: result.response.status, error: `AI 이미지 생성 실패 (모델: ${model}): ${errText}` };
+          attemptLog.push({ model, status: result.response.status, errText: errText.slice(0, 300) });
         }
         continue;
       }
@@ -127,11 +138,11 @@ module.exports = async (req, res) => {
       // model도 함께 반환 -- 어떤 모델이 실제로 그렸는지 프론트/콘솔에서
       // 바로 확인할 수 있게 해서, 모델 선택 로직이 의도대로 동작하는지
       // (특히 텍스트 렌더링 품질 이슈) 나중에 다시 진단하기 쉽게 한다.
-      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model });
+      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model, attemptLog: debugVerbose ? attemptLog : undefined });
       return;
     }
 
-    res.status(502).json({ error: lastFailure ? lastFailure.error : 'AI가 이미지를 생성하지 못했습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.' });
+    res.status(502).json({ error: lastFailure ? lastFailure.error : 'AI가 이미지를 생성하지 못했습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.', attemptLog: debugVerbose ? attemptLog : undefined });
   } catch (err) {
     console.error('gemini-image-proxy error:', err);
     res.status(500).json({ error: err.message });
