@@ -94,15 +94,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { prompt, imageConfig, debugVerbose } = req.body || {};
-  if (req.body && req.body.debugListModels) {
-    try {
-      res.status(200).json({ candidates: await listCandidateImageModels(GEMINI_API_KEY) });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-    return;
-  }
+  const { prompt, imageConfig } = req.body || {};
   if (!prompt) {
     res.status(400).json({ error: 'prompt is required' });
     return;
@@ -117,11 +109,13 @@ module.exports = async (req, res) => {
       let result = await tryImageModel(model, prompt, imageConfig);
       let attempts = 1;
       // 503(과부하)은 구글 메시지 자체가 "보통 일시적"이라고 안내하므로,
-      // 같은(텍스트 렌더링 품질이 더 좋은) 모델로 한 번 더 재시도해 볼
-      // 가치가 있다 -- 다른 후보로 곧장 넘어가 버리면(특히 Pro가 503일
-      // 때) 한글이 자주 깨지는 하위 모델로 매번 밀려나게 된다. 다른
-      // 에러(400 등)는 재시도해도 똑같이 실패하므로 503일 때만 재시도한다.
-      while (!result.ok && !result.timedOut && result.response.status === 503 && attempts < 2) {
+      // 같은(텍스트 렌더링 품질이 더 좋은) 모델로 재시도해 볼 가치가
+      // 있다 -- 다른 후보로 곧장 넘어가 버리면(특히 Pro가 503일 때) 한글이
+      // 자주 깨지는 하위 모델로 매번 밀려나게 된다. 실측 결과 재시도
+      // 1회로는 부족한 경우가 있어(연속 503) 최대 2회 재시도(총 3회
+      // 시도)로 늘림. 다른 에러(400 등)는 재시도해도 똑같이 실패하므로
+      // 503일 때만 재시도한다.
+      while (!result.ok && !result.timedOut && result.response.status === 503 && attempts < 3) {
         await new Promise(r => setTimeout(r, 2000));
         result = await tryImageModel(model, prompt, imageConfig);
         attempts++;
@@ -149,11 +143,15 @@ module.exports = async (req, res) => {
       // model도 함께 반환 -- 어떤 모델이 실제로 그렸는지 프론트/콘솔에서
       // 바로 확인할 수 있게 해서, 모델 선택 로직이 의도대로 동작하는지
       // (특히 텍스트 렌더링 품질 이슈) 나중에 다시 진단하기 쉽게 한다.
-      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model, attemptLog: debugVerbose ? attemptLog : undefined });
+      res.status(200).json({ dataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`, model });
       return;
     }
 
-    res.status(502).json({ error: lastFailure ? lastFailure.error : 'AI가 이미지를 생성하지 못했습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.', attemptLog: debugVerbose ? attemptLog : undefined });
+    // 모든 후보가 실패한 경우 서버 로그에만 시도 이력을 남긴다 (클라이언트
+    // 응답에는 노출하지 않음) -- 나중에 다시 진단할 때 Vercel 로그에서
+    // 어떤 모델이 왜 실패했는지 바로 확인할 수 있게 하기 위함.
+    console.error('gemini-image-proxy: all candidates failed', JSON.stringify(attemptLog));
+    res.status(502).json({ error: lastFailure ? lastFailure.error : 'AI가 이미지를 생성하지 못했습니다. 프롬프트를 조금 더 구체적으로 작성해 보세요.' });
   } catch (err) {
     console.error('gemini-image-proxy error:', err);
     res.status(500).json({ error: err.message });
