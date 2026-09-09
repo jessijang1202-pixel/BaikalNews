@@ -114,15 +114,26 @@ module.exports = async (req, res) => {
     const attemptLog = [];
 
     for (const model of candidates.slice(0, MAX_CANDIDATES)) {
-      const result = await tryImageModel(model, prompt, imageConfig);
+      let result = await tryImageModel(model, prompt, imageConfig);
+      let attempts = 1;
+      // 503(과부하)은 구글 메시지 자체가 "보통 일시적"이라고 안내하므로,
+      // 같은(텍스트 렌더링 품질이 더 좋은) 모델로 한 번 더 재시도해 볼
+      // 가치가 있다 -- 다른 후보로 곧장 넘어가 버리면(특히 Pro가 503일
+      // 때) 한글이 자주 깨지는 하위 모델로 매번 밀려나게 된다. 다른
+      // 에러(400 등)는 재시도해도 똑같이 실패하므로 503일 때만 재시도한다.
+      while (!result.ok && !result.timedOut && result.response.status === 503 && attempts < 2) {
+        await new Promise(r => setTimeout(r, 2000));
+        result = await tryImageModel(model, prompt, imageConfig);
+        attempts++;
+      }
       if (!result.ok) {
         if (result.timedOut) {
           lastFailure = { error: `모델(${model})이 응답하지 않았습니다 (타임아웃).` };
-          attemptLog.push({ model, note: 'timeout' });
+          attemptLog.push({ model, note: 'timeout', attempts });
         } else {
           const errText = await result.response.text();
           lastFailure = { status: result.response.status, error: `AI 이미지 생성 실패 (모델: ${model}): ${errText}` };
-          attemptLog.push({ model, status: result.response.status, errText: errText.slice(0, 300) });
+          attemptLog.push({ model, status: result.response.status, errText: errText.slice(0, 300), attempts });
         }
         continue;
       }
