@@ -10373,30 +10373,54 @@ async function generateCardNewsImage() {
   }
 
   const originalLabel = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = "생성 중... (최대 1분 정도 걸릴 수 있습니다)"; }
+  if (btn) { btn.disabled = true; btn.textContent = "생성 중... (한글 렌더링 재시도 포함, 최대 2~3분 정도 걸릴 수 있습니다)"; }
   if (statusEl) statusEl.textContent = '';
   if (resultWrap) resultWrap.style.display = 'none';
 
   try {
     // generateGeminiImage()는 기사 대표 이미지용 사실적 사진 규칙을 강제로
     // 붙이므로 여기서는 쓰지 않고, 같은 프록시를 직접 호출한다.
-    const response = await fetch("https://baikalnews.com/api/gemini-image-proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
-    });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`카드뉴스 생성 실패 (HTTP ${response.status}): ${errText}`);
-    }
-    const data = await response.json();
-    if (!data.dataUri) {
-      throw new Error("AI가 이미지를 반환하지 않았습니다.");
+    //
+    // 한글 텍스트 렌더링은 Pro급 모델(gemini-3-pro-image 계열)에서만
+    // 신뢰할 수 있고, flash급으로 밀려나면 글자가 깨져서 나온다 (실측
+    // 확인됨). 서버(gemini-image-proxy.js)에서 Pro가 503일 때 이미
+    // 재시도하지만, 서버 함수 자체가 60초 제한(vercel.json maxDuration)
+    // 안에 갇혀 있어 재시도 횟수를 무한정 늘릴 수 없다 -- 그래서 여기서
+    // 클라이언트 쪽으로 한 번 더, 매번 새로운 60초 예산을 받는 완전히
+    // 새 요청으로 재시도한다. Pro 모델로 그려질 때까지, 또는 최대
+    // 시도 횟수에 도달할 때까지 반복한다.
+    const isProImageModel = (model) => /gemini-3[.-]?.*pro.*image/i.test(model || '') || /nano-banana-pro/i.test(model || '');
+    const MAX_CARDNEWS_ATTEMPTS = 3;
+    let data = null;
+    let usedProModel = false;
+    for (let attempt = 1; attempt <= MAX_CARDNEWS_ATTEMPTS; attempt++) {
+      if (attempt > 1 && statusEl) {
+        statusEl.textContent = `고품질 한글 렌더링 모델이 혼잡하여 재시도 중... (${attempt}/${MAX_CARDNEWS_ATTEMPTS})`;
+      }
+      const response = await fetch("https://baikalnews.com/api/gemini-image-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`카드뉴스 생성 실패 (HTTP ${response.status}): ${errText}`);
+      }
+      data = await response.json();
+      if (!data.dataUri) {
+        throw new Error("AI가 이미지를 반환하지 않았습니다.");
+      }
+      usedProModel = isProImageModel(data.model);
+      if (usedProModel || attempt === MAX_CARDNEWS_ATTEMPTS) break;
     }
     if (previewImg) previewImg.src = data.dataUri;
     if (downloadLink) downloadLink.href = data.dataUri;
     if (resultWrap) resultWrap.style.display = 'block';
-    if (statusEl) statusEl.textContent = "카드뉴스 이미지가 생성되었습니다.";
+    if (statusEl) {
+      statusEl.textContent = usedProModel
+        ? "카드뉴스 이미지가 생성되었습니다."
+        : "카드뉴스 이미지가 생성되었습니다. ⚠️ 현재 고품질 한글 렌더링 모델이 혼잡해 글자가 부정확할 수 있습니다 -- 확인 후 이상하면 다시 생성해 주세요.";
+    }
     if (cardNewsSelectedArticle) markArticleWorkDone(cardNewsSelectedArticle.id, 'sns');
   } catch (err) {
     console.error("카드뉴스 이미지 생성 실패:", err);
