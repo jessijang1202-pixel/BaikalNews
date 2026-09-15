@@ -1136,6 +1136,71 @@
       const list = JSON.parse(localStorage.getItem("baikal_shorts") || "[]").filter(s => s.id !== id);
       localStorage.setItem("baikal_shorts", JSON.stringify(list));
       return true;
+    },
+
+    // ==========================================
+    // 숏폼 스타일 템플릿 (재사용 가능한 참고 영상 분석 결과) -- 개별
+    // 숏폼 프로젝트(shorts 테이블)와는 별개로, admin이 "템플릿으로 저장"한
+    // 것들의 목록이다. 예전엔 localStorage(baikal_shorts_style_templates)
+    // 에만 있어서 크롬 프로필을 새로 만들거나 다른 컴퓨터로 옮기면 통째로
+    // 사라졌다 -- 이 테이블이 그 문제의 진짜 해결책이다.
+    // ==========================================
+    fetchShortsStyleTemplates: async function() {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { data, error } = await client
+              .from('shorts_style_templates')
+              .select('*')
+              .order('created_at', { ascending: true });
+            if (error) throw error;
+            return (data || []).map(row => ({ id: row.id, name: row.name, styleGuide: row.style_guide || '' }));
+          } catch (err) {
+            console.error("Supabase fetchShortsStyleTemplates error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      return JSON.parse(localStorage.getItem("baikal_shorts_style_templates") || "[]");
+    },
+
+    saveShortsStyleTemplate: async function(tpl) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const dbRow = { id: tpl.id, name: tpl.name, style_guide: tpl.styleGuide || '', updated_at: new Date().toISOString() };
+            const { error } = await client.from('shorts_style_templates').upsert(dbRow, { onConflict: 'id' });
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase saveShortsStyleTemplate error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const list = JSON.parse(localStorage.getItem("baikal_shorts_style_templates") || "[]");
+      const idx = list.findIndex(t => t.id === tpl.id);
+      if (idx !== -1) list[idx] = tpl; else list.push(tpl);
+      localStorage.setItem("baikal_shorts_style_templates", JSON.stringify(list));
+      return true;
+    },
+
+    deleteShortsStyleTemplate: async function(id) {
+      if (this.isConfigured()) {
+        const client = this.getClient();
+        if (client) {
+          try {
+            const { error } = await client.from('shorts_style_templates').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+          } catch (err) {
+            console.error("Supabase deleteShortsStyleTemplate error, falling back to LocalStorage:", err);
+          }
+        }
+      }
+      const list = JSON.parse(localStorage.getItem("baikal_shorts_style_templates") || "[]").filter(t => t.id !== id);
+      localStorage.setItem("baikal_shorts_style_templates", JSON.stringify(list));
+      return true;
     }
   };
 

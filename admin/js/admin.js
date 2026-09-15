@@ -3656,7 +3656,6 @@ let shortsAssets = null; // { front: {type, el, duration}, images: [{img, durati
 let shortsPendingUploads = []; // File objects awaiting a 전반/후반 placement choice
 const SHORTS_TARGET_CUT_COUNT = 5; // total 후반 image cuts (AI + uploaded combined)
 const SHORTS_MAX_BACK_UPLOADS = 5;
-const SHORTS_STYLE_TEMPLATES_KEY = "baikal_shorts_style_templates";
 const SHORTS_LAST_TEMPLATE_ID_KEY = "baikal_shorts_last_template_id";
 
 // Refreshing/closing the tab mid-generation (Veo, images, narration,
@@ -3985,12 +3984,14 @@ async function keepShortsImageLocal(fileOrBlob, mediaKey) {
   return keepShortsBlobLocal(blob, mediaKey);
 }
 
-function getShortsStyleTemplates() {
-  return JSON.parse(localStorage.getItem(SHORTS_STYLE_TEMPLATES_KEY) || "[]");
-}
-
-function setShortsStyleTemplates(list) {
-  localStorage.setItem(SHORTS_STYLE_TEMPLATES_KEY, JSON.stringify(list));
+// Backed by Supabase's shorts_style_templates table (SupabaseAdapter falls
+// back to localStorage on its own if Supabase is unreachable/not yet
+// migrated) -- this used to be localStorage-only, so a new Chrome profile or
+// a different computer started with an empty list and every saved template
+// (and which one was "last used") was simply gone. Supabase is now the
+// source of truth so templates survive a wiped profile or a new device.
+async function getShortsStyleTemplates() {
+  return window.SupabaseAdapter.fetchShortsStyleTemplates();
 }
 
 // SHORTS_LAST_TEMPLATE_ID_KEY is just a pointer to whichever template was
@@ -4000,19 +4001,21 @@ function setShortsStyleTemplates(list) {
 // template still exists, which reads to the admin as "the template
 // disappeared." When exactly one template is registered, there's no
 // ambiguity about which one should be the default, so fall back to it
-// automatically instead of leaving the pointer broken.
-function getDefaultShortsTemplateId() {
-  const templates = getShortsStyleTemplates();
+// automatically instead of leaving the pointer broken. This pointer itself
+// stays in localStorage (it's a per-browser UI convenience, not data worth
+// losing sleep over) -- only the template list/content is the fragile part.
+async function getDefaultShortsTemplateId() {
+  const templates = await getShortsStyleTemplates();
   const lastId = localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) || "";
   if (lastId && templates.some(t => t.id === lastId)) return lastId;
   if (templates.length === 1) return templates[0].id;
   return "";
 }
 
-function populateShortsStyleTemplateSelect(selectedId) {
+async function populateShortsStyleTemplateSelect(selectedId) {
   const select = document.getElementById("shorts-style-template-select");
   if (!select) return;
-  const templates = getShortsStyleTemplates();
+  const templates = await getShortsStyleTemplates();
   select.innerHTML = `<option value="">-- 직접 입력 / 새로 업로드 --</option>` +
     templates.map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.name}</option>`).join('');
   const deleteBtn = document.getElementById("shorts-delete-template-btn");
@@ -4021,8 +4024,8 @@ function populateShortsStyleTemplateSelect(selectedId) {
 
 // Loads a saved template's text into the editable textarea (or clears it for
 // "직접 입력") and remembers the choice so the next new project defaults to it.
-function applyShortsStyleTemplate(templateId) {
-  const templates = getShortsStyleTemplates();
+async function applyShortsStyleTemplate(templateId) {
+  const templates = await getShortsStyleTemplates();
   const tpl = templates.find(t => t.id === templateId);
   document.getElementById("shorts-style-guide").value = tpl ? tpl.styleGuide : "";
   localStorage.setItem(SHORTS_LAST_TEMPLATE_ID_KEY, templateId || "");
@@ -4041,14 +4044,14 @@ function applyShortsStyleTemplate(templateId) {
 // Saves the textarea's current content as a named template -- either a brand
 // new one (템플릿 1, 템플릿 2, ... suggested by default) or, if the admin keeps
 // the currently-selected template's own name, updates that template in place.
-function saveShortsStyleTemplate() {
+async function saveShortsStyleTemplate() {
   const text = document.getElementById("shorts-style-guide").value.trim();
   if (!text) {
     alert("저장할 스타일 가이드 내용이 없습니다.");
     return;
   }
 
-  const templates = getShortsStyleTemplates();
+  const templates = await getShortsStyleTemplates();
   const select = document.getElementById("shorts-style-template-select");
   const currentId = select ? select.value : "";
   const existing = templates.find(t => t.id === currentId);
@@ -4057,37 +4060,31 @@ function saveShortsStyleTemplate() {
   const name = prompt("템플릿 이름을 입력하세요:", suggestedName);
   if (!name) return;
 
-  let savedId;
-  if (existing && existing.name === name) {
-    existing.styleGuide = text;
-    savedId = existing.id;
-  } else {
-    const newTpl = { id: `tpl-${Date.now()}`, name, styleGuide: text };
-    templates.push(newTpl);
-    savedId = newTpl.id;
-  }
+  const tpl = existing && existing.name === name
+    ? { id: existing.id, name, styleGuide: text }
+    : { id: `tpl-${Date.now()}`, name, styleGuide: text };
 
-  setShortsStyleTemplates(templates);
-  localStorage.setItem(SHORTS_LAST_TEMPLATE_ID_KEY, savedId);
-  populateShortsStyleTemplateSelect(savedId);
+  await window.SupabaseAdapter.saveShortsStyleTemplate(tpl);
+  localStorage.setItem(SHORTS_LAST_TEMPLATE_ID_KEY, tpl.id);
+  await populateShortsStyleTemplateSelect(tpl.id);
   document.getElementById("shorts-style-status").textContent = `"${name}" 템플릿으로 저장되었습니다.`;
 }
 
-function deleteShortsStyleTemplate() {
+async function deleteShortsStyleTemplate() {
   const select = document.getElementById("shorts-style-template-select");
   const templateId = select ? select.value : "";
   if (!templateId) return;
 
-  const templates = getShortsStyleTemplates();
+  const templates = await getShortsStyleTemplates();
   const tpl = templates.find(t => t.id === templateId);
   if (!tpl) return;
   if (!confirm(`"${tpl.name}" 템플릿을 삭제하시겠습니까?`)) return;
 
-  setShortsStyleTemplates(templates.filter(t => t.id !== templateId));
+  await window.SupabaseAdapter.deleteShortsStyleTemplate(templateId);
   if (localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) === templateId) {
     localStorage.removeItem(SHORTS_LAST_TEMPLATE_ID_KEY);
   }
-  populateShortsStyleTemplateSelect("");
+  await populateShortsStyleTemplateSelect("");
   document.getElementById("shorts-style-guide").value = "";
   document.getElementById("shorts-style-status").textContent = "템플릿이 삭제되었습니다.";
 }
@@ -4374,9 +4371,9 @@ async function startNewShortsProject() {
   // Pre-select whichever style template was used last, so admins don't have
   // to re-upload/re-pick a reference video for every new project -- but they
   // can still switch templates or start blank from the dropdown.
-  const lastTemplateId = getDefaultShortsTemplateId();
-  populateShortsStyleTemplateSelect(lastTemplateId);
-  applyShortsStyleTemplate(lastTemplateId);
+  const lastTemplateId = await getDefaultShortsTemplateId();
+  await populateShortsStyleTemplateSelect(lastTemplateId);
+  await applyShortsStyleTemplate(lastTemplateId);
 
   resetShortsWizardSections();
 
@@ -4451,7 +4448,7 @@ async function openShortsProject(id) {
   document.getElementById("shorts-wizard-title").textContent = `숏폼 #${id} 편집`;
   await populateShortsArticleSelect();
   document.getElementById("shorts-article-select").value = project.articleId || "";
-  populateShortsStyleTemplateSelect(""); // this project's own saved text, not tied to a template
+  await populateShortsStyleTemplateSelect(""); // this project's own saved text, not tied to a template
   document.getElementById("shorts-style-guide").value = project.styleGuide || "";
   document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
   resetShortsWizardSections();
@@ -4607,7 +4604,7 @@ async function openLocalShortsDraft(localDraftId) {
   document.getElementById("shorts-wizard-title").textContent = "로컬 임시 숏폼 편집";
   await populateShortsArticleSelect();
   document.getElementById("shorts-article-select").value = draft.articleId || "";
-  populateShortsStyleTemplateSelect("");
+  await populateShortsStyleTemplateSelect("");
   document.getElementById("shorts-style-guide").value = draft.styleGuide || "";
   document.getElementById("shorts-style-status").textContent = "업로드하면 AI가 영상의 분위기·톤·편집 리듬을 분석해 스타일 가이드를 만듭니다.";
   resetShortsWizardSections();
