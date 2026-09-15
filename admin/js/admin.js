@@ -3993,6 +3993,22 @@ function setShortsStyleTemplates(list) {
   localStorage.setItem(SHORTS_STYLE_TEMPLATES_KEY, JSON.stringify(list));
 }
 
+// SHORTS_LAST_TEMPLATE_ID_KEY is just a pointer to whichever template was
+// last used -- if it's ever missing or stale (cleared separately from the
+// template list itself, or pointing at a since-renamed/deleted id), a new
+// project silently falls back to "직접 입력" even though a real saved
+// template still exists, which reads to the admin as "the template
+// disappeared." When exactly one template is registered, there's no
+// ambiguity about which one should be the default, so fall back to it
+// automatically instead of leaving the pointer broken.
+function getDefaultShortsTemplateId() {
+  const templates = getShortsStyleTemplates();
+  const lastId = localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) || "";
+  if (lastId && templates.some(t => t.id === lastId)) return lastId;
+  if (templates.length === 1) return templates[0].id;
+  return "";
+}
+
 function populateShortsStyleTemplateSelect(selectedId) {
   const select = document.getElementById("shorts-style-template-select");
   if (!select) return;
@@ -4358,7 +4374,7 @@ async function startNewShortsProject() {
   // Pre-select whichever style template was used last, so admins don't have
   // to re-upload/re-pick a reference video for every new project -- but they
   // can still switch templates or start blank from the dropdown.
-  const lastTemplateId = localStorage.getItem(SHORTS_LAST_TEMPLATE_ID_KEY) || "";
+  const lastTemplateId = getDefaultShortsTemplateId();
   populateShortsStyleTemplateSelect(lastTemplateId);
   applyShortsStyleTemplate(lastTemplateId);
 
