@@ -1073,7 +1073,6 @@
         if (client) {
           try {
             const dbRow = {
-              id: shorts.id,
               article_id: shorts.articleId || null,
               status: shorts.status || 'script_draft',
               hook_text: shorts.hookText || '',
@@ -1088,6 +1087,13 @@
               created_by: shorts.createdBy || '',
               updated_at: new Date().toISOString()
             };
+            // A brand-new project has no id yet (admin.js sends it as
+            // explicit null, not undefined) -- if that null were included
+            // in the upsert, it would try to INSERT NULL into the SERIAL
+            // primary key and fail the NOT NULL constraint instead of
+            // letting the DB assign a new id. Only set id when there
+            // already is one, so a new row omits the column entirely.
+            if (shorts.id) dbRow.id = shorts.id;
             const { data, error } = await client
               .from('shorts')
               .upsert(dbRow, { onConflict: 'id' })
