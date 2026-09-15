@@ -4793,23 +4793,31 @@ async function archiveShortsProject() {
 // request size) and waits for server-side processing to finish before it can
 // be referenced. Files auto-expire after 48 hours on Google's side -- no
 // explicit cleanup needed for a one-off analysis like this.
-async function uploadFileToGeminiFilesApi(file, apiKey) {
-  const startRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
+//
+// Used to call Google's "start" upload endpoint directly from the browser
+// with a separate client-stored Gemini key (baikal_gemini_key) -- the one
+// AI feature left depending on that after every other feature (image/text/
+// TTS/Veo) moved to a server-side proxy, and the likely reason "템플릿
+// 형성하기" stopped working on a browser that never had that separate key
+// saved (nothing else needs it anymore). Now routes the "start" call and
+// the processing-status poll through small server proxies
+// (api/gemini-video-upload-start-proxy.js, api/gemini-video-status-proxy.js)
+// that hold the key server-side; the actual video bytes still go straight
+// from this browser to Google's upload URL, since that's a self-authorized
+// session URL that doesn't need the key again, and piping potentially
+// gigabyte-sized video through our own small serverless function would
+// defeat the point of using the Files API at all.
+async function uploadFileToGeminiFilesApi(file) {
+  const startRes = await fetch("https://baikalnews.com/api/gemini-video-upload-start-proxy", {
     method: "POST",
-    headers: {
-      "X-Goog-Upload-Protocol": "resumable",
-      "X-Goog-Upload-Command": "start",
-      "X-Goog-Upload-Header-Content-Length": String(file.size),
-      "X-Goog-Upload-Header-Content-Type": file.type || 'video/mp4',
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ file: { display_name: file.name || 'reference-video' } })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fileName: file.name || 'reference-video', fileSize: file.size, mimeType: file.type || 'video/mp4' })
   });
   if (!startRes.ok) {
     const errText = await startRes.text();
     throw new Error(`영상 업로드 시작 실패 (HTTP ${startRes.status}): ${errText}`);
   }
-  const uploadUrl = startRes.headers.get("X-Goog-Upload-URL");
+  const { uploadUrl } = await startRes.json();
   if (!uploadUrl) {
     throw new Error("영상 업로드 URL을 받지 못했습니다.");
   }
@@ -4836,9 +4844,14 @@ async function uploadFileToGeminiFilesApi(file, apiKey) {
   let attempts = 0;
   while (fileInfo.state === 'PROCESSING' && attempts < 30) {
     await new Promise(r => setTimeout(r, 2000));
-    const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileInfo.name}?key=${apiKey}`);
+    const checkRes = await fetch("https://baikalnews.com/api/gemini-video-status-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: fileInfo.name })
+    });
     if (!checkRes.ok) break;
-    fileInfo = await checkRes.json();
+    const status = await checkRes.json();
+    fileInfo = { ...fileInfo, ...status };
     attempts++;
   }
   if (fileInfo.state === 'FAILED') {
@@ -4854,13 +4867,7 @@ async function uploadFileToGeminiFilesApi(file, apiKey) {
 // this summary is fed as a text style guide into the script/image prompts
 // instead (see generateShortsScript / generateShortsMedia).
 async function analyzeShortsStyleReference(file) {
-  const apiKey = localStorage.getItem("baikal_gemini_key");
-  if (!apiKey) {
-    throw new Error("Gemini API Key가 등록되지 않았습니다. (참고 영상 분석에도 이미지 생성용 Gemini 키를 사용합니다)");
-  }
-
-  const uploaded = await uploadFileToGeminiFilesApi(file, apiKey);
-  const model = await resolveGeminiVisionModel(apiKey);
+  const uploaded = await uploadFileToGeminiFilesApi(file);
   const prompt = `아래 업로드된 숏폼 영상을 분석하여, 이 영상의 분위기·톤·편집 리듬·색감·자막 스타일을 한국어로 간결하게 요약해 주십시오. 이 요약은 이후 비슷한 분위기의 새로운 숏폼 영상을 기획할 때 스타일 가이드로 사용됩니다.
 
 다음 항목을 포함해 5~8문장으로 작성하십시오:
@@ -4872,17 +4879,10 @@ async function analyzeShortsStyleReference(file) {
 
 다른 설명 없이 요약 본문만 출력하십시오.`;
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+  const response = await fetch("https://baikalnews.com/api/gemini-video-analyze-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{
-        parts: [
-          { fileData: { fileUri: uploaded.uri, mimeType: uploaded.mimeType } },
-          { text: prompt }
-        ]
-      }]
-    })
+    body: JSON.stringify({ prompt, fileUri: uploaded.uri, mimeType: uploaded.mimeType })
   });
 
   if (!response.ok) {
@@ -4890,11 +4890,10 @@ async function analyzeShortsStyleReference(file) {
     throw new Error(`영상 분석 실패 (HTTP ${response.status}): ${errText}`);
   }
   const data = await response.json();
-  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-  if (!parts || !parts[0] || !parts[0].text) {
+  if (!data.text) {
     throw new Error("영상 분석 결과를 받지 못했습니다.");
   }
-  return parts[0].text.trim();
+  return data.text;
 }
 
 async function handleShortsStyleUpload(event) {
@@ -5578,41 +5577,6 @@ async function approveShortsScript() {
   const mediaSection = document.getElementById("shorts-media-section");
   mediaSection.style.display = "block";
   mediaSection.scrollIntoView({ behavior: "smooth" });
-}
-
-// Resolves a Gemini model with general multimodal (text+video/image understanding)
-// capability -- used for analyzing an uploaded reference shorts video's style.
-async function resolveGeminiVisionModel(apiKey) {
-  const cacheKey = "baikal_gemini_vision_model";
-  const cacheTimeKey = "baikal_gemini_vision_model_cached_at";
-  const cached = localStorage.getItem(cacheKey);
-  const cachedAt = parseInt(localStorage.getItem(cacheTimeKey) || "0", 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  if (cached && (Date.now() - cachedAt) < oneDayMs) {
-    return cached;
-  }
-
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!res.ok) throw new Error("ListModels failed with status " + res.status);
-    const data = await res.json();
-    const models = (data.models || []).filter(m =>
-      (m.supportedGenerationMethods || []).includes("generateContent") &&
-      !/embedding|tts|imagen|image-generation/i.test(m.name)
-    );
-    if (models.length === 0) throw new Error("No usable multimodal models available");
-
-    const pick = (predicate) => models.find(predicate);
-    const chosen = pick(m => /flash-latest$/i.test(m.name)) || pick(m => /flash/i.test(m.name)) || models[0];
-    const modelName = chosen.name.replace(/^models\//, '');
-    localStorage.setItem(cacheKey, modelName);
-    localStorage.setItem(cacheTimeKey, String(Date.now()));
-    return modelName;
-  } catch (err) {
-    console.error("Gemini vision model auto-discovery failed, falling back:", err);
-    return cached || "gemini-flash-latest";
-  }
 }
 
 // Plain-text Gemini call (not Claude) -- used specifically for writing the

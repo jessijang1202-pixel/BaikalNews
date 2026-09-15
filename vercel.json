@@ -110,7 +110,8 @@
   ],
   "functions": {
     "api/gemini-text-proxy.js": { "maxDuration": 60 },
-    "api/gemini-image-proxy.js": { "maxDuration": 60 }
+    "api/gemini-image-proxy.js": { "maxDuration": 60 },
+    "api/gemini-video-analyze-proxy.js": { "maxDuration": 60 }
   },
   "headers": [
     {
