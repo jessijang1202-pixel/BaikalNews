@@ -31,9 +31,14 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// limit=40 used to silently truncate this list -- confirmed live (2026-09-16)
+// that "culture" already has 54 published articles, so 14 of them had no
+// crawlable link anywhere on this page (there's no pagination link either).
+// Raised to 100, comfortably above every category's current count, so this
+// stays a non-issue for a while; revisit if any category approaches it.
 async function fetchCategoryArticles(cat) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/articles?category=eq.${encodeURIComponent(cat)}&status=eq.published&select=id,title,lead,date&order=date.desc,id.desc&limit=40`,
+    `${SUPABASE_URL}/rest/v1/articles?category=eq.${encodeURIComponent(cat)}&status=eq.published&select=id,title,lead,date&order=date.desc,id.desc&limit=100`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   );
   if (!res.ok) return [];

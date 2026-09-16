@@ -59,6 +59,26 @@ async function fetchArticle(id) {
   return rows.length > 0 ? rows[0] : null;
 }
 
+// Same-category recent articles, excluding this one -- Googlebot sees this
+// page (see the big comment at the top of this file) and otherwise finds
+// ZERO links to other articles here: home/category pages only expose their
+// most recent ~30-40 with no pagination link, so once a bot crawls into an
+// article it was a dead end, leaving sitemap.xml as the only discovery path
+// for anything older. Confirmed live via Search Console (2026-09-16): 65 of
+// 70 unindexed pages were "발견됨 - 현재 색인이 생성되지 않음" (Discovered,
+// not yet indexed) -- sitemap-only discovery is a weak signal, especially
+// for a still-low-authority site, and doesn't distribute any internal link
+// equity between articles. This gives crawlers actual hyperlink paths into
+// older content instead.
+async function fetchRelatedArticles(category, excludeId) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/articles?select=id,title,date&category=eq.${encodeURIComponent(category)}&status=eq.published&id=neq.${encodeURIComponent(excludeId)}&order=id.desc&limit=6`,
+    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
 module.exports = async (req, res) => {
   const id = req.query.id;
   const article = id ? await fetchArticle(id) : null;
@@ -112,6 +132,16 @@ module.exports = async (req, res) => {
     }).join('') + '</ul>';
   }
 
+  const relatedArticles = await fetchRelatedArticles(article.category, article.id);
+  const relatedHtml = relatedArticles.length > 0
+    ? `<section>
+<h2>관련 기사</h2>
+<ul>
+${relatedArticles.map(r => `<li><a href="https://baikalnews.com/article.html?id=${r.id}">${escapeHtml(r.title)}</a></li>`).join('\n')}
+</ul>
+</section>`
+    : '';
+
   const ldJson = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -161,6 +191,7 @@ ${article.content || ''}
 <p>${escapeHtml(byline)} · 바이칼 뉴스의 공식 편집위원 및 보도기자로서 투명하고 공정한 팩트 검증을 완료한 기사를 발행합니다.</p>
 </section>
 ${revisionHtml ? `<section><h2>수정 이력</h2>${revisionHtml}</section>` : ''}
+${relatedHtml}
 <p><a href="${escapeHtml(pageUrl)}">바이칼 뉴스에서 기사 보기</a></p>
 </body>
 </html>`;
