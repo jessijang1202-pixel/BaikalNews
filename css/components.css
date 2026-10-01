@@ -492,8 +492,11 @@
 
 /* Extra breathing room above/below the 오피니언 block specifically,
    on top of the generic .home-split-item divider spacing. */
+/* No padding-top override here anymore -- it must stay equal to the
+   generic 40px (same as 생활정보's own divider spacing) so the "오피니언"
+   section-header text lines up exactly with "생활정보"'s, not just the
+   divider line above it. Only extra space below is kept. */
 #opinion-section {
-  padding-top: 56px;
   margin-bottom: 16px;
 }
 
