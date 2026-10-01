@@ -1786,24 +1786,36 @@ const ARTICLE_TYPE_RULES = {
 - 보도자료 내용을 사실 그대로 재구성하되(문장은 반드시 재구성, 원문 복사 금지), 비판적 시각을 반드시 포함.
 - "비판적 시각": 예산 근거, 실행 가능성, 과거 유사 사업의 성과, 형평성, 빠진 디테일 등 보도자료가 밝히지 않은 질문을 짚거나 기존 사실관계와 비교. 무조건적 트집이 아니라 건설적 의문 제기.
 - 마지막 소제목 1개 이상은 반드시 비판적·분석적 관점으로 마무리 (홍보성 일변도 금지).`,
-  '오피니언': `오피니언 (논설)
+  // 오피니언은 필진 명의별로 문체가 완전히 달라, 예전처럼 "AI가 둘 중
+  // 하나를 골라라"가 아니라 관리자가 드롭다운에서 명의 자체를 지정하게
+  // 바꿨다 (2026-10 개정) -- 그래서 유형이 하나가 아니라 "오피니언
+  // 최상락"/"오피니언 장승희" 두 개로 나뉜다.
+  '오피니언 최상락': `오피니언 (논설) -- 최상락 명의로 작성
 - 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
 - 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
-- 필진 명의: "최상락"(간결체 -- 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌름) 또는 "장승희"(부드러운 문체 -- 비유와 서사 활용, 독자 감정에 호소하되 논지는 분명함) 중 글의 소재에 더 적합한 쪽을 선택하십시오.`
+- 문체: 최상락 명의 -- 간결체. 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌르는 스타일.`,
+  '오피니언 장승희': `오피니언 (논설) -- 장승희 명의로 작성
+- 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
+- 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
+- 문체: 장승희 명의 -- 부드러운 문체. 비유와 서사를 활용하고, 독자의 감정에 호소하는 문장을 섞어 쓰되 논지는 분명히 함.`
 };
 
 // pinnedType이 주어지면(관리자가 드롭다운에서 유형을 직접 지정) 그 유형
-// 하나만 고정해 돌려주고, 비어 있으면(기본값 "자동 판단") 예전처럼 4개
+// 하나만 고정해 돌려주고, 비어 있으면(기본값 "자동 판단") 예전처럼 5개
 // 유형을 전부 주고 AI가 스스로 고르게 한다.
 function buildArticleTypeGuidance(pinnedType) {
   const body = (pinnedType && ARTICLE_TYPE_RULES[pinnedType])
     ? `[기사 유형 지정 - 반드시 아래 "${pinnedType}" 유형 규정을 그대로 따르십시오 (스스로 다른 유형으로 판단하지 마십시오)]\n\n${ARTICLE_TYPE_RULES[pinnedType]}`
-    : `[기사 유형별 분량·구조·톤 규정 - 아래 네 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
+    : `[기사 유형별 분량·구조·톤 규정 - 아래 다섯 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
+
+  const authorStyleLine = (pinnedType && pinnedType.startsWith('오피니언'))
+    ? `- 이 기사는 "${pinnedType.replace('오피니언 ', '')}" 명의로 지정되어 있습니다. JSON의 "authorStyle" 필드에 그 이름을 그대로 반환하십시오.`
+    : `- 위 유형이 "오피니언 최상락" 또는 "오피니언 장승희"면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 해당하는 명의를 반환하십시오. 둘 다 아니면 이 필드는 생략하십시오.`;
 
   return `${body}
 
 [JSON 출력 시 추가 규칙]
-- 위 유형이 "오피니언"이면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 선택한 명의를 반환하십시오. 오피니언이 아니면 이 필드는 생략하십시오.
+${authorStyleLine}
 - 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.
 `;
 }
@@ -2016,7 +2028,13 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
   };
 }
 
-// ---- Mode 2: 링크 재구성 ----
+// ---- Mode 2: 보도자료로 기사 작성 ----
+// check.md v2 "0. 개정 배경": 편집국이 직접 취재가 어려운 당분간은 평택시
+// 등 공공기관 보도자료를 기반으로 한 재구성 기사가 주력이 된다 -- 그래서
+// 이 모드는 "글 유형" 드롭다운이 기본값부터 "보도자료"로 고정되어 있다
+// (admin/index.html 참고). 메커니즘 자체는 URL 스크래핑/본문 붙여넣기
+// 그대로라 일반 참고 기사 재구성에도 여전히 쓸 수 있다 -- 그럴 땐 글 유형을
+// 바꾸면 된다.
 async function generateLinkDraft() {
   const styleId = document.getElementById("ai-link-style").value;
   const url = document.getElementById("ai-link-url").value.trim();
@@ -2025,7 +2043,7 @@ async function generateLinkDraft() {
   const articleType = document.getElementById("ai-link-article-type").value;
 
   if (!url && !rawText) {
-    throw new Error("출처 링크(URL) 또는 기사 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
+    throw new Error("출처 링크(URL) 또는 보도자료 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
   }
 
   let articleText = rawText;
@@ -2034,12 +2052,12 @@ async function generateLinkDraft() {
     try {
       articleText = await scrapeExternalLink(url);
     } catch (err) {
-      throw new Error("외부 기사 크롤링에 실패했습니다. 본문 텍스트를 직접 붙여넣어 주세요.");
+      throw new Error("외부 링크 크롤링에 실패했습니다. 본문 텍스트를 직접 붙여넣어 주세요.");
     }
   }
 
   if (!articleText || articleText.length < 50) {
-    throw new Error("가져온 기사 본문이 너무 짧거나 비어 있습니다. 기사 본문을 직접 붙여넣어 주세요.");
+    throw new Error("가져온 본문이 너무 짧거나 비어 있습니다. 보도자료 본문을 직접 붙여넣어 주세요.");
   }
 
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
@@ -2048,7 +2066,7 @@ async function generateLinkDraft() {
   setAiLoaderText("원문을 분석하고 새로운 관점의 기사로 재구성하는 중...");
 
   const prompt = `
-아래 원천 기사(또는 보도자료)의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다. 원문이 평택시 등 공공기관·기업의 보도자료라면, 아래 유형 규정 중 "보도자료" 규정(비판적 시각 포함)을 반드시 따르십시오.
+아래는 평택시 등 공공기관·기업의 보도자료(또는 참고 기사)입니다. 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다.
 
 [원천 기사 본문]
 ${articleText.substring(0, 4000)}
@@ -2534,13 +2552,20 @@ function renderDeepTopicList() {
   `).join('');
 }
 
-// check.md v2의 4개 유형(취재/생활정보/보도자료/오피니언) 표기와
-// buildArticleTypeGuidance()가 받는 값을 맞추기 위한 매핑 -- 편성안의
-// "category" 필드는 "오피니언 — 최상락 명의 추천"처럼 부가 설명이 붙어
-// 있을 수 있어, 앞부분만 보고 네 유형 중 하나로 정규화한다.
+// check.md v2의 5개 유형(취재/생활정보/보도자료/오피니언 최상락/오피니언
+// 장승희) 표기와 buildArticleTypeGuidance()가 받는 값을 맞추기 위한 매핑
+// -- 편성안의 "category" 필드는 "오피니언 — 최상락 명의 추천"처럼 부가
+// 설명이 붙어 있을 수 있어, 그 안에 명의가 언급돼 있으면 해당 명의로
+// 정규화하고, 오피니언인데 명의가 안 적혀 있으면(예: "오피니언 (오마이뉴스
+// 톤)") 둘 중 하나로 임의로 고르지 않고 빈 값(관리자가 직접 선택)으로
+// 둔다.
 function normalizeArticleType(rawCategory) {
   const text = (rawCategory || '');
-  if (text.includes('오피니언')) return '오피니언';
+  if (text.includes('오피니언')) {
+    if (text.includes('최상락')) return '오피니언 최상락';
+    if (text.includes('장승희')) return '오피니언 장승희';
+    return '';
+  }
   if (text.includes('보도자료')) return '보도자료';
   if (text.includes('생활정보')) return '생활정보';
   if (text.includes('취재')) return '취재';
@@ -2804,7 +2829,7 @@ function resetAiWriter() {
   document.getElementById("ai-link-url").value = "";
   document.getElementById("ai-link-raw-text").value = "";
   document.getElementById("ai-link-category").selectedIndex = 0;
-  document.getElementById("ai-link-article-type").selectedIndex = 0;
+  document.getElementById("ai-link-article-type").value = "보도자료"; // 이 모드의 기본 글 유형
 
   // Mode 3: trending
   trendingArticles = [];
