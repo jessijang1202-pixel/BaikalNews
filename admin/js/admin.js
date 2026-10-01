@@ -2,7 +2,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   initAdminAuth();
   setupEventListeners();
-  loadGeminiApiKey();
 });
 
 // 0. Login gate (client-side only: validated against the registered admin account list)
@@ -675,21 +674,16 @@ async function switchTab(tabName) {
     await syncScheduledArticlesToPublished();
     await renderArticlesList();
   } else if (tabName === 'web-briefing') {
-    loadGeminiApiKey();
     await loadOrGenerateWebBriefing();
   } else if (tabName === 'ai-writer') {
-    loadGeminiApiKey();
     await loadWritingStyles();
   } else if (tabName === 'ai-training') {
-    loadGeminiApiKey();
     await populateTrainingStyleSelect();
   } else if (tabName === 'shorts') {
-    loadGeminiApiKey();
     await renderShortsList();
     loadShortsOutroVideoPreview();
   } else if (tabName === 'letter-send') {
     await loadOrGenerateNewsletterDraft();
-    loadGeminiApiKey();
     renderKakaoSendModeUI();
     await loadKakaoSendModeFromServer();
     // 카카오 압축은 웹사이트 원문을 소스로 쓰므로, 이 탭에 웹 브리핑
@@ -4700,7 +4694,6 @@ async function startNewShortsProject() {
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
-  loadGeminiApiKey();
 }
 
 async function openShortsProject(id) {
@@ -4796,7 +4789,6 @@ async function openShortsProject(id) {
 
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
-  loadGeminiApiKey();
 }
 
 // Resumes a local-only draft (script text saved via saveShortsDraftLocally).
@@ -4971,7 +4963,6 @@ async function openLocalShortsDraft(localDraftId) {
   }
   document.getElementById("shorts-wizard-panel").style.display = "block";
   ensureShortsStoragePersisted();
-  loadGeminiApiKey();
 }
 
 function closeShortsWizard() {
@@ -11041,45 +11032,6 @@ async function disconnectSupabase() {
 // & AI Writing Styles Learning / Generation Logic
 // ==========================================================
 
-function toggleApiConfig() {
-  const content = document.getElementById("api-config-content");
-  const icon = document.getElementById("api-config-toggle-icon");
-  if (content.style.display === "none" || !content.style.display) {
-    content.style.display = "block";
-    icon.textContent = "▲";
-  } else {
-    content.style.display = "none";
-    icon.textContent = "▼";
-  }
-}
-
-function saveGeminiApiKey() {
-  const keyInput = document.getElementById("ai-gemini-key").value.trim();
-  if (keyInput) {
-    localStorage.setItem("baikal_gemini_key", keyInput);
-    document.getElementById("api-key-status").textContent = "API Key가 안전하게 저장되었습니다.";
-    document.getElementById("api-key-status").style.color = "#10b981"; // green
-  } else {
-    localStorage.removeItem("baikal_gemini_key");
-    document.getElementById("api-key-status").textContent = "API Key가 제거되었습니다.";
-    document.getElementById("api-key-status").style.color = "#ef4444"; // red
-  }
-}
-
-function loadGeminiApiKey() {
-  const savedKey = localStorage.getItem("baikal_gemini_key");
-  const keyInput = document.getElementById("ai-gemini-key");
-  const statusSpan = document.getElementById("api-key-status");
-  if (savedKey && keyInput && statusSpan) {
-    keyInput.value = savedKey;
-    statusSpan.textContent = "API Key 연동 중";
-    statusSpan.style.color = "#10b981"; // green
-  } else if (keyInput && statusSpan) {
-    keyInput.value = "";
-    statusSpan.textContent = "API Key가 설정되지 않았습니다. 숏폼(Shorts) 참고영상 스타일 분석(참고 영상을 업로드해 분위기·톤을 분석하는 기능) 기능을 사용하려면 등록하십시오.";
-    statusSpan.style.color = "#fbbf24"; // yellow
-  }
-}
 
 // Two shared "논조" reference styles the newsroom studies, seeded once and then
 // refined over time via the AI 글쓰기 학습 page. Each admin also gets their own
