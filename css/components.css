@@ -178,16 +178,28 @@
   margin-top: auto;
 }
 
-/* Homepage 3-column category rows */
+/* Homepage 5-column category rows -- all 5 cards fit on one row, so text
+   sizes are trimmed down from the base .card styles (built for a 3-column
+   row) to keep titles from wrapping to 3-4 lines at this narrower width. */
 .home-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 18px;
 }
 
 .home-row > p {
   grid-column: 1 / -1;
   color: var(--text-muted);
+}
+
+.home-row .card-title {
+  font-size: 0.92rem;
+  margin-bottom: 6px;
+}
+
+.home-row .card-excerpt {
+  font-size: 0.78rem;
+  -webkit-line-clamp: 2;
 }
 
 /* ============================================================
@@ -233,9 +245,9 @@
 
 .card-hero .card-title {
   color: var(--text-primary);
-  font-size: 2rem;
-  line-height: 1.25;
-  margin-bottom: 12px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  margin-bottom: 8px;
 }
 
 .card-hero .card-excerpt {
@@ -704,7 +716,7 @@
 
 @media (max-width: 768px) {
   .card-hero .card-title {
-    font-size: 1.45rem;
+    font-size: 1.2rem;
   }
 
   /* The 2 hero cards are too cramped side by side at this width -- stack
@@ -794,16 +806,6 @@
   .newsletter-form {
     flex-basis: 100%;
   }
-}
-
-/* Dynamic category colors for breadcrumbs / inline labels (single accent) */
-.color-culture,
-.color-economy,
-.color-tech,
-.color-local,
-.color-opinion {
-  color: var(--accent-cyan) !important;
-  font-weight: 600;
 }
 
 /* ============================================================

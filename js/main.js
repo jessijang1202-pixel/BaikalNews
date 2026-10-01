@@ -563,17 +563,19 @@ function renderHomepage() {
     heroContainer.innerHTML = heroArts.map(art => createArticleCardHTML(art, 'hero')).join('');
   }
 
-  // Feature #2: Latest Articles Grid (secondary headlines, 4 items on desktop --
-  // reduced from 5 to roughly match the 2-up hero's shorter height now that
-  // it's split into 2 narrower cards instead of 1 wide one. CSS hides the
-  // last item on mobile so it still shows 3 there). Uses the manually
-  // curated 최신 보도 picks if set, auto-filling any remaining slots with
-  // the most recently dated published articles (excluding the hero(es) and
-  // whatever's already picked).
+  // Feature #2: Latest Articles Grid (secondary headlines, 3 items on desktop --
+  // the hero's title shrank to match #latest-grid-container's own title size
+  // (2026-10 tweak), which made the 2-up hero noticeably shorter, so this
+  // dropped from 4 to 3 to keep matching its height. CSS hides the last
+  // item on mobile too, which is now a no-op at 3 but kept for safety if
+  // this count ever goes back up). Uses the manually curated 최신 보도
+  // picks if set, auto-filling any remaining slots with the most recently
+  // dated published articles (excluding the hero(es) and whatever's
+  // already picked).
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
     const latestNewsIds = curation.latestNewsIds || [];
-    const LATEST_NEWS_COUNT = 4;
+    const LATEST_NEWS_COUNT = 3;
 
     let latestItems = latestNewsIds
       .map(id => published.find(a => a.id === id))
