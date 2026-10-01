@@ -506,6 +506,28 @@ function createArticleCardHTML(article, mode = 'standard') {
         </div>
       </article>
     `;
+  } else if (mode === 'overlay') {
+    // NOTE: the title needs its own <a>, so the image link can't wrap the
+    // whole card (nested <a> tags are invalid HTML and get silently closed
+    // early by the parser, breaking the overlay layout) -- image link and
+    // title link are siblings inside .card-image-wrapper instead.
+    return `
+      <article class="card card-overlay">
+        <div class="card-image-wrapper">
+          <a href="article.html?id=${article.id}" class="card-overlay-img-link">
+            <img src="${imageUrl}" alt="${article.title}" class="card-image" loading="lazy" decoding="async">
+          </a>
+          <div class="card-overlay-scrim"></div>
+          <div class="card-overlay-content">
+            <h3 class="card-title"><a href="article.html?id=${article.id}">${article.title}</a></h3>
+            <div class="card-meta">
+              <span class="card-author">${bylineText}</span>
+              <span class="card-date">${article.date}</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    `;
   } else if (mode === 'minimal') {
     return `
       <article class="card card-minimal">
@@ -612,29 +634,44 @@ function renderHomepage() {
   }
 
   // Feature #4: Popular Reads (fully automatic -- selected and ordered by
-  // view count). Moved into .home-split-right (2026-10) as a vertical
-  // ranked list with thumbnails -- reuses 'standard' card markup the same
-  // way #latest-grid-container does, with the rank number added purely via
-  // CSS counter() on .card-title::before (see #popular-reads-container in
-  // components.css) rather than 'minimal' mode's old number-only/no-image
-  // row style.
+  // view count). Vertical ranked list in .home-split-right, no thumbnails --
+  // 'minimal' mode with a large prominent rank number (see
+  // #popular-reads-container in components.css), sized to roughly match
+  // the left column's first category section (평택소식) in height.
   const popularContainer = document.getElementById("popular-reads-container");
   if (popularContainer) {
     const popularItems = getOrderedPopularArticles(published, null, 5);
     popularContainer.innerHTML = popularItems.length > 0
-      ? popularItems.map(art => createArticleCardHTML(art, 'standard')).join('')
+      ? popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('')
       : `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
   }
 
-  // Feature #5: Category Highlights (5 sections stacked in the left column
-  // of .home-split, 6 cards each over 2 rows of 3). A category with no
-  // articles yet is hidden entirely rather than shown as an empty section.
+  // Feature #4b: 오피니언 block in .home-split-right, below 실시간 인기기사 --
+  // large image with the title overlaid directly on it ('overlay' mode),
+  // now that 오피니언 is no longer one of the left column's category rows.
+  const opinionOverlayContainer = document.getElementById("opinion-overlay-container");
+  if (opinionOverlayContainer) {
+    const opinionItems = getArticlesByCategory("opinion").slice(0, 5);
+    const opinionSectionEl = opinionOverlayContainer.closest('section') || opinionOverlayContainer.parentElement;
+    if (opinionItems.length > 0) {
+      opinionOverlayContainer.innerHTML = opinionItems.map(art => createArticleCardHTML(art, 'overlay')).join('');
+      if (opinionSectionEl) opinionSectionEl.style.display = '';
+    } else {
+      opinionOverlayContainer.innerHTML = '';
+      if (opinionSectionEl) opinionSectionEl.style.display = 'none';
+    }
+  }
+
+  // Feature #5: Category Highlights (4 sections stacked in the left column
+  // of .home-split, 6 cards each over 2 rows of 3). 오피니언 moved out of
+  // this list (2026-10) into its own overlay block in the right column
+  // (Feature #4b above). A category with no articles yet is hidden
+  // entirely rather than shown as an empty section.
   const categoryRows = [
     { id: "pyeongtaek-row-container", cat: "pyeongtaek" },
     { id: "life-row-container", cat: "life" },
     { id: "economy-row-container", cat: "economy" },
-    { id: "culture-row-container", cat: "culture" },
-    { id: "opinion-row-container", cat: "opinion" }
+    { id: "culture-row-container", cat: "culture" }
   ];
 
   categoryRows.forEach(row => {
