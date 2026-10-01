@@ -201,6 +201,13 @@
   border-bottom: 1px solid var(--border-light);
 }
 
+/* Top headline slot holds 2 hero cards side by side instead of 1 wide one. */
+#featured-hero-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
 .card-hero {
   display: flex;
   flex-direction: column;
@@ -411,53 +418,6 @@
 #popular-reads-container .card-minimal .card-title {
   font-size: 0.98rem;
   margin-bottom: 0;
-}
-
-/* ============================================================
-   Photo gallery - 4-column square tiles + caption
-   ============================================================ */
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-}
-
-.photo-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.photo-tile {
-  display: block;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  background-color: var(--bg-tertiary);
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 9px,
-    oklch(100% 0 0 / 0.35) 9px,
-    oklch(100% 0 0 / 0.35) 18px
-  );
-}
-
-.photo-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.6s ease;
-}
-
-.photo-tile:hover img {
-  transform: scale(1.04);
-}
-
-.photo-caption {
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-  margin-top: 8px;
 }
 
 /* ============================================================
@@ -732,14 +692,13 @@
     grid-template-columns: 1fr;
     gap: 28px;
   }
+  /* 2 hero cards stay side by side down to tablet width, but stack on
+     narrower screens (768px breakpoint below) where that'd be too cramped. */
   #popular-reads-container {
     grid-template-columns: repeat(3, 1fr);
   }
   #popular-reads-container .card-minimal:nth-child(3n) {
     border-right: none;
-  }
-  .photo-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -748,10 +707,17 @@
     font-size: 1.45rem;
   }
 
-  /* 최신 보도 shows 5 items on desktop but only 3 on mobile -- hide the
-     last 2 and restore "last item" styling (no border/padding) on the
-     3rd, since it's now the visually-last row even though #4/#5 still
-     exist right after it in the DOM. */
+  /* The 2 hero cards are too cramped side by side at this width -- stack
+     them instead. */
+  #featured-hero-container {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  /* 최신 보도 shows 4 items on desktop but only 3 on mobile -- hide the
+     last one and restore "last item" styling (no border/padding) on the
+     3rd, since it's now the visually-last row even though #4 still
+     exists right after it in the DOM. */
   #latest-grid-container .card:nth-child(n+4) {
     display: none;
   }
@@ -820,18 +786,6 @@
   }
   #popular-reads-container .card-minimal::before {
     font-size: 1.4rem;
-  }
-
-  /* Photo gallery becomes a horizontal scroll strip */
-  .photo-grid {
-    display: flex;
-    grid-template-columns: none;
-    gap: 12px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .photo-item {
-    flex: 0 0 130px;
   }
 
   .newsletter-block {

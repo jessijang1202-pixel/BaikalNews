@@ -551,33 +551,36 @@ function renderHomepage() {
     latestNewsIds: []
   };
 
-  // Hero is always the single most recently published article -- no manual
-  // pinning. Computed once here so Feature #2 (below) excludes the exact
-  // same article rather than re-deriving it separately.
-  const heroArt = published.slice().sort(compareArticlesByDateDesc)[0];
+  // Hero is always the 2 most recently published articles side by side --
+  // no manual pinning. Computed once here so Feature #2 (below) excludes
+  // the exact same articles rather than re-deriving them separately.
+  const HERO_COUNT = 2;
+  const heroArts = published.slice().sort(compareArticlesByDateDesc).slice(0, HERO_COUNT);
 
-  // Feature #1: Hero/Featured Article
+  // Feature #1: Hero/Featured Articles
   const heroContainer = document.getElementById("featured-hero-container");
   if (heroContainer) {
-    heroContainer.innerHTML = createArticleCardHTML(heroArt, 'hero');
+    heroContainer.innerHTML = heroArts.map(art => createArticleCardHTML(art, 'hero')).join('');
   }
 
-  // Feature #2: Latest Articles Grid (secondary headlines, 5 items on desktop --
-  // CSS hides the last 2 on mobile so it still shows 3 there). Uses the
-  // manually curated 최신 보도 picks if set, auto-filling any remaining slots
-  // with the most recently dated published articles (excluding the hero and
+  // Feature #2: Latest Articles Grid (secondary headlines, 4 items on desktop --
+  // reduced from 5 to roughly match the 2-up hero's shorter height now that
+  // it's split into 2 narrower cards instead of 1 wide one. CSS hides the
+  // last item on mobile so it still shows 3 there). Uses the manually
+  // curated 최신 보도 picks if set, auto-filling any remaining slots with
+  // the most recently dated published articles (excluding the hero(es) and
   // whatever's already picked).
   const latestContainer = document.getElementById("latest-grid-container");
   if (latestContainer) {
     const latestNewsIds = curation.latestNewsIds || [];
-    const LATEST_NEWS_COUNT = 5;
+    const LATEST_NEWS_COUNT = 4;
 
     let latestItems = latestNewsIds
       .map(id => published.find(a => a.id === id))
       .filter(Boolean);
 
     if (latestItems.length < LATEST_NEWS_COUNT) {
-      const usedIds = new Set([heroArt.id, ...latestItems.map(a => a.id)]);
+      const usedIds = new Set([...heroArts.map(a => a.id), ...latestItems.map(a => a.id)]);
       const autoFill = published
         .filter(a => !usedIds.has(a.id))
         .slice()
@@ -615,7 +618,7 @@ function renderHomepage() {
       : `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
   }
 
-  // Feature #5: Category Highlights (5 full-width sections, 3 cards each).
+  // Feature #5: Category Highlights (5 full-width sections, 5 cards each).
   // A category with no articles yet is hidden entirely rather than shown
   // as an empty section.
   const categoryRows = [
@@ -630,7 +633,7 @@ function renderHomepage() {
     const container = document.getElementById(row.id);
     if (!container) return;
 
-    const articles = getArticlesByCategory(row.cat).slice(0, 3);
+    const articles = getArticlesByCategory(row.cat).slice(0, 5);
     const sectionEl = container.closest('section') || container.parentElement;
 
     if (articles.length > 0) {
@@ -641,33 +644,6 @@ function renderHomepage() {
       if (sectionEl) sectionEl.style.display = 'none';
     }
   });
-
-  // Feature #6: Photo Gallery (4 most recently published articles)
-  const photoContainer = document.getElementById("photo-gallery-container");
-  if (photoContainer) {
-    // published is ordered by id ascending (Supabase fetch order), which
-    // isn't the same as actual publish recency -- an article scheduled
-    // for today can have a lower id than one queued for a later date, so
-    // slicing off the array's tail silently dropped the true latest
-    // article whenever id order and date order disagreed. Same root
-    // cause as the 최신 보도 fix; reuses the same comparator.
-    const photoItems = published.slice().sort(compareArticlesByDateDesc).slice(0, 4);
-    if (photoItems.length > 0) {
-      photoContainer.innerHTML = photoItems.map(art => {
-        const imageUrl = art.image || 'images/baikal_ice.png';
-        return `
-          <figure class="photo-item">
-            <a class="photo-tile" href="article.html?id=${art.id}">
-              <img src="${imageUrl}" alt="${art.title}" loading="lazy" decoding="async">
-            </a>
-            <p class="photo-caption">${art.title}</p>
-          </figure>
-        `;
-      }).join('');
-    } else {
-      photoContainer.innerHTML = `<p style="color: var(--text-muted);">등록된 포토 기사가 없습니다.</p>`;
-    }
-  }
 }
 
 // 4. Render Category Archive Page
