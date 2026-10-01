@@ -1760,6 +1760,51 @@ const SEO_JSON_FIELDS_INSTRUCTIONS = `
 8. "keywords": 핵심 키워드 배열 (3~5개 문자열)
 `;
 
+// 2026-09 개정 (admin/check.md v2) -- 애드센스 저품질 콘텐츠 사유 반복 거절에
+// 따라 매체 정체성을 "평택 지역 + 생활 밀착"으로 명확히 좁힘. 오늘의 화제
+// 기사 모드(네이버 랭킹, generateTrendingDraft)는 당분간 쓰지 않기로
+// 했으므로 이 지침을 넣지 않는다 -- 나머지 생성 모드(주제 입력/링크 재구성/
+// 정보성 기사 추천) 전체에 적용.
+const TOPIC_SCOPE_INSTRUCTIONS = `
+[다루는 주제 범위 - 반드시 준수]
+바이칼 뉴스는 "평택 지역 소식"과 "전국 단위라도 생활과 직접 관련된 정보(세금, 복지, 날씨, 교통, 건강 등)"만 다룹니다. 평택·생활과 무관한 전국 단위 정치·경제·연예·일반 기술 단신은 다루지 않습니다. 주어진 주제/원문이 이 범위를 벗어난다면, 억지로 기사를 쓰지 말고 평택 지역 또는 생활 밀착 관점에서 다룰 수 있는 각도를 찾아 재구성하십시오.
+`;
+
+// check.md의 "1. 카테고리별 작성 규정"을 그대로 반영 -- 글이 4개 유형(취재/
+// 생활정보/보도자료/오피니언) 중 어디에 해당하는지 AI가 스스로 판단해 그
+// 유형의 분량·구조·톤을 따르게 한다. Mode 4(정보성 기사)는 유형이 이미
+// "생활정보"로 고정이라 이 블록 대신 더 짧은 전용 지침을 쓴다
+// (generateInfoDraft 참고).
+const ARTICLE_TYPE_GUIDANCE = `
+[기사 유형별 분량·구조·톤 규정 - 아래 네 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]
+
+1. 취재 (현장 취재 기반, 또는 취재를 전제로 한 기사)
+- 분량: 공백 제외 최소 1,500자 이상. 길이보다 사실 전달의 정확성이 우선.
+- 구조: 6하 원칙(누가·언제·어디서·무엇을·어떻게·왜)을 반드시 충족.
+- 시민 인터뷰는 권장이지 필수가 아니며, 실제 인터뷰 내용이 없다면 가상의 시민 발언을 지어내지 마십시오.
+- 문체: 담백하고 사실 중심, 수식어·해석 최소화.
+
+2. 생활정보 (세금, 복지, 날씨, 교통, 건강 등 실용 정보)
+- 분량: 공백 제외 최소 1,500자 이상, 상한 없음 (정보량에 따라 유동적).
+- 오늘/이번 주 독자가 바로 행동할 수 있는 정보를 우선 배치.
+- 확정되지 않은 신청 대상·방법·마감일을 단정적으로 쓰지 말고 관계기관 확인을 안내.
+
+3. 보도자료 (공공기관·기업 보도자료 기반 재구성)
+- 분량: 공백 제외 최소 1,500자 이상.
+- 보도자료 내용을 사실 그대로 재구성하되(문장은 반드시 재구성, 원문 복사 금지), 비판적 시각을 반드시 포함.
+- "비판적 시각": 예산 근거, 실행 가능성, 과거 유사 사업의 성과, 형평성, 빠진 디테일 등 보도자료가 밝히지 않은 질문을 짚거나 기존 사실관계와 비교. 무조건적 트집이 아니라 건설적 의문 제기.
+- 마지막 소제목 1개 이상은 반드시 비판적·분석적 관점으로 마무리 (홍보성 일변도 금지).
+
+4. 오피니언 (논설)
+- 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
+- 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
+- 필진 명의: "최상락"(간결체 -- 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌름) 또는 "장승희"(부드러운 문체 -- 비유와 서사 활용, 독자 감정에 호소하되 논지는 분명함) 중 글의 소재에 더 적합한 쪽을 선택하십시오.
+
+[JSON 출력 시 추가 규칙]
+- 위 유형 판단 결과 "오피니언"에 해당하면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 선택한 명의를 반환하십시오. 오피니언이 아니면 이 필드는 생략하십시오.
+- 분량은 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.
+`;
+
 function slugify(text) {
   return (text || '')
     .toString()
@@ -1947,12 +1992,14 @@ ${category}
 
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
+${TOPIC_SCOPE_INSTRUCTIONS}
+${ARTICLE_TYPE_GUIDANCE}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 완벽하게 따르고 핵심 키워드를 포함한 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
-3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (전체 분량 공백 제외 ${targetLength}자 내외로 상세하게 작성)
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (분량은 위 [기사 유형별 분량·구조·톤 규정]에서 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 상세하게 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -1960,7 +2007,8 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, lead: draft.lead, body: draft.body, category,
-    seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
+    seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords,
+    authorStyle: draft.authorStyle || null
   };
 }
 
@@ -1995,7 +2043,7 @@ async function generateLinkDraft() {
   setAiLoaderText("원문을 분석하고 새로운 관점의 기사로 재구성하는 중...");
 
   const prompt = `
-아래 원천 기사의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다.
+아래 원천 기사(또는 보도자료)의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다. 원문이 평택시 등 공공기관·기업의 보도자료라면, 아래 [기사 유형별 분량·구조·톤 규정]의 "3. 보도자료" 규정(비판적 시각 포함)을 반드시 따르십시오.
 
 [원천 기사 본문]
 ${articleText.substring(0, 4000)}
@@ -2005,12 +2053,14 @@ ${category}
 
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
+${TOPIC_SCOPE_INSTRUCTIONS}
+${ARTICLE_TYPE_GUIDANCE}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 위 [원천 기사 본문]에 쓰인 단어 선택·어순·문장 구조와 뚜렷하게 다른 완전히 새로운 제목. 원문 제목을 살짝 다듬은 정도가 아니라, 같은 소재를 다른 관점(원인, 결과, 반응, 전망, 구체적 수치 등)에서 새로 지어라. 지정된 논조 스타일이 드러나야 하며, 고유명사·핵심 수치 등 사실관계상 꼭 필요한 단어 외에는 원문의 표현을 그대로 재사용하지 마라.
 2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (전체 분량 공백 제외 ${targetLength}자 내외)
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (분량은 위 [기사 유형별 분량·구조·톤 규정]에서 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -2018,7 +2068,8 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
   const draft = parseAiJsonResponse(resultText);
   return {
     headline: draft.title, lead: draft.lead, body: draft.body, category,
-    seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords
+    seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords,
+    authorStyle: draft.authorStyle || null
   };
 }
 
@@ -2252,6 +2303,7 @@ async function loadInfoTopicSuggestions() {
     const prompt = `
 오늘은 ${dateStr}입니다. 대한민국 독자들이 이 시기에 특히 관심을 가질 만한 "정보성 기사" 주제를 5개 추천해 주십시오.
 정부 정책지원금, 세금 신고 및 환급금, 노인 복지, 청년 지원금, 연말정산, 각종 신청 마감일 등 실생활에 밀접한 정보를 우선적으로 고려하고, 현재 월/계절에 맞는 시의성을 반드시 반영하십시오.
+바이칼 뉴스는 "평택 지역 + 생활 밀착" 매체이므로, 평택시 자체 정책/지원금/행사처럼 평택 지역에 한정된 생활정보 주제를 최우선으로 추천하고, 그런 주제가 부족할 때만 전국 단위 생활정보 주제로 보완하십시오.
 
 반드시 다음 구조의 JSON 배열 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 배열 자체만 출력해야 합니다.
 [
@@ -2300,8 +2352,13 @@ async function generateInfoDraft() {
   const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
   const targetLength = getTargetLength();
 
+  // check.md v2의 "1-2. 생활정보" 규정: 최소 1,500자 이상에 상한 없음 --
+  // 관리자가 설정한 목표 분량(targetLength)이 그보다 낮아도 1,500자를
+  // 밑돌지 않게 둘 중 더 큰 값을 기준으로 삼는다.
+  const infoMinLength = Math.max(targetLength, 1500);
+
   const prompt = `
-아래 생활 정보성 주제를 바탕으로, 독자가 실제로 신청·활용할 수 있도록 구체적이고 실용적인 정보를 담은 뉴스 기사를 작성하십시오. 신청 대상, 조건, 신청 방법, 유의사항 등을 가능한 한 구체적으로 안내하되, 확정되지 않은 수치나 날짜는 단정적으로 서술하지 말고 "관계 기관 공지를 확인해야 한다"는 취지로 안내하십시오.
+아래 생활 정보성 주제를 바탕으로, 독자가 실제로 신청·활용할 수 있도록 구체적이고 실용적인 정보를 담은 뉴스 기사를 작성하십시오. 신청 대상, 조건, 신청 방법, 유의사항 등을 가능한 한 구체적으로 안내하되, 확정되지 않은 수치나 날짜는 단정적으로 서술하지 말고 "관계 기관 공지를 확인해야 한다"는 취지로 안내하십시오. 오늘/이번 주 독자가 바로 행동할 수 있는 정보를 가장 먼저 배치하십시오.
 
 [정보성 기사 주제]
 ${topic}
@@ -2311,12 +2368,13 @@ ${category}
 
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
+${TOPIC_SCOPE_INSTRUCTIONS}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 독자의 실질적 관심을 끌고 핵심 키워드를 포함한 정보성 기사 제목
 2. "lead": 핵심 정보를 요약하는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 전체 분량 공백 제외 ${targetLength}자 내외)
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 본문 HTML (신청 대상/방법/유의사항 등 실용 정보 포함, 분량은 공백 제외 최소 ${infoMinLength}자 이상 -- 상한은 없으니 담을 정보가 많으면 더 길게 작성해도 됩니다)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -2453,7 +2511,7 @@ async function generateAiDraft() {
       result = await generateInfoDraft();
     }
 
-    const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords } = result;
+    const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords, authorStyle } = result;
     const finalSlug = slugify(slug) || `article-${Date.now()}`;
     const finalKeywords = Array.isArray(keywords) ? keywords : [];
 
@@ -2466,10 +2524,20 @@ async function generateAiDraft() {
       image: "images/news_editorial.png",
       seoTitle: seoTitle || `${headline} - 바이칼 뉴스`,
       seoMeta: seoMeta || lead,
-      slug: finalSlug
+      slug: finalSlug,
+      authorStyle: authorStyle || null
     };
 
     document.getElementById("ai-out-headline").textContent = headline;
+    const authorStyleEl = document.getElementById("ai-out-author-style");
+    if (authorStyleEl) {
+      if (authorStyle) {
+        authorStyleEl.textContent = `오피니언 필진 명의: ${authorStyle} (발행 시 데스크 승인자를 맞추는 것을 권장합니다)`;
+        authorStyleEl.style.display = "block";
+      } else {
+        authorStyleEl.style.display = "none";
+      }
+    }
     document.getElementById("ai-out-lead").textContent = lead;
     document.getElementById("ai-out-body").innerHTML = body;
     document.getElementById("ai-out-seo-title").textContent = generatedDraftData.seoTitle;
@@ -2532,6 +2600,9 @@ function resetAiWriter() {
 
   const selfCheckSection = document.getElementById("ai-selfcheck-section");
   if (selfCheckSection) selfCheckSection.style.display = "none";
+
+  const authorStyleEl = document.getElementById("ai-out-author-style");
+  if (authorStyleEl) authorStyleEl.style.display = "none";
 }
 
 // Transfer AI draft to form editor
@@ -2556,7 +2627,10 @@ async function transferAiDraftToEditor() {
   onStatusChangeInForm("draft");
   updateContentCharCount();
 
-  alert("인공지능 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청 및 최종 데스크 서명을 획득하세요.");
+  const authorStyleNote = generatedDraftData.authorStyle
+    ? ` AI가 이 글을 "${generatedDraftData.authorStyle}" 명의 문체로 썼습니다 -- 발행 시 데스크 승인자를 맞춰 지정하는 것을 권장합니다.`
+    : '';
+  alert(`인공지능 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청 및 최종 데스크 서명을 획득하세요.${authorStyleNote}`);
 }
 
 // 6. Homepage News Curation Panel
