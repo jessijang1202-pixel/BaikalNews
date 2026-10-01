@@ -64,7 +64,11 @@ module.exports = async (req, res) => {
 
   try {
     const model = await resolveClaudeModel(CLAUDE_API_KEY);
-    const requestBody = { model, max_tokens: 8192, messages: [{ role: 'user', content: prompt }] };
+    // 8192 was too tight once 심층기사(최대 6,000자)/오피니언(최소 5,000자)
+    // 같은 긴 유형이 생기면서, 긴 기사일 때 응답이 JSON 중간에서 잘려
+    // "Unterminated string in JSON" 파싱 에러로 이어졌다. Claude 본문
+    // 토큰 수가 한국어 글자 수보다 커지는 걸 감안해 여유 있게 올림.
+    const requestBody = { model, max_tokens: 16000, messages: [{ role: 'user', content: prompt }] };
     if (systemInstruction) requestBody.system = systemInstruction;
 
     const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {

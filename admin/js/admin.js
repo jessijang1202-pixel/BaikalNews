@@ -1812,7 +1812,7 @@ const ARTICLE_TYPE_RULES = {
 // pinnedType이 주어지면(관리자가 드롭다운에서 유형을 직접 지정) 그 유형
 // 하나만 고정해 돌려주고, 비어 있으면(기본값 "자동 판단") 예전처럼 5개
 // 유형을 전부 주고 AI가 스스로 고르게 한다.
-function buildArticleTypeGuidance(pinnedType) {
+function buildArticleTypeGuidance(pinnedType, targetLength) {
   const body = (pinnedType && ARTICLE_TYPE_RULES[pinnedType])
     ? `[기사 유형 지정 - 반드시 아래 "${pinnedType}" 유형 규정을 그대로 따르십시오 (스스로 다른 유형으로 판단하지 마십시오)]\n\n${ARTICLE_TYPE_RULES[pinnedType]}`
     : `[기사 유형별 분량·구조·톤 규정 - 아래 여섯 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
@@ -1826,7 +1826,7 @@ function buildArticleTypeGuidance(pinnedType) {
   // 때만 범위 자체를 우선하도록 별도 문구를 쓴다.
   const lengthRuleLine = (pinnedType === '심층기사')
     ? `- 분량은 공백 제외 3,000~6,000자 범위를 반드시 지키십시오 (관리자가 설정한 목표 분량과 무관하게 이 범위가 우선합니다).`
-    : `- 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.`;
+    : `- 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량(공백 제외 ${targetLength}자) 중 더 큰 쪽을 기준으로 작성하십시오.`;
 
   return `${body}
 
@@ -2025,13 +2025,13 @@ ${category}
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
-${buildArticleTypeGuidance(articleType)}
+${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 완벽하게 따르고 핵심 키워드를 포함한 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 흡입력 있는 리드 문단
-3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (분량은 위 [기사 유형별 분량·구조·톤 규정]에서 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 상세하게 작성)
+3. "body": 2개 이상의 <h2> 소제목을 포함하고 적절한 <p> 단락들로 구성된 뉴스 본문 HTML 코드. 문장 어조와 관점은 지정된 논조 스타일을 완벽하게 재현해야 합니다. (분량은 위 [JSON 출력 시 추가 규칙]에 명시된 분량 기준을 그대로 따르고, 상세하게 작성)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -2093,13 +2093,13 @@ ${category}
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
-${buildArticleTypeGuidance(articleType)}
+${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 위 [원천 기사 본문]에 쓰인 단어 선택·어순·문장 구조와 뚜렷하게 다른 완전히 새로운 제목. 원문 제목을 살짝 다듬은 정도가 아니라, 같은 소재를 다른 관점(원인, 결과, 반응, 전망, 구체적 수치 등)에서 새로 지어라. 지정된 논조 스타일이 드러나야 하며, 고유명사·핵심 수치 등 사실관계상 꼭 필요한 단어 외에는 원문의 표현을 그대로 재사용하지 마라.
 2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (분량은 위 [기사 유형별 분량·구조·톤 규정]에서 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 작성)
+3. "body": 2개 이상의 <h2> 소제목과 <p> 단락으로 구성된 새 기사 본문 HTML (분량은 위 [JSON 출력 시 추가 규칙]에 명시된 분량 기준을 그대로 따를 것)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
@@ -2627,13 +2627,13 @@ ${category}
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
-${buildArticleTypeGuidance(articleType)}
+${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
 1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 기사 제목
 2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
-3. "body": 2개 이상의 <h2> 소제목을 포함한 본문 HTML (분량은 위 유형 규정의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 작성)
+3. "body": 2개 이상의 <h2> 소제목을 포함한 본문 HTML (분량은 위 [JSON 출력 시 추가 규칙]에 명시된 분량 기준을 그대로 따를 것)
 ${SEO_JSON_FIELDS_INSTRUCTIONS}
 `;
 
