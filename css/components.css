@@ -242,9 +242,13 @@
 /* Right column: plain content sections (실시간 인기기사, 팔로우하세요) get
    the same divider treatment; the newsletter/kakao boxes are already
    self-contained colored cards, so they just need spacing, not a line
-   directly above them. */
+   directly above them. margin-top must match the left column's 40px
+   exactly (not just visually close) -- the divider line itself sits at
+   the margin-top offset from the previous section's bottom, so any
+   mismatch here throws off the 생활정보/오피니언 divider alignment
+   regardless of content height. */
 .home-split-right > * {
-  margin-top: 32px;
+  margin-top: 40px;
 }
 
 .home-split-right > *:first-child {
@@ -252,7 +256,7 @@
 }
 
 .home-split-right > .home-split-item:not(:first-child) {
-  padding-top: 32px;
+  padding-top: 40px;
   border-top: 1px solid var(--border-light);
 }
 
@@ -483,13 +487,13 @@
 #opinion-overlay-container {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 21px;
 }
 
 /* Extra breathing room above/below the 오피니언 block specifically,
    on top of the generic .home-split-item divider spacing. */
 #opinion-section {
-  padding-top: 48px;
+  padding-top: 56px;
   margin-bottom: 16px;
 }
 

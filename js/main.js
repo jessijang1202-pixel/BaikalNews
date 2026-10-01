@@ -689,7 +689,57 @@ function renderHomepage() {
       if (sectionEl) sectionEl.style.display = 'none';
     }
   });
+
+  // Feature #6: Force exact divider alignment between the left column's
+  // first two category sections and their right-column counterparts
+  // (평택소식/실시간인기기사, 생활정보/오피니언). CSS alone can't guarantee
+  // this since both sides' heights depend on live article title lengths --
+  // whichever side is shorter gets padded with a min-height to match the
+  // taller one, so the dividers land at exactly the same y position.
+  syncHomeSplitRowHeights();
 }
+
+function syncHomeSplitRowHeights() {
+  const pairs = [
+    ["pyeongtaek-row-container", "popular-reads-container"],
+    ["life-row-container", "opinion-overlay-container"]
+  ];
+
+  // Only side-by-side at >=992px (.home-split's own breakpoint) -- below
+  // that the columns stack, so forcing a shared height would just leave a
+  // pointless gap.
+  const isSplitLayout = window.innerWidth >= 992;
+
+  pairs.forEach(([leftId, rightId]) => {
+    const leftEl = document.getElementById(leftId);
+    const rightEl = document.getElementById(rightId);
+    const leftSection = leftEl && (leftEl.closest("section") || leftEl.parentElement);
+    const rightSection = rightEl && (rightEl.closest("section") || rightEl.parentElement);
+    if (!leftSection || !rightSection) return;
+
+    leftSection.style.minHeight = "";
+    rightSection.style.minHeight = "";
+    if (!isSplitLayout) return;
+
+    const maxHeight = Math.max(leftSection.offsetHeight, rightSection.offsetHeight);
+    leftSection.style.minHeight = `${maxHeight}px`;
+    rightSection.style.minHeight = `${maxHeight}px`;
+  });
+}
+
+let homeSplitResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!document.getElementById("popular-reads-container")) return;
+  clearTimeout(homeSplitResizeTimer);
+  homeSplitResizeTimer = setTimeout(syncHomeSplitRowHeights, 150);
+});
+
+// Re-sync once images/fonts have finished loading -- title line-wraps and
+// card-image heights can still shift the initial measurement taken right
+// after renderHomepage() runs.
+window.addEventListener("load", () => {
+  if (document.getElementById("popular-reads-container")) syncHomeSplitRowHeights();
+});
 
 // 4. Render Category Archive Page
 function renderCategoryPage() {
