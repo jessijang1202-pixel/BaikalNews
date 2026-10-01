@@ -4871,18 +4871,17 @@ async function archiveShortsProject() {
 // TTS/Veo) moved to a server-side proxy, and the likely reason "템플릿
 // 형성하기" stopped working on a browser that never had that separate key
 // saved (nothing else needs it anymore). Now routes the "start" call and
-// the processing-status poll through small server proxies
-// (api/gemini-video-upload-start-proxy.js, api/gemini-video-status-proxy.js)
-// that hold the key server-side; the actual video bytes still go straight
-// from this browser to Google's upload URL, since that's a self-authorized
-// session URL that doesn't need the key again, and piping potentially
-// gigabyte-sized video through our own small serverless function would
-// defeat the point of using the Files API at all.
+// the processing-status poll through api/gemini-video-proxy.js (dispatched
+// by action) that holds the key server-side; the actual video bytes still
+// go straight from this browser to Google's upload URL, since that's a
+// self-authorized session URL that doesn't need the key again, and piping
+// potentially gigabyte-sized video through our own small serverless
+// function would defeat the point of using the Files API at all.
 async function uploadFileToGeminiFilesApi(file) {
-  const startRes = await fetch("https://baikalnews.com/api/gemini-video-upload-start-proxy", {
+  const startRes = await fetch("https://baikalnews.com/api/gemini-video-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fileName: file.name || 'reference-video', fileSize: file.size, mimeType: file.type || 'video/mp4' })
+    body: JSON.stringify({ action: 'start', fileName: file.name || 'reference-video', fileSize: file.size, mimeType: file.type || 'video/mp4' })
   });
   if (!startRes.ok) {
     const errText = await startRes.text();
@@ -4915,10 +4914,10 @@ async function uploadFileToGeminiFilesApi(file) {
   let attempts = 0;
   while (fileInfo.state === 'PROCESSING' && attempts < 30) {
     await new Promise(r => setTimeout(r, 2000));
-    const checkRes = await fetch("https://baikalnews.com/api/gemini-video-status-proxy", {
+    const checkRes = await fetch("https://baikalnews.com/api/gemini-video-proxy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileName: fileInfo.name })
+      body: JSON.stringify({ action: 'status', fileName: fileInfo.name })
     });
     if (!checkRes.ok) break;
     const status = await checkRes.json();
@@ -4950,10 +4949,10 @@ async function analyzeShortsStyleReference(file) {
 
 다른 설명 없이 요약 본문만 출력하십시오.`;
 
-  const response = await fetch("https://baikalnews.com/api/gemini-video-analyze-proxy", {
+  const response = await fetch("https://baikalnews.com/api/gemini-video-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, fileUri: uploaded.uri, mimeType: uploaded.mimeType })
+    body: JSON.stringify({ action: 'analyze', prompt, fileUri: uploaded.uri, mimeType: uploaded.mimeType })
   });
 
   if (!response.ok) {
@@ -5688,17 +5687,17 @@ function setShortsVeoCostSavingMode(enabled) {
 
 // Kicks off a Veo video generation job (long-running operation) and polls
 // until it completes, returning the finished clip as a Blob. All three steps
-// (start / poll / download) go through server-side proxies so the Gemini key
-// never reaches the browser -- see api/veo-start-proxy.js. The 절감 모드
-// toggle is still a local UI preference; it's just passed along as a param
-// so the proxy can pick the lite/fast model.
+// (start / poll / download) go through one server-side proxy (api/veo-proxy.js,
+// dispatched by action) so the Gemini key never reaches the browser. The
+// 절감 모드 toggle is still a local UI preference; it's just passed along as
+// a param so the proxy can pick the lite/fast model.
 async function generateVeoVideo(promptText, onStatus) {
   if (onStatus) onStatus("Veo 영상 생성 요청 중...");
 
-  const startRes = await fetch("https://baikalnews.com/api/veo-start-proxy", {
+  const startRes = await fetch("https://baikalnews.com/api/veo-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: promptText + MEDIA_KOREAN_PEOPLE_RULE, costSaving: getShortsVeoCostSavingMode() })
+    body: JSON.stringify({ action: 'start', prompt: promptText + MEDIA_KOREAN_PEOPLE_RULE, costSaving: getShortsVeoCostSavingMode() })
   });
   if (!startRes.ok) {
     const errText = await startRes.text();
@@ -5713,10 +5712,10 @@ async function generateVeoVideo(promptText, onStatus) {
   let result = { done: false };
   while (!result.done && attempts < 60) {
     await new Promise(r => setTimeout(r, 10000));
-    const pollRes = await fetch("https://baikalnews.com/api/veo-poll-proxy", {
+    const pollRes = await fetch("https://baikalnews.com/api/veo-proxy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operationName })
+      body: JSON.stringify({ action: 'poll', operationName })
     });
     if (!pollRes.ok) {
       const errText = await pollRes.text();
@@ -5738,10 +5737,10 @@ async function generateVeoVideo(promptText, onStatus) {
   }
 
   if (onStatus) onStatus("완성된 Veo 영상 다운로드 중...");
-  const downloadRes = await fetch("https://baikalnews.com/api/veo-download-proxy", {
+  const downloadRes = await fetch("https://baikalnews.com/api/veo-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ videoUri: result.videoUri })
+    body: JSON.stringify({ action: 'download', videoUri: result.videoUri })
   });
   if (!downloadRes.ok) {
     const errText = await downloadRes.text();
@@ -9146,10 +9145,12 @@ async function copyKakaoBriefingText() {
   }
 }
 
-// 알리고 연동 점검용 1건 테스트 발송 -- api/test-kakao-send.js는
+// 알리고 연동 점검용 1건 테스트 발송 -- api/kakao-proxy.js(action=test-send)는
 // baikalnews.com에서 서빙되고 관리자 화면은 editor815.baikalnews.com이라
-// 절대경로로 호출한다 (그 함수가 CORS 헤더를 붙여준다).
-const KAKAO_TEST_SEND_ENDPOINT = "https://baikalnews.com/api/test-kakao-send";
+// 절대경로로 호출한다 (그 함수가 CORS 헤더를 붙여준다). 예전엔
+// api/test-kakao-send.js라는 별도 파일이었지만, Vercel Hobby 플랜의
+// 서버리스 함수 12개 제한 때문에 api/kakao-proxy.js로 합쳐졌다 (2026-10-01).
+const KAKAO_TEST_SEND_ENDPOINT = "https://baikalnews.com/api/kakao-proxy";
 
 async function testKakaoSend() {
   const phoneEl = document.getElementById("kakao-test-send-phone");
@@ -9166,7 +9167,7 @@ async function testKakaoSend() {
 
   // 본문이 비어 있으면 content 자체를 안 보내고, 엔드포인트의 기본 테스트
   // 문구를 쓰게 한다.
-  const payload = content ? { phone, content } : { phone };
+  const payload = content ? { action: 'test-send', phone, content } : { action: 'test-send', phone };
 
   if (btn) { btn.disabled = true; btn.textContent = "발송 중..."; }
   if (statusEl) { statusEl.textContent = "발송 중..."; statusEl.style.color = ''; }
@@ -9202,14 +9203,17 @@ async function testKakaoSend() {
 // 카테고리별 알림톡 변형 (Phase 2 서버 파이프라인) -- 위 kakaoBriefingDraft
 // (클라이언트에서 Gemini를 직접 호출하는 무필터 단일 본문, "수동 발송"
 // 복사-붙여넣기용)와는 완전히 별개의 데이터 흐름이다. 여기서는
-// api/generate-daily-briefing.js를 서버에서 호출해 오늘 브리핑을 카테고리별로
-// 분류하고, 실제 구독자들이 신청한 카테고리 조합마다 kakao_briefing_variants에
-// 저장된 결과를 조회/발송 트리거만 한다 -- 이 두 함수는 baikalnews.com에서
-// 서빙되고 관리자 화면은 editor815.baikalnews.com이라 절대경로로 호출한다
-// (그 함수들이 CORS 헤더를 붙여준다, api/test-kakao-send.js와 동일한 이유).
+// api/kakao-proxy.js(action=generate-briefing)를 서버에서 호출해 오늘
+// 브리핑을 카테고리별로 분류하고, 실제 구독자들이 신청한 카테고리 조합마다
+// kakao_briefing_variants에 저장된 결과를 조회/발송 트리거만 한다 -- 이
+// 함수는 baikalnews.com에서 서빙되고 관리자 화면은 editor815.baikalnews.com
+// 이라 절대경로로 호출한다 (CORS 헤더를 붙여준다). 예전엔
+// api/generate-daily-briefing.js / api/send-kakao-briefing.js라는 별도
+// 파일이었지만, Vercel Hobby 플랜의 서버리스 함수 12개 제한 때문에
+// api/kakao-proxy.js로 합쳐졌다 (2026-10-01).
 // ==========================================
-const KAKAO_GENERATE_BRIEFING_ENDPOINT = "https://baikalnews.com/api/generate-daily-briefing";
-const KAKAO_SEND_BRIEFING_ENDPOINT = "https://baikalnews.com/api/send-kakao-briefing";
+const KAKAO_GENERATE_BRIEFING_ENDPOINT = "https://baikalnews.com/api/kakao-proxy";
+const KAKAO_SEND_BRIEFING_ENDPOINT = "https://baikalnews.com/api/kakao-proxy";
 
 // textarea에 innerHTML 문자열로 본문을 직접 넣으면 "</textarea>"나 "&" 같은
 // 문자가 우연히 섞였을 때 마크업이 깨질 수 있어, 구조만 innerHTML로 만들고
@@ -9252,16 +9256,19 @@ async function renderKakaoBriefingVariantsList() {
   });
 }
 
-// "카테고리별 변형 생성" 버튼 -- api/generate-daily-briefing.js를 호출한다.
-// 이 엔드포인트는 요청 본문이 필요 없고(GET/POST 모두 처리 가능, 메서드로
-// 분기하지 않음) 이미 오늘 웹 브리핑이 있으면 그 부분만 건너뛰고 카카오
-// 변형 생성은 이어서 시도하는 멱등 동작이라, 몇 번을 눌러도 안전하다.
+// "카테고리별 변형 생성" 버튼 -- api/kakao-proxy.js(action=generate-briefing)를
+// 호출한다. 이미 오늘 웹 브리핑이 있으면 그 부분만 건너뛰고 카카오 변형
+// 생성은 이어서 시도하는 멱등 동작이라, 몇 번을 눌러도 안전하다.
 async function generateKakaoBriefingVariants() {
   const btn = document.getElementById("kakao-variants-generate-btn");
   if (btn) btn.disabled = true;
   setKakaoBriefingBusy(true, "서버에서 카테고리별 변형 생성 중... (시간이 걸릴 수 있습니다)");
   try {
-    const res = await fetch(KAKAO_GENERATE_BRIEFING_ENDPOINT, { method: 'POST' });
+    const res = await fetch(KAKAO_GENERATE_BRIEFING_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'generate-briefing' })
+    });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
@@ -9297,10 +9304,10 @@ async function generateKakaoBriefingVariants() {
   }
 }
 
-// "지금 카카오 발송" 버튼 -- api/send-kakao-briefing.js를 호출한다. 이
-// 함수 자체가 kakao_send_mode 게이트를 지키므로(수동이면 발송 없이
-// {skipped:'manual_mode'} 반환), 여기서는 그 게이트를 우회하지 않고 결과를
-// 있는 그대로 보여주기만 한다.
+// "지금 카카오 발송" 버튼 -- api/kakao-proxy.js(action=send-briefing)를
+// 호출한다. 이 함수 자체가 kakao_send_mode 게이트를 지키므로(수동이면 발송
+// 없이 {skipped:'manual_mode'} 반환), 여기서는 그 게이트를 우회하지 않고
+// 결과를 있는 그대로 보여주기만 한다.
 async function sendKakaoBriefingNow() {
   if (!confirm("지금 카카오 알림톡을 발송 요청하시겠습니까?\n(발송 방식이 '자동'일 때만 실제로 발송됩니다.)")) return;
 
@@ -9308,7 +9315,11 @@ async function sendKakaoBriefingNow() {
   if (btn) btn.disabled = true;
   setKakaoBriefingBusy(true, "카카오 알림톡 발송 요청 중...");
   try {
-    const res = await fetch(KAKAO_SEND_BRIEFING_ENDPOINT, { method: 'POST' });
+    const res = await fetch(KAKAO_SEND_BRIEFING_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send-briefing' })
+    });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {

@@ -156,10 +156,13 @@
     </div>
   </div>
   <script>
-    // api/kakao-unsubscribe.js에 { phone }을 POST -- OTP 등 별도 인증 없이
-    // 번호만 일치하면 즉시 삭제한다 (구독취소는 마찰 없이 되어야 한다는
-    // 설계 원칙 + 인증 문자 발송 비용을 피하기 위한 의도적 선택).
-    const KAKAO_UNSUBSCRIBE_ENDPOINT = 'https://baikalnews.com/api/kakao-unsubscribe';
+    // api/kakao-proxy.js에 { action: 'unsubscribe', phone }을 POST -- OTP 등
+    // 별도 인증 없이 번호만 일치하면 즉시 삭제한다 (구독취소는 마찰 없이
+    // 되어야 한다는 설계 원칙 + 인증 문자 발송 비용을 피하기 위한 의도적
+    // 선택). 이 엔드포인트는 예전엔 api/kakao-unsubscribe.js라는 별도
+    // 파일이었지만, Vercel Hobby 플랜의 서버리스 함수 12개 제한 때문에
+    // api/kakao-proxy.js로 합쳐졌다 (2026-10-01).
+    const KAKAO_UNSUBSCRIBE_ENDPOINT = 'https://baikalnews.com/api/kakao-proxy';
 
     const formView = document.getElementById('kakao-unsub-form-view');
     const resultView = document.getElementById('kakao-unsub-result-view');
@@ -199,7 +202,7 @@
         const res = await fetch(KAKAO_UNSUBSCRIBE_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone })
+          body: JSON.stringify({ action: 'unsubscribe', phone })
         });
         const data = await res.json();
 

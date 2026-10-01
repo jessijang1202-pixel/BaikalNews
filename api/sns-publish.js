@@ -5,9 +5,11 @@
 // required (the browser preflights any POST with a JSON body via OPTIONS).
 //
 // Threads works today via a manually-generated long-lived token
-// (THREADS_TEST_ACCESS_TOKEN -- see api/threads-test-post.js for how it
-// was obtained; the proper OAuth flow in api/threads-oauth-callback.js is
-// still blocked by a Meta console form-save bug). Facebook/Instagram
+// (THREADS_TEST_ACCESS_TOKEN, obtained via Meta's "사용자 토큰 생성기" tool
+// and verified with a one-off test post since removed -- see git history
+// for api/threads-test-post.js if that verification step needs repeating;
+// the proper OAuth flow in api/threads-oauth-callback.js is still blocked
+// by a Meta console form-save bug). Facebook/Instagram
 // aren't connected yet (no Page/Business account linked), so those two
 // branches report {ok:false, error:'not_configured'} until
 // FACEBOOK_PAGE_ID/FACEBOOK_PAGE_ACCESS_TOKEN and

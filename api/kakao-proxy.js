@@ -1,43 +1,54 @@
-// Vercel Cron target (see vercel.json's "crons" entry, "0 23 * * *" UTC =
-// 08:00 KST daily) that auto-generates the "웹사이트 게시용" 3분 뉴스
-// 브리핑 every morning so the admin doesn't have to remember to click
-// "오늘의 브리핑 생성" themselves. This mirrors admin/js/admin.js's
-// generateWebBriefing() (Naver ranking scrape -> Gemini summarize) but runs
-// server-side, since a cron job has no browser/admin session to drive it.
+// Kakao 3분 브리핑 파이프라인의 non-OAuth endpoints, merged from what used
+// to be generate-daily-briefing.js + send-kakao-briefing.js +
+// test-kakao-send.js + create-brand-template.js + kakao-unsubscribe.js into
+// one dispatched-by-action file. (api/kakao-oauth-callback.js stays a
+// SEPARATE file -- Kakao's own developer console has that exact path
+// registered as the OAuth redirect_uri, so it can't be folded in here
+// without also updating that external registration.)
 //
-// Auto-publishes: the row is inserted with status='published' directly, so
-// it's immediately visible on the public briefing.html archive (which only
-// reads status='published' rows) with no admin review step. This was an
-// explicit request (2026-08-07) -- an earlier version deliberately inserted
-// as 'draft' pending manual review/publish, but the admin wants the 8am
-// briefing live with zero manual steps. Manually-triggered generation from
-// the admin panel (generateWebBriefing() in admin/js/admin.js) still saves
-// as 'draft' and requires a manual "웹사이트에 게시" click -- only this
-// automatic cron path skips review.
+// Why merged: Vercel's Hobby plan caps a deployment at 12 Serverless
+// Functions total (confirmed live 2026-10-01: "No more than 12 Serverless
+// Functions can be added to a Deployment on the Hobby plan" build error,
+// after the account was downgraded from Pro and the project had grown to
+// 24 functions). Each file under api/ counts as one function regardless of
+// how much logic it holds, so consolidating related endpoints behind a
+// single dispatcher is the free way back under the cap -- no behavior
+// changes, just fewer files. See also public-render.js, veo-proxy.js,
+// gemini-video-proxy.js, threads-proxy.js, sns-proxy.js for the same
+// pattern.
 //
-// Idempotent: if a row already exists for today's (KST) date -- whether
-// it's a manually-generated draft or already published -- this exits
-// without overwriting it, so a Vercel retry or an admin who already
-// generated today's brief by hand can't clobber existing work.
-//
-// Env var required (set in Vercel): GEMINI_API_KEY (same key already used
-// in the admin panel's AI 기사 집필실). Supabase URL/anon key below are
-// already public (embedded client-side in js/supabase-config.js; access is
-// governed by RLS, not key secrecy), so hardcoding them here isn't a new
-// exposure -- same approach as api/kakao-oauth-callback.js.
+// The two Vercel Cron entries that used to hit generate-daily-briefing.js/
+// send-kakao-briefing.js directly (no action needed, since GET from Cron
+// has no body) were already removed from vercel.json earlier (the whole
+// 3분 브리핑 pipeline was paused for AdSense review). admin.js's manual
+// trigger buttons now send { action: '...' } in the POST body instead.
+
+const { ProxyAgent } = require('undici');
 
 const SUPABASE_URL = "https://iyxzwrsgivvsgeqclchw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHp3cnNnaXZ2c2dlcWNsY2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MzE5NzQsImV4cCI6MjA5OTMwNzk3NH0.PsS7tHy14d22KKWBHOi9TkZLTdVYfqolgMHcYJ2gkow";
 
-// 관리자 화면(editor815.baikalnews.com)의 "카테고리별 변형 생성" 버튼이 이
-// 함수를 fetch()로 직접 호출할 수 있도록 CORS 허용 (Vercel Cron 자체는
-// 서버-대-서버 호출이라 CORS의 영향을 받지 않음 -- 브라우저의 교차 출처
-// fetch/XHR에만 적용되는 제약이므로, 이 헤더 추가는 기존 크론 동작에는
-// 아무 영향이 없음). api/test-kakao-send.js와 동일한 패턴.
-const ADMIN_ORIGIN = 'https://editor815.baikalnews.com';
+// 대부분의 action은 관리자 화면(editor815.baikalnews.com)에서만 호출되지만,
+// action=unsubscribe는 공개 사이트(baikalnews.com)의 unsubscribe.html이
+// 직접 호출한다 (kakao-unsubscribe.js가 따로 있었을 때와 동일). 고정
+// origin 하나로는 둘 다 허용할 수 없어, 허용 목록에 있는 origin만 그대로
+// 반사해주는 방식으로 바꿨다 -- preflight(OPTIONS)에도 동일하게 적용되도록
+// action이 아니라 매 요청의 Origin 헤더를 본다.
+const ALLOWED_ORIGINS = ['https://editor815.baikalnews.com', 'https://baikalnews.com'];
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', ADMIN_ORIGIN);
+// QuotaGuard 정적 IP 프록시(QUOTAGUARDSTATIC_URL) -- 알리고가 호출 서버 IP를
+// 화이트리스트로 검사하기 때문에 필요. setGlobalDispatcher로 전역 적용하지
+// 않고 알리고 호출 한 곳에만 dispatcher로 지정하는 이유는, 전역 적용 시
+// 종량제 프록시 대역폭이 Supabase 등 다른 fetch 호출에도 불필요하게 쓰이기
+// 때문이다. 아직 QuotaGuard 가입 전이라 env가 없으면 null로 두어 기존
+// 동작(발송 실패)을 그대로 유지한다.
+const aligoProxyAgent = process.env.QUOTAGUARDSTATIC_URL ? new ProxyAgent(process.env.QUOTAGUARDSTATIC_URL) : null;
+
+function setCors(req, res) {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -45,6 +56,10 @@ function setCors(res) {
 function todayKstDate() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
 }
+
+// ==========================================================================
+// action=generate-briefing (was generate-daily-briefing.js)
+// ==========================================================================
 
 // AI가 지침을 어기고 "독자 여러분, 안녕하십니까..." 같은 인사말을
 // 첫 줄에 슬쩍 넣는 경우에 대비한 방어적 백스톱 (admin.js의 동일 함수와
@@ -132,7 +147,7 @@ async function fetchNaverTrendingTitles() {
 }
 
 // Same discovery approach as admin.js's resolveGeminiVisionModel(), without
-// the localStorage cache (each cron invocation is a fresh process).
+// the localStorage cache (each invocation is a fresh process).
 async function resolveGeminiModel(apiKey) {
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
@@ -176,7 +191,7 @@ async function callGeminiText(apiKey, prompt, systemInstruction) {
 
 // 카카오 브랜드메시지 템플릿의 변수(#{brief}) 자리에 들어갈 압축판 --
 // admin.js의 generateKakaoBriefing()과 완전히 동일한 프롬프트/재시도
-// 로직을 서버 함수에도 그대로 포팅한다 (이 크론은 admin.js를 import할 수
+// 로직을 서버 함수에도 그대로 포팅한다 (이 함수는 admin.js를 import할 수
 // 없어 중복 유지). 구독취소 안내는 이제 승인된 템플릿 고정 문구 쪽에
 // 포함되어 있어 여기서는 뉴스 본문만 다룬다 (알림톡→브랜드메시지 전환).
 // 알림톡은 ~650자 하드 캡이 있었지만 브랜드메시지는 알리고 문서상 확인된
@@ -296,9 +311,7 @@ async function generateAndSaveKakaoIfNeeded(apiKey, date, sourceContent) {
 // 위 generateAndSaveKakaoIfNeeded()는 지금까지처럼 무필터 'all' 조합 하나만
 // news_briefings.kakao_content에 저장한다. 여기서부터는 그 결과를 재사용해
 // 'all' 변형을 kakao_briefing_variants에도 저장하고, 실제 구독자들이 고른
-// 카테고리 조합별로 추가 변형을 생성한다. admin.js와 마찬가지로 이 서버
-// 함수는 다른 api/*.js 파일을 import할 수 없으므로, canonicalCategoryKey()는
-// api/send-kakao-briefing.js에도 byte-identical하게 중복 유지한다.
+// 카테고리 조합별로 추가 변형을 생성한다.
 function canonicalCategoryKey(categories) {
   if (!categories || categories.length === 0 || categories.includes('all')) return 'all';
   return [...categories].sort().join(',');
@@ -464,10 +477,7 @@ async function generateAndSaveCategoryVariants(apiKey, date, sourceContent, allV
   }
 }
 
-module.exports = async (req, res) => {
-  setCors(res);
-  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
-
+async function handleGenerateBriefing(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.error('GEMINI_API_KEY 환경변수가 설정되지 않았습니다.');
@@ -477,38 +487,37 @@ module.exports = async (req, res) => {
 
   const today = todayKstDate();
 
-  try {
-    const existingRow = await fetchBriefingRowForDate(today);
+  const existingRow = await fetchBriefingRowForDate(today);
 
-    if (existingRow) {
-      // 웹 브리핑은 이미 있음(수동 생성 또는 이전 크론 실행) -- 이 행을
-      // 덮어쓰지 않는다. 다만 카카오 압축본은 아직 없을 수 있으므로
-      // (예: 관리자가 웹 브리핑만 수동 생성하고 카카오 탭은 안 연 경우),
-      // kakao_content가 비어 있을 때만 그 기존 웹 본문을 소스로 카카오
-      // 생성을 이어서 시도한다 -- 이미 있으면(관리자가 직접 수정했을 수도
-      // 있으므로) 그대로 둔다.
-      console.log(`${today} 브리핑이 이미 존재합니다 (수동 생성 또는 이전 크론 실행). 웹 브리핑 생성은 건너뜁니다.`);
-      let kakaoResult = { skipped: 'already_has_kakao_content' };
-      if (!existingRow.kakao_content) {
-        kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, existingRow.content);
-      } else {
-        console.log(`${today} 카카오 브리핑도 이미 존재합니다. 건너뜁니다.`);
-      }
-      // 'all' 변형의 소스: 방금 생성했다면 그 결과, 이미 있었다면 기존
-      // kakao_content를 그대로 재사용 (Gemini 중복 호출 방지).
-      const allVariantContent = (kakaoResult.ok && kakaoResult.content) || existingRow.kakao_content || null;
-      await generateAndSaveCategoryVariants(apiKey, today, existingRow.content, allVariantContent);
-      res.status(200).json({ skipped: true, reason: 'already_exists', date: today, kakao: kakaoResult });
-      return;
+  if (existingRow) {
+    // 웹 브리핑은 이미 있음(수동 생성 또는 이전 자동 생성) -- 이 행을
+    // 덮어쓰지 않는다. 다만 카카오 압축본은 아직 없을 수 있으므로
+    // (예: 관리자가 웹 브리핑만 수동 생성하고 카카오 탭은 안 연 경우),
+    // kakao_content가 비어 있을 때만 그 기존 웹 본문을 소스로 카카오
+    // 생성을 이어서 시도한다 -- 이미 있으면(관리자가 직접 수정했을 수도
+    // 있으므로) 그대로 둔다.
+    console.log(`${today} 브리핑이 이미 존재합니다 (수동 생성 또는 이전 실행). 웹 브리핑 생성은 건너뜁니다.`);
+    let kakaoResult = { skipped: 'already_has_kakao_content' };
+    if (!existingRow.kakao_content) {
+      kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, existingRow.content);
+    } else {
+      console.log(`${today} 카카오 브리핑도 이미 존재합니다. 건너뜁니다.`);
     }
+    // 'all' 변형의 소스: 방금 생성했다면 그 결과, 이미 있었다면 기존
+    // kakao_content를 그대로 재사용 (Gemini 중복 호출 방지).
+    const allVariantContent = (kakaoResult.ok && kakaoResult.content) || existingRow.kakao_content || null;
+    await generateAndSaveCategoryVariants(apiKey, today, existingRow.content, allVariantContent);
+    res.status(200).json({ skipped: true, reason: 'already_exists', date: today, kakao: kakaoResult });
+    return;
+  }
 
-    const titles = await fetchNaverTrendingTitles();
-    const newsListText = titles.slice(0, 30).map((t, i) => `${i + 1}. ${t}`).join('\n');
-    const todayLabel = new Date().toLocaleDateString('ko-KR', {
-      year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul'
-    });
+  const titles = await fetchNaverTrendingTitles();
+  const newsListText = titles.slice(0, 30).map((t, i) => `${i + 1}. ${t}`).join('\n');
+  const todayLabel = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul'
+  });
 
-    const prompt = `
+  const prompt = `
 아래는 오늘(${todayLabel}) 네이버 랭킹 뉴스 기준 화제가 된 뉴스 제목 목록입니다. 이를 바탕으로 바이칼 뉴스 웹사이트에 게시할 "3분 뉴스 브리핑" 글을 작성하십시오. 이것은 카카오톡 알림톡처럼 글자수 제한이 있는 짧은 글이 아니라, 웹페이지에 그대로 게시되는 정식 기사 형태의 글입니다.
 
 [오늘의 화제 뉴스 제목 목록]
@@ -526,44 +535,465 @@ ${newsListText}
 - 글 전체의 제목이 될 한 줄을 가장 먼저 "[제목] " 접두사와 함께 작성하십시오 (예: "[제목] 7월 29일, 오늘의 3분 뉴스"). 이 줄 다음에 바로 뉴스 항목들을 이어가십시오.
 - 다른 설명 없이, 제목 줄과 본문만 출력하십시오.`;
 
-    const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 인사말이나 도입 문장 없이 뉴스 항목으로 바로 시작하며, 각 뉴스 항목은 '▩ ' 소제목과 음슴체로 끝나는 짧은 설명으로 간결하게 작성하고, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
+  const systemInstruction = "당신은 바이칼 뉴스 웹사이트의 '3분 뉴스 브리핑' 코너를 작성하는 뉴스 큐레이터입니다. 인사말이나 도입 문장 없이 뉴스 항목으로 바로 시작하며, 각 뉴스 항목은 '▩ ' 소제목과 음슴체로 끝나는 짧은 설명으로 간결하게 작성하고, 사실 전달에만 집중해 3분 분량의 정리 기사를 작성하십시오.";
 
-    let resultText = stripLeakedWebBriefingGreeting((await callGeminiText(apiKey, prompt, systemInstruction)).trim());
+  let resultText = stripLeakedWebBriefingGreeting((await callGeminiText(apiKey, prompt, systemInstruction)).trim());
 
-    let title = `${todayLabel} 3분 뉴스 브리핑`;
-    const titleMatch = resultText.match(/^\[제목\]\s*(.+)$/m);
-    if (titleMatch) {
-      title = titleMatch[1].trim();
-      resultText = stripLeakedWebBriefingGreeting(resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim());
+  let title = `${todayLabel} 3분 뉴스 브리핑`;
+  const titleMatch = resultText.match(/^\[제목\]\s*(.+)$/m);
+  if (titleMatch) {
+    title = titleMatch[1].trim();
+    resultText = stripLeakedWebBriefingGreeting(resultText.replace(/^\[제목\]\s*.+$/m, '').replace(/^\n+/, '').trim());
+  }
+
+  const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({ briefing_date: today, title, content: resultText, status: 'published' })
+  });
+
+  if (!insertRes.ok) {
+    const errText = await insertRes.text();
+    throw new Error(`Supabase news_briefings insert failed: ${errText}`);
+  }
+
+  console.log(`${today} 브리핑 자동 생성 완료 (검수 없이 즉시 게시, ${resultText.length}자).`);
+
+  // 웹 브리핑은 이미 저장이 끝난 뒤이므로, 카카오 생성이 실패해도 이미
+  // 성공한 웹 브리핑 응답을 절대 막지 않는다 (generateAndSaveKakaoIfNeeded는
+  // 자체적으로 에러를 삼키고 결과 객체를 반환함).
+  const kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, resultText);
+  await generateAndSaveCategoryVariants(apiKey, today, resultText, kakaoResult.ok ? kakaoResult.content : null);
+
+  res.status(200).json({ ok: true, date: today, length: resultText.length, kakao: kakaoResult });
+}
+
+// ==========================================================================
+// action=send-briefing (was send-kakao-briefing.js)
+// ==========================================================================
+
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function serviceRoleHeaders(serviceRoleKey, extra) {
+  return Object.assign(
+    { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
+    extra || {}
+  );
+}
+
+async function getAppSetting(serviceRoleKey, key) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}&select=value`,
+    { headers: serviceRoleHeaders(serviceRoleKey) }
+  );
+  if (!res.ok) throw new Error(`Supabase app_settings 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  return rows.length > 0 ? rows[0].value : null;
+}
+
+async function fetchSendBriefingRow(serviceRoleKey, date) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}&select=id,kakao_content,kakao_status`,
+    { headers: serviceRoleHeaders(serviceRoleKey) }
+  );
+  if (!res.ok) throw new Error(`Supabase news_briefings 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  return rows.length > 0 ? rows[0] : null;
+}
+
+async function fetchAllKakaoSubscribers(serviceRoleKey) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/kakao_subscribers?select=id,phone,name,categories`,
+    { headers: serviceRoleHeaders(serviceRoleKey) }
+  );
+  if (!res.ok) throw new Error(`Supabase kakao_subscribers 조회 실패: ${res.status}`);
+  return res.json();
+}
+
+// 오늘 날짜의 카테고리별 알림톡 변형을 category_key -> 행 맵으로 가져온다.
+async function fetchVariantsForDate(serviceRoleKey, date) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/kakao_briefing_variants?briefing_date=eq.${date}&select=category_key,content,status`,
+    { headers: serviceRoleHeaders(serviceRoleKey) }
+  );
+  if (!res.ok) throw new Error(`Supabase kakao_briefing_variants 조회 실패: ${res.status}`);
+  const rows = await res.json();
+  const map = new Map();
+  rows.forEach(r => map.set(r.category_key, r));
+  return map;
+}
+
+// 구독자 한 명에게 실제로 보낼 콘텐츠를 정한다: 자기 조합의 변형이 있으면
+// 그것을, 없거나(status !== 'draft' 이거나 content가 비어 있어) 쓸 수 없으면
+// 'all' 변형으로 대체한다. 'all'조차 쓸 수 없으면 null(이번 발송에서 제외).
+function resolveSubscriberVariant(sub, variantMap) {
+  const key = canonicalCategoryKey(sub.categories);
+  const own = variantMap.get(key);
+  if (own && own.status === 'draft' && own.content) {
+    return { categoryKey: key, content: own.content };
+  }
+  if (key !== 'all') {
+    console.log(`구독자 ${sub.id}: '${key}' 변형을 사용할 수 없어(${own ? `status=${own.status}` : '없음'}) 'all'로 대체합니다.`);
+  }
+  const all = variantMap.get('all');
+  if (all && all.status === 'draft' && all.content) {
+    return { categoryKey: 'all', content: all.content };
+  }
+  console.log(`구독자 ${sub.id}: 'all' 변형도 사용할 수 없어 이번 발송에서 제외합니다.`);
+  return null;
+}
+
+// 실제로 발송에 쓰인 카테고리 조합들을 'sent'로 표시한다 (실패해도 발송
+// 자체는 이미 끝난 뒤이므로 개별 로그만 남기고 계속 진행).
+async function markVariantsSent(serviceRoleKey, date, categoryKeys) {
+  const now = new Date().toISOString();
+  for (const key of categoryKeys) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/kakao_briefing_variants?briefing_date=eq.${date}&category_key=eq.${encodeURIComponent(key)}`,
+      {
+        method: 'PATCH',
+        headers: serviceRoleHeaders(serviceRoleKey, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ status: 'sent', sent_at: now })
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`카카오 브리핑 변형(${key}) 발송 상태 갱신 실패: ${errText}`);
+    }
+  }
+}
+
+async function updateBriefingKakaoStatus(serviceRoleKey, date, fields) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?briefing_date=eq.${date}`, {
+    method: 'PATCH',
+    headers: serviceRoleHeaders(serviceRoleKey, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(fields)
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Supabase news_briefings 발송 상태 갱신 실패: ${errText}`);
+  }
+}
+
+// 한 번의 API 호출로 최대 500명까지 -- receiver_N/receiver_N_message
+// 넘버링 파라미터로 묶어 보낸다 (알리고 브랜드메시지 API 스펙). 알림톡의
+// message_N(평문 문자열)과 달리, 브랜드메시지는 receiver_N_message에
+// "템플릿 변수명 -> 값" 매핑을 담은 JSON 문자열을 넣는다 -- 이 템플릿은
+// #{brief} 변수 하나만 쓰므로 매번 { "#{brief}": item.content } 하나만
+// 채운다. kakao_target: 'N'(채널 친구 대상)은 설계상 고정값이라 구독자별로
+// 달라지지 않는다.
+async function sendAligoChunk(resolvedChunk) {
+  const params = new URLSearchParams({
+    apikey: process.env.ALIGO_API_KEY,
+    userid: process.env.ALIGO_USERID,
+    senderkey: process.env.ALIGO_SENDER_KEY,
+    template_code: process.env.ALIGO_BRAND_TEMPLATE_CODE,
+    sender: process.env.ALIGO_SENDER_PHONE,
+    kakao_target: 'N',
+    advert_yn: 'Y',
+    failoverYn: 'N'
+  });
+  resolvedChunk.forEach((item, idx) => {
+    const n = idx + 1;
+    params.set(`receiver_${n}`, item.sub.phone);
+    params.set(`receiver_${n}_message`, JSON.stringify({ '#{brief}': item.content }));
+  });
+
+  const res = await fetch('https://kakaoapi.aligo.in/brandtalk/template/send/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+    ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
+  });
+  const data = await res.json();
+  return data;
+}
+
+async function handleSendBriefing(req, res) {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않았습니다.');
+    res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
+    return;
+  }
+  const aligoConfigured = process.env.ALIGO_API_KEY && process.env.ALIGO_USERID &&
+    process.env.ALIGO_SENDER_KEY && process.env.ALIGO_BRAND_TEMPLATE_CODE && process.env.ALIGO_SENDER_PHONE;
+  if (!aligoConfigured) {
+    console.error('알리고(Aligo) 관련 환경변수가 하나 이상 설정되지 않았습니다.');
+    res.status(500).json({ error: 'Aligo env vars not configured' });
+    return;
+  }
+
+  const today = todayKstDate();
+
+  const sendMode = await getAppSetting(serviceRoleKey, 'kakao_send_mode');
+  if (sendMode !== 'auto') {
+    console.log(`카카오 발송 모드가 '${sendMode || 'manual'}'이라 자동 발송을 건너뜁니다.`);
+    res.status(200).json({ skipped: 'manual_mode', date: today });
+    return;
+  }
+
+  const row = await fetchSendBriefingRow(serviceRoleKey, today);
+  if (!row) {
+    console.log(`${today} 브리핑 행이 아직 없어 발송을 건너뜁니다.`);
+    res.status(200).json({ skipped: 'no_briefing_row', date: today });
+    return;
+  }
+  if (row.kakao_status === 'sent') {
+    console.log(`${today} 브리핑은 이미 발송 완료(kakao_status='sent') 상태입니다. 중복 발송 방지를 위해 건너뜁니다.`);
+    res.status(200).json({ skipped: 'already_sent', date: today });
+    return;
+  }
+
+  const subscribers = await fetchAllKakaoSubscribers(serviceRoleKey);
+  if (subscribers.length === 0) {
+    console.log('카카오 구독자가 0명이라 발송할 대상이 없습니다.');
+    res.status(200).json({ skipped: 'no_subscribers', date: today });
+    return;
+  }
+
+  const variantMap = await fetchVariantsForDate(serviceRoleKey, today);
+  const resolved = [];
+  const skippedSubscriberIds = [];
+  subscribers.forEach(sub => {
+    const r = resolveSubscriberVariant(sub, variantMap);
+    if (r) resolved.push({ sub, categoryKey: r.categoryKey, content: r.content });
+    else skippedSubscriberIds.push(sub.id);
+  });
+
+  if (resolved.length === 0) {
+    console.log(`${today}: 발송 가능한 콘텐츠(카테고리 변형 또는 all)가 있는 구독자가 한 명도 없어 발송을 건너뜁니다.`);
+    res.status(200).json({ skipped: 'no_kakao_content', date: today, skippedSubscriberIds });
+    return;
+  }
+  if (skippedSubscriberIds.length > 0) {
+    console.log(`${today}: 콘텐츠가 없어 이번 발송에서 제외된 구독자 ${skippedSubscriberIds.length}명: ${skippedSubscriberIds.join(', ')}`);
+  }
+
+  const chunks = chunkArray(resolved, 500);
+  const mids = [];
+  let sentCount = 0;
+  const usedCategoryKeys = new Set();
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    let result;
+    try {
+      result = await sendAligoChunk(chunk);
+    } catch (sendErr) {
+      console.error(`알리고 발송 호출 자체가 실패했습니다 (chunk ${i + 1}/${chunks.length}):`, sendErr);
+      await updateBriefingKakaoStatus(serviceRoleKey, today, { kakao_status: 'error', kakao_error: `send_request_failed: ${sendErr.message}` });
+      res.status(200).json({ ok: false, reason: 'aligo_request_failed', message: sendErr.message, date: today, sentCount });
+      return;
     }
 
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/news_briefings?on_conflict=briefing_date`, {
-      method: 'POST',
+    if (result.code !== 0) {
+      console.error(`알리고 발송 실패 (chunk ${i + 1}/${chunks.length}, 코드 ${result.code}): ${result.message}`);
+      await updateBriefingKakaoStatus(serviceRoleKey, today, { kakao_status: 'error', kakao_error: result.message || `aligo_error_code_${result.code}` });
+      res.status(200).json({ ok: false, reason: 'aligo_send_failed', message: result.message, date: today, sentCount });
+      return;
+    }
+
+    sentCount += chunk.length;
+    chunk.forEach(item => usedCategoryKeys.add(item.categoryKey));
+    if (result.info && result.info.mid) mids.push(result.info.mid);
+    console.log(`알리고 발송 성공 (chunk ${i + 1}/${chunks.length}, ${chunk.length}명, mid=${result.info && result.info.mid}).`);
+  }
+
+  await markVariantsSent(serviceRoleKey, today, usedCategoryKeys);
+
+  await updateBriefingKakaoStatus(serviceRoleKey, today, { kakao_status: 'sent', kakao_sent_at: new Date().toISOString() });
+  console.log(`${today} 카카오 브리핑 발송 완료: 총 ${sentCount}명, ${chunks.length}건, 카테고리 조합 ${[...usedCategoryKeys].join(', ')}.`);
+  res.status(200).json({
+    ok: true,
+    date: today,
+    sentCount,
+    mid: mids,
+    categoryKeys: [...usedCategoryKeys],
+    skippedSubscriberIds
+  });
+}
+
+// ==========================================================================
+// action=test-send (was test-kakao-send.js) -- 알리고 연동 점검용 1건
+// 테스트 발송. 관리자 화면의 "카카오톡 발송용" 패널에서 호출.
+// ==========================================================================
+
+const DEFAULT_TEST_CONTENT = '▩ 이것은 바이칼뉴스 3분 브리핑 발송 테스트입니다. 실제 발송이 정상 작동하는지 확인하는 메시지입니다.';
+
+async function handleTestSend(req, res) {
+  const { phone, content } = req.body || {};
+
+  // 번호 형식은 일부러 검증하지 않는다 -- 잘못된 번호를 알리고가 어떤
+  // 코드/메시지로 되돌려주는지도 연동 점검에 유용한 신호이기 때문.
+  if (!phone || !String(phone).trim()) {
+    res.status(400).json({ error: '전화번호를 입력해 주세요.' });
+    return;
+  }
+
+  const requiredEnv = ['ALIGO_API_KEY', 'ALIGO_USERID', 'ALIGO_SENDER_KEY', 'ALIGO_TEMPLATE_CODE', 'ALIGO_SENDER_PHONE'];
+  const missing = requiredEnv.filter(name => !process.env[name]);
+  if (missing.length > 0) {
+    console.error('알리고(Aligo) 환경변수 누락:', missing.join(', '));
+    res.status(500).json({ error: `알리고 환경변수가 설정되지 않았습니다: ${missing.join(', ')}` });
+    return;
+  }
+
+  const message = (content && String(content).trim()) ? String(content) : DEFAULT_TEST_CONTENT;
+
+  const params = new URLSearchParams({
+    apikey: process.env.ALIGO_API_KEY,
+    userid: process.env.ALIGO_USERID,
+    senderkey: process.env.ALIGO_SENDER_KEY,
+    tpl_code: process.env.ALIGO_TEMPLATE_CODE,
+    sender: process.env.ALIGO_SENDER_PHONE,
+    testMode: 'Y'
+  });
+  params.set('receiver_1', String(phone).trim());
+  params.set('subject_1', '바이칼뉴스 3분 브리핑 (테스트)');
+  params.set('message_1', message);
+
+  const aligoRes = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+    ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
+  });
+  // 알리고가 응답만 했다면 code가 0이 아니어도 그대로 돌려준다 -- 잔액 부족과
+  // 템플릿 불일치를 구분하려면 알리고의 원본 code/message가 그대로 필요하다.
+  const data = await aligoRes.json();
+  res.status(200).json(data);
+}
+
+// ==========================================================================
+// action=create-brand-template (was create-brand-template.js) -- 1회성
+// 관리자 전용 도구. 공개 UI에서 링크로 노출하지 말 것 -- 필요할 때만
+// curl/Postman으로 { action: 'create-brand-template' } 직접 호출.
+// ==========================================================================
+
+// 발송 직전 기계적으로 붙이던 구독취소 안내를 이 고정 템플릿 문구 쪽으로
+// 옮겼다 -- 생성되는 본문(#{brief})마다 매번 다시 붙일 필요가 없어졌다.
+const BRAND_TEMPLATE_CONTENT = `[바이칼뉴스] 3분 뉴스 브리핑
+
+#{brief}
+
+▶ 더 이상 받고 싶지 않으시면 baikalnews.com에서 구독취소를 눌러주세요.`;
+
+async function handleCreateBrandTemplate(req, res) {
+  const requiredEnv = ['ALIGO_API_KEY', 'ALIGO_USERID', 'ALIGO_SENDER_KEY'];
+  const missing = requiredEnv.filter(name => !process.env[name]);
+  if (missing.length > 0) {
+    console.error('알리고(Aligo) 환경변수 누락:', missing.join(', '));
+    res.status(500).json({ error: `알리고 환경변수가 설정되지 않았습니다: ${missing.join(', ')}` });
+    return;
+  }
+
+  const params = new URLSearchParams({
+    apikey: process.env.ALIGO_API_KEY,
+    userid: process.env.ALIGO_USERID,
+    senderkey: process.env.ALIGO_SENDER_KEY,
+    template_type: 'TEXT',
+    template_name: '바이칼뉴스 3분 브리핑',
+    adult: 'N',
+    template_content: BRAND_TEMPLATE_CONTENT
+  });
+
+  const aligoRes = await fetch('https://kakaoapi.aligo.in/brandtalk/template/create/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+    ...(aligoProxyAgent ? { dispatcher: aligoProxyAgent } : {})
+  });
+  // 알리고 원본 응답을 그대로 돌려준다 -- template_code/send_variable/status를
+  // 가공 없이 호출자(관리자)가 직접 확인해야 하기 때문.
+  const data = await aligoRes.json();
+  res.status(200).json(data);
+}
+
+// ==========================================================================
+// action=unsubscribe (was kakao-unsubscribe.js) -- 구독자 자가 구독취소.
+// unsubscribe.html(공개 사이트)에서 전화번호만 입력받아 곧바로
+// kakao_subscribers에서 해당 행을 삭제한다. 설계상 OTP/문자 인증 없음:
+// 구독취소는 최대한 마찰 없이 되어야 한다는 원칙 + 인증 문자 발송 비용을
+// 또 들이지 않기 위한 명시적 결정 (관리자 확인 완료).
+// ==========================================================================
+
+// 카카오 로그인이 저장하는 번호는 항상 010으로 시작하는 11자리 휴대전화
+// 번호를 kakao-oauth-callback.js의 normalizeKakaoPhone()이 "010-1234-5678"
+// 형태(3-4-4)로 저장해 둔 것이므로, DB에 존재 가능한 값도 이 패턴뿐이다.
+// 이 형태가 아니면 조회해봐야 절대 일치할 수 없으므로 미리 400으로 막는다.
+function normalizePhoneForUnsubscribe(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!/^010\d{8}$/.test(digits)) return null;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
+async function handleUnsubscribe(req, res) {
+  const { phone } = req.body || {};
+
+  const normalizedPhone = normalizePhoneForUnsubscribe(phone);
+  if (!normalizedPhone) {
+    res.status(400).json({ ok: false, error: '올바른 휴대전화 번호 형식이 아닙니다. (예: 010-1234-5678)' });
+    return;
+  }
+
+  // Prefer: return=representation -- 삭제된 행을 응답 본문으로 그대로
+  // 돌려받아야, "조회는 성공했지만 일치하는 행이 없음"(found: false)과
+  // "실제로 삭제됨"(found: true)을 구분할 수 있다.
+  const deleteRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/kakao_subscribers?phone=eq.${encodeURIComponent(normalizedPhone)}`,
+    {
+      method: 'DELETE',
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({ briefing_date: today, title, content: resultText, status: 'published' })
-    });
-
-    if (!insertRes.ok) {
-      const errText = await insertRes.text();
-      throw new Error(`Supabase news_briefings insert failed: ${errText}`);
+        Prefer: 'return=representation'
+      }
     }
+  );
 
-    console.log(`${today} 브리핑 자동 생성 완료 (검수 없이 즉시 게시, ${resultText.length}자).`);
+  if (!deleteRes.ok) {
+    const errText = await deleteRes.text();
+    console.error('Supabase kakao_subscribers delete 실패:', errText);
+    res.status(500).json({ ok: false, error: '구독 취소 처리 중 오류가 발생했습니다.' });
+    return;
+  }
 
-    // 웹 브리핑은 이미 저장이 끝난 뒤이므로, 카카오 생성이 실패해도 이미
-    // 성공한 웹 브리핑 응답을 절대 막지 않는다 (generateAndSaveKakaoIfNeeded는
-    // 자체적으로 에러를 삼키고 결과 객체를 반환함).
-    const kakaoResult = await generateAndSaveKakaoIfNeeded(apiKey, today, resultText);
-    await generateAndSaveCategoryVariants(apiKey, today, resultText, kakaoResult.ok ? kakaoResult.content : null);
+  const deletedRows = await deleteRes.json();
+  res.status(200).json({ ok: true, found: deletedRows.length > 0 });
+}
 
-    res.status(200).json({ ok: true, date: today, length: resultText.length, kakao: kakaoResult });
+module.exports = async (req, res) => {
+  setCors(req, res);
+  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  req.body = body || {};
+  const { action } = req.body;
+  try {
+    if (action === 'generate-briefing') { await handleGenerateBriefing(req, res); return; }
+    if (action === 'send-briefing') { await handleSendBriefing(req, res); return; }
+    if (action === 'test-send') { await handleTestSend(req, res); return; }
+    if (action === 'create-brand-template') { await handleCreateBrandTemplate(req, res); return; }
+    if (action === 'unsubscribe') { await handleUnsubscribe(req, res); return; }
+    res.status(400).json({ error: 'action must be one of: generate-briefing, send-briefing, test-send, create-brand-template, unsubscribe' });
   } catch (err) {
-    console.error('일일 브리핑 자동 생성 실패:', err);
+    console.error(`kakao-proxy (action=${action}) error:`, err);
     res.status(500).json({ error: err.message });
   }
 };

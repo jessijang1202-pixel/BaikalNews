@@ -15,35 +15,35 @@
       "has": [
         { "type": "header", "key": "user-agent", "value": { "pre": "facebookexternalhit" } }
       ],
-      "destination": "/api/article-og"
+      "destination": "/api/public-render?type=article"
     },
     {
       "source": "/article.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": { "pre": "Twitterbot" } }
       ],
-      "destination": "/api/article-og"
+      "destination": "/api/public-render?type=article"
     },
     {
       "source": "/article.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": { "pre": "Slackbot" } }
       ],
-      "destination": "/api/article-og"
+      "destination": "/api/public-render?type=article"
     },
     {
       "source": "/article.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
-      "destination": "/api/article-og"
+      "destination": "/api/public-render?type=article"
     },
     {
       "source": "/article.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
-      "destination": "/api/article-og"
+      "destination": "/api/public-render?type=article"
     },
     {
       "source": "/article.html",
@@ -54,14 +54,14 @@
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
-      "destination": "/api/category-og"
+      "destination": "/api/public-render?type=category"
     },
     {
       "source": "/category.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
-      "destination": "/api/category-og"
+      "destination": "/api/public-render?type=category"
     },
     {
       "source": "/category.html",
@@ -72,14 +72,14 @@
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
-      "destination": "/api/homepage-og"
+      "destination": "/api/public-render?type=home"
     },
     {
       "source": "/",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
-      "destination": "/api/homepage-og"
+      "destination": "/api/public-render?type=home"
     },
     {
       "source": "/",
@@ -90,14 +90,14 @@
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Googlebot.*" }
       ],
-      "destination": "/api/homepage-og"
+      "destination": "/api/public-render?type=home"
     },
     {
       "source": "/index.html",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*Mediapartners-Google.*" }
       ],
-      "destination": "/api/homepage-og"
+      "destination": "/api/public-render?type=home"
     },
     {
       "source": "/index.html",
@@ -105,13 +105,13 @@
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/api/sitemap"
+      "destination": "/api/public-render?type=sitemap"
     }
   ],
   "functions": {
     "api/gemini-text-proxy.js": { "maxDuration": 60 },
     "api/gemini-image-proxy.js": { "maxDuration": 60 },
-    "api/gemini-video-analyze-proxy.js": { "maxDuration": 60 }
+    "api/gemini-video-proxy.js": { "maxDuration": 60 }
   },
   "headers": [
     {
