@@ -752,15 +752,15 @@ function renderCategoryPage() {
   const catLabels = CATEGORY_LABELS;
 
   const catDescs = {
-    culture: "얼어붙은 표면 아래 살아 숨 쉬는 온기처럼, 일상 속 예술이 지닌 치유의 힘과 문화의 결을 깊이 있게 기록합니다.",
-    local: "바이칼처럼 마르지 않는 공동체의 연대와 상생을 지역 곳곳의 현장에서 길어 올립니다.",
+    pyeongtaek: "바이칼처럼 마르지 않는 공동체의 연대와 상생을 지역 곳곳의 현장에서 길어 올립니다.",
+    life: "세금, 복지, 날씨, 교통처럼 오늘 당장 필요한 정보를 가장 쉽고 정확하게 전합니다.",
     economy: "겨울 호수의 두꺼운 얼음처럼 단단한 지역경제의 기반과, 순환·재생 에너지로 나아가는 지속가능한 성장을 취재합니다.",
-    opinion: "속도와 자극의 소음 위에서, 얼음처럼 냉철하고 투명한 시선으로 세상을 응시하는 지성의 목소리를 모읍니다.",
-    tech: "호수 밑바닥까지 닿는 빛처럼, 첨단 기술이 환경과 역사에 새로운 시야를 밝히는 순간들을 보도합니다."
+    culture: "얼어붙은 표면 아래 살아 숨 쉬는 온기처럼, 일상 속 문화와 행사가 빚어내는 결을 깊이 있게 기록합니다.",
+    opinion: "속도와 자극의 소음 위에서, 얼음처럼 냉철하고 투명한 시선으로 세상을 응시하는 지성의 목소리를 모읍니다."
   };
 
   const titleText = catLabels[cat] || "Category";
-  const descText = catDescs[cat] || "Baikal News Editorial Archives";
+  const descText = catDescs[cat] || "깊고 투명한 시선으로 세상을 비추는 바이칼 뉴스의 보도 아카이브입니다.";
 
   document.title = `${titleText} - Baikal News`;
   const catTitleEl = document.getElementById("category-title");
