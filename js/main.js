@@ -611,18 +611,24 @@ function renderHomepage() {
     }
   }
 
-  // Feature #4: Popular Reads (fully automatic -- selected and ordered by view count)
+  // Feature #4: Popular Reads (fully automatic -- selected and ordered by
+  // view count). Moved into .home-split-right (2026-10) as a vertical
+  // ranked list with thumbnails -- reuses 'standard' card markup the same
+  // way #latest-grid-container does, with the rank number added purely via
+  // CSS counter() on .card-title::before (see #popular-reads-container in
+  // components.css) rather than 'minimal' mode's old number-only/no-image
+  // row style.
   const popularContainer = document.getElementById("popular-reads-container");
   if (popularContainer) {
     const popularItems = getOrderedPopularArticles(published, null, 5);
     popularContainer.innerHTML = popularItems.length > 0
-      ? popularItems.map(art => createArticleCardHTML(art, 'minimal')).join('')
+      ? popularItems.map(art => createArticleCardHTML(art, 'standard')).join('')
       : `<p style="color: var(--text-muted); text-align: center;">게시된 기사가 없습니다.</p>`;
   }
 
-  // Feature #5: Category Highlights (5 full-width sections, 5 cards each).
-  // A category with no articles yet is hidden entirely rather than shown
-  // as an empty section.
+  // Feature #5: Category Highlights (5 sections stacked in the left column
+  // of .home-split, 6 cards each over 2 rows of 3). A category with no
+  // articles yet is hidden entirely rather than shown as an empty section.
   const categoryRows = [
     { id: "pyeongtaek-row-container", cat: "pyeongtaek" },
     { id: "life-row-container", cat: "life" },
@@ -635,7 +641,7 @@ function renderHomepage() {
     const container = document.getElementById(row.id);
     if (!container) return;
 
-    const articles = getArticlesByCategory(row.cat).slice(0, 5);
+    const articles = getArticlesByCategory(row.cat).slice(0, 6);
     const sectionEl = container.closest('section') || container.parentElement;
 
     if (articles.length > 0) {

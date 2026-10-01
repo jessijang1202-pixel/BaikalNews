@@ -130,72 +130,62 @@
       </div>
     </section>
 
-    <!-- 2. Ranking -->
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">실시간 인기기사</h2>
-      </div>
-      <div id="popular-reads-container">
-        <!-- Ranked list (populated by main.js) -->
-      </div>
-    </section>
-
-    <!-- 3. Category sections -->
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">평택소식</h2>
-        <a href="category.html?cat=pyeongtaek" class="section-link">더보기 →</a>
-      </div>
-      <div id="pyeongtaek-row-container" class="home-row"></div>
-    </section>
-
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">생활정보</h2>
-        <a href="category.html?cat=life" class="section-link">더보기 →</a>
-      </div>
-      <div id="life-row-container" class="home-row"></div>
-    </section>
-
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">경제·산업·환경</h2>
-        <a href="category.html?cat=economy" class="section-link">더보기 →</a>
-      </div>
-      <div id="economy-row-container" class="home-row"></div>
-    </section>
-
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">문화·행사</h2>
-        <a href="category.html?cat=culture" class="section-link">더보기 →</a>
-      </div>
-      <div id="culture-row-container" class="home-row"></div>
-    </section>
-
-    <section class="home-section">
-      <div class="section-header">
-        <h2 class="section-title">오피니언</h2>
-        <a href="category.html?cat=opinion" class="section-link">더보기 →</a>
-      </div>
-      <div id="opinion-row-container" class="home-row"></div>
-    </section>
-
-    <!-- 6. Subscribe row: KakaoTalk + Newsletter side by side -->
-    <section class="home-section">
-      <div class="subscribe-row">
-        <div class="newsletter-block kakao-block" id="kakao-subscribe">
-          <div class="newsletter-copy">
-            <h3>카카오톡으로 3분 뉴스받기</h3>
-            <p>매일 하루 1회, 그날 꼭 알아야 할 뉴스를 3분 안에 정리해 카카오톡으로 보내드립니다. 지금 신청해두시면 카카오톡 채널 개설과 동시에 발송을 시작합니다.</p>
+    <!-- 2. Split: categories (left, 1.6fr) + ranking/subscribe rail (right, 1fr) --
+         matches the hero row's own column ratio. -->
+    <section class="home-split">
+      <div class="home-split-left">
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">평택소식</h2>
+            <a href="category.html?cat=pyeongtaek" class="section-link">더보기 →</a>
           </div>
-          <div class="newsletter-form">
-            <button type="button" class="btn" id="kakao-submit-btn" onclick="openKakaoCategoryModal()">카카오로 뉴스 받아보기</button>
-          </div>
-          <p class="newsletter-disclaimer">회원가입 시 카카오 계정 동의 화면에서 전화번호 제공에 동의하게 되며, 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>과 <a href="terms.html">이용약관</a>이 함께 적용됩니다.</p>
-        </div>
+          <div id="pyeongtaek-row-container" class="home-row"></div>
+        </section>
 
-        <div class="newsletter-block" id="newsletter">
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">생활정보</h2>
+            <a href="category.html?cat=life" class="section-link">더보기 →</a>
+          </div>
+          <div id="life-row-container" class="home-row"></div>
+        </section>
+
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">경제·산업·환경</h2>
+            <a href="category.html?cat=economy" class="section-link">더보기 →</a>
+          </div>
+          <div id="economy-row-container" class="home-row"></div>
+        </section>
+
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">문화·행사</h2>
+            <a href="category.html?cat=culture" class="section-link">더보기 →</a>
+          </div>
+          <div id="culture-row-container" class="home-row"></div>
+        </section>
+
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">오피니언</h2>
+            <a href="category.html?cat=opinion" class="section-link">더보기 →</a>
+          </div>
+          <div id="opinion-row-container" class="home-row"></div>
+        </section>
+      </div>
+
+      <div class="home-split-right">
+        <section class="home-split-item">
+          <div class="section-header">
+            <h2 class="section-title">실시간 인기기사</h2>
+          </div>
+          <div id="popular-reads-container">
+            <!-- Ranked list (populated by main.js) -->
+          </div>
+        </section>
+
+        <div class="newsletter-block compact" id="newsletter">
           <div class="newsletter-copy">
             <h3>바이칼 뉴스레터 구독</h3>
             <p>한 주간의 깊이 있고 신뢰할 수 있는 문화, 지역 정책, 경제 및 기술 소식을 이메일로 받아보세요. 스팸 없이 오직 투명한 보도만을 전합니다.</p>
@@ -206,11 +196,19 @@
           </form>
           <p class="newsletter-disclaimer">구독 시 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>에 동의하게 됩니다.</p>
         </div>
-      </div>
-    </section>
 
-    <!-- 8. SNS Follow -->
-    <section class="home-section sns-follow-section">
+        <div class="newsletter-block compact kakao-block" id="kakao-subscribe">
+          <div class="newsletter-copy">
+            <h3>카카오톡으로 3분 뉴스받기</h3>
+            <p>매일 하루 1회, 그날 꼭 알아야 할 뉴스를 3분 안에 정리해 카카오톡으로 보내드립니다. 지금 신청해두시면 카카오톡 채널 개설과 동시에 발송을 시작합니다.</p>
+          </div>
+          <div class="newsletter-form">
+            <button type="button" class="btn" id="kakao-submit-btn" onclick="openKakaoCategoryModal()">카카오로 뉴스 받아보기</button>
+          </div>
+          <p class="newsletter-disclaimer">회원가입 시 카카오 계정 동의 화면에서 전화번호 제공에 동의하게 되며, 바이칼 뉴스의 <a href="privacy-policy.html">개인정보처리방침</a>과 <a href="terms.html">이용약관</a>이 함께 적용됩니다.</p>
+        </div>
+
+        <section class="sns-follow-section home-split-item">
       <h2>바이칼뉴스를 팔로우하세요</h2>
       <p>깊이 있는 취재와 빠른 소식을, 가장 자주 쓰는 채널에서 가장 먼저 만나보세요.</p>
       <div class="sns-icon-row">
@@ -267,6 +265,8 @@
             <path fill="#391B1B" d="M12 5.7c-3.87 0-7 2.5-7 5.58 0 1.98 1.3 3.72 3.26 4.7-.14.53-.52 1.9-.6 2.19-.1.36.13.35.28.26.12-.08 1.9-1.29 2.68-1.82.45.06.92.1 1.38.1 3.87 0 7-2.5 7-5.58s-3.13-5.43-7-5.43z"/>
           </svg>
         </a>
+          </div>
+        </section>
       </div>
     </section>
 

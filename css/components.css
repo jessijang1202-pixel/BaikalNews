@@ -178,28 +178,19 @@
   margin-top: auto;
 }
 
-/* Homepage 5-column category rows -- all 5 cards fit on one row, so text
-   sizes are trimmed down from the base .card styles (built for a 3-column
-   row) to keep titles from wrapping to 3-4 lines at this narrower width. */
+/* Homepage category rows -- lives inside .home-split-left now (2026-10),
+   6 cards over 2 rows of 3 instead of 5 across the full page width, so
+   this is back to the base .card title/excerpt sizes (no longer needs the
+   compressed 5-up sizing from the brief period it spanned the full width). */
 .home-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px 18px;
 }
 
 .home-row > p {
   grid-column: 1 / -1;
   color: var(--text-muted);
-}
-
-.home-row .card-title {
-  font-size: 0.92rem;
-  margin-bottom: 6px;
-}
-
-.home-row .card-excerpt {
-  font-size: 0.78rem;
-  -webkit-line-clamp: 2;
 }
 
 /* ============================================================
@@ -218,6 +209,50 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
+}
+
+/* ============================================================
+   Homepage body split (2026-10) - categories (left) + ranking/
+   subscribe/follow rail (right), same 1.6fr/1fr ratio as .hero-grid
+   directly above it so the two column edges line up.
+   ============================================================ */
+.home-split {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 32px;
+  padding: 40px 0;
+}
+
+.home-split-left,
+.home-split-right {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Left column: 5 stacked category sections, each with the same top divider
+   the old full-width .home-section used to have -- except the first, which
+   borders against the hero row above instead. */
+.home-split-left > .home-split-item:not(:first-child) {
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* Right column: plain content sections (실시간 인기기사, 팔로우하세요) get
+   the same divider treatment; the newsletter/kakao boxes are already
+   self-contained colored cards, so they just need spacing, not a line
+   directly above them. */
+.home-split-right > * {
+  margin-top: 32px;
+}
+
+.home-split-right > *:first-child {
+  margin-top: 0;
+}
+
+.home-split-right > .home-split-item:not(:first-child) {
+  padding-top: 32px;
+  border-top: 1px solid var(--border-light);
 }
 
 .card-hero {
@@ -345,7 +380,6 @@
    Card Minimal - ranked index list (used by article-page sidebar)
    ============================================================ */
 #editors-picks-container,
-#popular-reads-container,
 #article-ranking-container,
 #category-ranking-container {
   counter-reset: ranklist;
@@ -392,44 +426,57 @@
 }
 
 /* ============================================================
-   Ranking - full-width 5-column "실시간 인기기사" grid
-   Big serif numerals beside the headline, no image/excerpt.
+   Ranking - "실시간 인기기사" vertical list in .home-split-right
+   (2026-10: moved from a full-width 5-column number-only grid into the
+   narrow right rail, now with thumbnails). Reuses the plain 'standard'
+   .card markup -- same horizontal row treatment as #latest-grid-container
+   -- with the rank number added via a CSS counter on .card-title::before
+   instead of .card-minimal's old ::before-on-the-row approach, since this
+   is no longer using 'minimal' mode at all.
    ============================================================ */
 #popular-reads-container {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0;
+  counter-reset: poprank;
 }
 
-#popular-reads-container .card-minimal {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 4px 20px 4px 0;
+#popular-reads-container .card {
+  counter-increment: poprank;
+  flex-direction: row;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+#popular-reads-container .card:first-child {
+  padding-top: 0;
+}
+
+#popular-reads-container .card:last-child {
   border-bottom: none;
-  border-right: 1px solid var(--border-light);
+  padding-bottom: 0;
 }
 
-#popular-reads-container .card-minimal:last-child {
-  border-right: none;
-  padding-right: 0;
-}
-
-#popular-reads-container .card-minimal::before {
-  position: static;
-  font-size: 1.9rem;
-  color: var(--accent-cyan);
-  opacity: 0.85;
+#popular-reads-container .card-image-wrapper {
   flex-shrink: 0;
+  width: 96px;
+  height: 72px;
+  aspect-ratio: auto;
+  margin-bottom: 0;
 }
 
-#popular-reads-container .card-minimal .card-meta {
+#popular-reads-container .card-excerpt {
   display: none;
 }
 
-#popular-reads-container .card-minimal .card-title {
-  font-size: 0.98rem;
-  margin-bottom: 0;
+#popular-reads-container .card-title {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+#popular-reads-container .card-title::before {
+  content: counter(poprank, decimal-leading-zero) "  ";
+  color: var(--accent-cyan);
+  font-weight: 700;
 }
 
 /* ============================================================
@@ -514,30 +561,6 @@
   text-decoration: underline;
 }
 
-/* Side-by-side KakaoTalk + Newsletter -- two full-width stacked blocks felt
-   heavy, so each takes half the row instead. flex-wrap (no media query
-   needed) drops to one column once two 320px-min halves no longer fit.
-   Each half stacks its own heading/form vertically instead of the full-width
-   block's side-by-side layout, which doesn't have room to breathe at half
-   width. */
-.subscribe-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  align-items: stretch;
-}
-.subscribe-row .newsletter-block {
-  flex: 1 1 320px;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.subscribe-row .newsletter-copy,
-.subscribe-row .newsletter-form,
-.subscribe-row .newsletter-disclaimer {
-  flex-basis: auto;
-  width: 100%;
-}
-
 /* 홈페이지 본문 맨 아래 "팔로우하세요" 섹션 -- 푸터의 작은 아이콘과
    별개로, 본문에서 눈에 확 띄도록 크게 배치한다. */
 .sns-follow-section {
@@ -571,31 +594,30 @@
 }
 
 /* KakaoTalk 3-min news signup -- same layout as the newsletter block, just
-   re-tinted to Kakao's actual brand yellow (#FEE500) so it reads as "the
-   Kakao one" at a glance, positioned above the newsletter block so readers
-   choose between the two. */
+   re-tinted to a lighter take on Kakao's brand yellow so it reads as "the
+   Kakao one" at a glance without being as saturated/harsh as the literal
+   brand color (#FEE500), positioned above the newsletter block so readers
+   choose between the two.
+   2026-10: un-hidden again (was display:none!important during the AdSense
+   re-review pause that started 2026-09 -- the 3분 브리핑 generation cron
+   is still off though, see api/kakao-proxy.js, so signups collected here
+   won't get an actual daily send until that's turned back on). */
 .newsletter-block.kakao-block {
-  background: #FFF6C8;
-  /* 애드센스 재심사 기간 동안 3분 뉴스 브리핑 기능 전체(자동 생성 cron,
-     공개 페이지 briefing.html, 이 신청 박스)를 잠시 멈춰둔다. 다시 켜려면
-     이 display 줄 자체를 지우면 사이트 전체(홈/카테고리/기사 사이드바)에
-     한 번에 다시 보인다 -- 아래 .compact 변형과 specificity가 같아서
-     !important 없이는 어느 쪽이 이길지 선언 순서에 좌우된다. */
-  display: none !important;
+  background: #FFFBE5;
 }
 .newsletter-block.kakao-block .newsletter-input:focus {
-  border-color: #FEE500;
+  border-color: #FFEC66;
 }
 #kakao-submit-btn {
-  border: 1px solid #FEE500;
-  background-color: #FEE500;
+  border: 1px solid #FFEC66;
+  background-color: #FFEC66;
   color: #191919;
   font-weight: 700;
   white-space: nowrap;
 }
 #kakao-submit-btn:hover {
-  background-color: #F6DC00;
-  border-color: #F6DC00;
+  background-color: #FFE44D;
+  border-color: #FFE44D;
 }
 
 /* Compact modifier - used for the article-page sidebar newsletter widget */
@@ -706,11 +728,15 @@
   }
   /* 2 hero cards stay side by side down to tablet width, but stack on
      narrower screens (768px breakpoint below) where that'd be too cramped. */
-  #popular-reads-container {
-    grid-template-columns: repeat(3, 1fr);
+
+  /* Categories (left) stack above the ranking/subscribe rail (right)
+     instead of staying side by side -- same reasoning as .hero-grid above. */
+  .home-split {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
-  #popular-reads-container .card-minimal:nth-child(3n) {
-    border-right: none;
+  .home-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -772,32 +798,8 @@
     display: none;
   }
 
-  /* Ranking widens back into a single shaded panel with a plain
-     vertical numbered list, instead of the desktop 5-column grid */
-  .home-section:has(#popular-reads-container) {
-    background-color: var(--bg-secondary);
-    margin: 0 -16px;
-    padding: 24px 16px;
-    border-top: none;
-  }
-  #popular-reads-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-  #popular-reads-container .card-minimal {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 0;
-    border-right: none;
-    border-bottom: 1px solid var(--border-light);
-  }
-  #popular-reads-container .card-minimal:last-child {
-    border-bottom: none;
-  }
-  #popular-reads-container .card-minimal::before {
-    font-size: 1.4rem;
+  .home-row {
+    grid-template-columns: 1fr;
   }
 
   .newsletter-block {
