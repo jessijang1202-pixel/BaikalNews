@@ -397,10 +397,10 @@
                   <div class="form-group-admin">
                     <label for="form-category">카테고리</label>
                     <select id="form-category" class="form-control-admin">
-                      <option value="culture">문화·생활</option>
-                      <option value="economy">경제·산업</option>
-                      <option value="tech">기술·미디어</option>
-                      <option value="local">지역·평택</option>
+                      <option value="pyeongtaek">평택소식</option>
+                      <option value="life">생활정보</option>
+                      <option value="economy">경제·산업·환경</option>
+                      <option value="culture">문화·행사</option>
                       <option value="opinion">오피니언</option>
                     </select>
                   </div>
@@ -576,6 +576,10 @@
                     <input type="radio" name="ai-mode" value="info" onclick="switchAiMode('info')">
                     <span>④ 정보성 기사 추천 (정책·세금·복지)</span>
                   </label>
+                  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="radio" name="ai-mode" value="deep" onclick="switchAiMode('deep')">
+                    <span>⑤ 심층 기사 (평택 기획)</span>
+                  </label>
                 </div>
               </div>
 
@@ -606,11 +610,21 @@
                 <div class="form-group-admin">
                   <label for="ai-topic-category">대상 카테고리</label>
                   <select id="ai-topic-category" class="form-control-admin">
-                    <option value="culture">문화·생활</option>
-                    <option value="economy">경제·산업</option>
-                    <option value="tech">기술·미디어</option>
-                    <option value="local">지역·평택</option>
+                    <option value="culture">문화·행사</option>
+                    <option value="economy">경제·산업·환경</option>
+                    <option value="pyeongtaek">평택소식</option>
+                    <option value="life">생활정보</option>
                     <option value="opinion">오피니언</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-topic-article-type">글 유형 (check.md 분량·톤 규정)</label>
+                  <select id="ai-topic-article-type" class="form-control-admin">
+                    <option value="">-- AI가 내용에 맞춰 자동 판단 --</option>
+                    <option value="취재">취재 (최소 1,500자)</option>
+                    <option value="생활정보">생활정보 (최소 1,500자)</option>
+                    <option value="보도자료">보도자료 재구성 (최소 1,500자, 비판적 시각 포함)</option>
+                    <option value="오피니언">오피니언 (최소 5,000자, 필진 명의 문체)</option>
                   </select>
                 </div>
               </div>
@@ -636,11 +650,21 @@
                 <div class="form-group-admin">
                   <label for="ai-link-category">발행 타겟 카테고리</label>
                   <select id="ai-link-category" class="form-control-admin">
-                    <option value="culture">문화·생활</option>
-                    <option value="economy">경제·산업</option>
-                    <option value="tech">기술·미디어</option>
-                    <option value="local">지역·평택</option>
+                    <option value="culture">문화·행사</option>
+                    <option value="economy">경제·산업·환경</option>
+                    <option value="pyeongtaek">평택소식</option>
+                    <option value="life">생활정보</option>
                     <option value="opinion">오피니언</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-link-article-type">글 유형 (check.md 분량·톤 규정)</label>
+                  <select id="ai-link-article-type" class="form-control-admin">
+                    <option value="">-- AI가 내용에 맞춰 자동 판단 --</option>
+                    <option value="취재">취재 (최소 1,500자)</option>
+                    <option value="생활정보">생활정보 (최소 1,500자)</option>
+                    <option value="보도자료">보도자료 재구성 (최소 1,500자, 비판적 시각 포함)</option>
+                    <option value="오피니언">오피니언 (최소 5,000자, 필진 명의 문체)</option>
                   </select>
                 </div>
               </div>
@@ -666,10 +690,10 @@
                 <div class="form-group-admin">
                   <label for="ai-trending-category">대상 카테고리</label>
                   <select id="ai-trending-category" class="form-control-admin">
-                    <option value="culture">문화·생활</option>
-                    <option value="economy">경제·산업</option>
-                    <option value="tech">기술·미디어</option>
-                    <option value="local">지역·평택</option>
+                    <option value="culture">문화·행사</option>
+                    <option value="economy">경제·산업·환경</option>
+                    <option value="pyeongtaek">평택소식</option>
+                    <option value="life">생활정보</option>
                     <option value="opinion">오피니언</option>
                   </select>
                 </div>
@@ -699,12 +723,64 @@
                 <div class="form-group-admin">
                   <label for="ai-info-category">대상 카테고리</label>
                   <select id="ai-info-category" class="form-control-admin">
-                    <option value="local">지역·평택</option>
-                    <option value="economy">경제·산업</option>
-                    <option value="culture">문화·생활</option>
-                    <option value="tech">기술·미디어</option>
+                    <option value="life">생활정보</option>
+                    <option value="pyeongtaek">평택소식</option>
+                    <option value="economy">경제·산업·환경</option>
+                    <option value="culture">문화·행사</option>
                     <option value="opinion">오피니언</option>
                   </select>
+                </div>
+              </div>
+
+              <!-- INPUT CONTAINER 5: DEEP (평택 심층 기획기사) -->
+              <div id="ai-input-deep" class="ai-input-group" style="display: none;">
+                <div class="form-group-admin">
+                  <label for="ai-deep-area-input">포괄적 주제 분야</label>
+                  <input type="text" id="ai-deep-area-input" class="form-control-admin" placeholder="예: 평택 미군 부대, 삼성 캠퍼스, 평택 환경">
+                  <div class="help-text">편성해 둔 기획기사 36건 중 이 분야와 맞는 미사용 주제를 먼저 추천하고, 다 소진되면 AI가 같은 형식으로 새 주제를 직접 제안합니다.</div>
+                </div>
+                <div class="form-group-admin">
+                  <button type="button" class="btn-admin btn-admin-secondary" id="deep-topic-load-btn" style="width: 100%; justify-content: center;" onclick="loadDeepTopicSuggestions()">주제 추천받기</button>
+                </div>
+                <div class="form-group-admin">
+                  <div id="deep-topic-list" class="trending-list-box">
+                    <div class="help-text">위에 분야를 입력하고 "주제 추천받기"를 눌러주세요.</div>
+                  </div>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-deep-topic-input">선택된 기사 주제</label>
+                  <input type="text" id="ai-deep-topic-input" class="form-control-admin" placeholder="위 목록에서 선택하거나 직접 입력">
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-deep-angle-input">앵글 / 취재 메모 (선택)</label>
+                  <textarea id="ai-deep-angle-input" class="form-control-admin" style="min-height: 80px;" placeholder="추천 목록 선택 시 자동으로 채워집니다. 직접 입력/수정 가능합니다."></textarea>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-deep-style">적용할 논조 스타일</label>
+                  <select id="ai-deep-style" class="form-control-admin">
+                    <option value="">-- 기본 스타일 (중립) --</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-deep-category">대상 카테고리</label>
+                  <select id="ai-deep-category" class="form-control-admin">
+                    <option value="pyeongtaek">평택소식</option>
+                    <option value="economy">경제·산업·환경</option>
+                    <option value="culture">문화·행사</option>
+                    <option value="life">생활정보</option>
+                    <option value="opinion">오피니언</option>
+                  </select>
+                </div>
+                <div class="form-group-admin">
+                  <label for="ai-deep-article-type">글 유형 (check.md 분량·톤 규정)</label>
+                  <select id="ai-deep-article-type" class="form-control-admin">
+                    <option value="">-- AI가 내용에 맞춰 자동 판단 --</option>
+                    <option value="취재">취재 (최소 1,500자)</option>
+                    <option value="생활정보">생활정보 (최소 1,500자)</option>
+                    <option value="보도자료">보도자료 재구성 (최소 1,500자, 비판적 시각 포함)</option>
+                    <option value="오피니언">오피니언 (최소 5,000자, 필진 명의 문체)</option>
+                  </select>
+                  <div class="help-text">추천 목록에서 선택하면 해당 항목의 카테고리로 자동 설정되지만, 직접 바꿀 수 있습니다.</div>
                 </div>
               </div>
 

@@ -57,10 +57,10 @@
   box-shadow: none !important;
 }
 
-.category-badge.badge-culture,
+.category-badge.badge-pyeongtaek,
+.category-badge.badge-life,
 .category-badge.badge-economy,
-.category-badge.badge-tech,
-.category-badge.badge-local,
+.category-badge.badge-culture,
 .category-badge.badge-opinion {
   color: var(--accent-cyan) !important;
 }

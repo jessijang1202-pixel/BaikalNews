@@ -1536,10 +1536,10 @@ async function saveArticle() {
 
   // Category labels mapping
   const catLabels = {
-    culture: "문화·생활",
-    economy: "경제·산업",
-    tech: "기술·미디어",
-    local: "지역·평택",
+    pyeongtaek: "평택소식",
+    life: "생활정보",
+    economy: "경제·산업·환경",
+    culture: "문화·행사",
     opinion: "오피니언"
   };
 
@@ -1718,10 +1718,10 @@ let activeAiMode = 'topic';
 let generatedDraftData = null;
 
 const AI_CATEGORY_LABELS = {
-  culture: "문화·생활",
-  economy: "경제·산업",
-  tech: "기술·미디어",
-  local: "지역·평택",
+  pyeongtaek: "평택소식",
+  life: "생활정보",
+  economy: "경제·산업·환경",
+  culture: "문화·행사",
   opinion: "오피니언"
 };
 
@@ -1770,40 +1770,49 @@ const TOPIC_SCOPE_INSTRUCTIONS = `
 바이칼 뉴스는 "평택 지역 소식"과 "전국 단위라도 생활과 직접 관련된 정보(세금, 복지, 날씨, 교통, 건강 등)"만 다룹니다. 평택·생활과 무관한 전국 단위 정치·경제·연예·일반 기술 단신은 다루지 않습니다. 주어진 주제/원문이 이 범위를 벗어난다면, 억지로 기사를 쓰지 말고 평택 지역 또는 생활 밀착 관점에서 다룰 수 있는 각도를 찾아 재구성하십시오.
 `;
 
-// check.md의 "1. 카테고리별 작성 규정"을 그대로 반영 -- 글이 4개 유형(취재/
-// 생활정보/보도자료/오피니언) 중 어디에 해당하는지 AI가 스스로 판단해 그
-// 유형의 분량·구조·톤을 따르게 한다. Mode 4(정보성 기사)는 유형이 이미
+// check.md의 "1. 카테고리별 작성 규정"을 그대로 반영. 유형별로 쪼개 둔
+// 이유는, 관리자가 AI 집필실에서 유형을 직접 지정할 수 있게 되면서
+// (ai-topic-article-type 등) "AI가 스스로 판단"과 "관리자가 특정 유형으로
+// 고정" 두 경우 모두 같은 규정 텍스트를 재사용해야 하기 때문
+// (buildArticleTypeGuidance 참고). Mode 4(정보성 기사)는 유형이 이미
 // "생활정보"로 고정이라 이 블록 대신 더 짧은 전용 지침을 쓴다
 // (generateInfoDraft 참고).
-const ARTICLE_TYPE_GUIDANCE = `
-[기사 유형별 분량·구조·톤 규정 - 아래 네 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]
-
-1. 취재 (현장 취재 기반, 또는 취재를 전제로 한 기사)
+const ARTICLE_TYPE_RULES = {
+  '취재': `취재 (현장 취재 기반, 또는 취재를 전제로 한 기사)
 - 분량: 공백 제외 최소 1,500자 이상. 길이보다 사실 전달의 정확성이 우선.
 - 구조: 6하 원칙(누가·언제·어디서·무엇을·어떻게·왜)을 반드시 충족.
 - 시민 인터뷰는 권장이지 필수가 아니며, 실제 인터뷰 내용이 없다면 가상의 시민 발언을 지어내지 마십시오.
-- 문체: 담백하고 사실 중심, 수식어·해석 최소화.
-
-2. 생활정보 (세금, 복지, 날씨, 교통, 건강 등 실용 정보)
+- 문체: 담백하고 사실 중심, 수식어·해석 최소화.`,
+  '생활정보': `생활정보 (세금, 복지, 날씨, 교통, 건강 등 실용 정보)
 - 분량: 공백 제외 최소 1,500자 이상, 상한 없음 (정보량에 따라 유동적).
 - 오늘/이번 주 독자가 바로 행동할 수 있는 정보를 우선 배치.
-- 확정되지 않은 신청 대상·방법·마감일을 단정적으로 쓰지 말고 관계기관 확인을 안내.
-
-3. 보도자료 (공공기관·기업 보도자료 기반 재구성)
+- 확정되지 않은 신청 대상·방법·마감일을 단정적으로 쓰지 말고 관계기관 확인을 안내.`,
+  '보도자료': `보도자료 (공공기관·기업 보도자료 기반 재구성)
 - 분량: 공백 제외 최소 1,500자 이상.
 - 보도자료 내용을 사실 그대로 재구성하되(문장은 반드시 재구성, 원문 복사 금지), 비판적 시각을 반드시 포함.
 - "비판적 시각": 예산 근거, 실행 가능성, 과거 유사 사업의 성과, 형평성, 빠진 디테일 등 보도자료가 밝히지 않은 질문을 짚거나 기존 사실관계와 비교. 무조건적 트집이 아니라 건설적 의문 제기.
-- 마지막 소제목 1개 이상은 반드시 비판적·분석적 관점으로 마무리 (홍보성 일변도 금지).
-
-4. 오피니언 (논설)
+- 마지막 소제목 1개 이상은 반드시 비판적·분석적 관점으로 마무리 (홍보성 일변도 금지).`,
+  '오피니언': `오피니언 (논설)
 - 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
 - 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
-- 필진 명의: "최상락"(간결체 -- 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌름) 또는 "장승희"(부드러운 문체 -- 비유와 서사 활용, 독자 감정에 호소하되 논지는 분명함) 중 글의 소재에 더 적합한 쪽을 선택하십시오.
+- 필진 명의: "최상락"(간결체 -- 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌름) 또는 "장승희"(부드러운 문체 -- 비유와 서사 활용, 독자 감정에 호소하되 논지는 분명함) 중 글의 소재에 더 적합한 쪽을 선택하십시오.`
+};
+
+// pinnedType이 주어지면(관리자가 드롭다운에서 유형을 직접 지정) 그 유형
+// 하나만 고정해 돌려주고, 비어 있으면(기본값 "자동 판단") 예전처럼 4개
+// 유형을 전부 주고 AI가 스스로 고르게 한다.
+function buildArticleTypeGuidance(pinnedType) {
+  const body = (pinnedType && ARTICLE_TYPE_RULES[pinnedType])
+    ? `[기사 유형 지정 - 반드시 아래 "${pinnedType}" 유형 규정을 그대로 따르십시오 (스스로 다른 유형으로 판단하지 마십시오)]\n\n${ARTICLE_TYPE_RULES[pinnedType]}`
+    : `[기사 유형별 분량·구조·톤 규정 - 아래 네 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
+
+  return `${body}
 
 [JSON 출력 시 추가 규칙]
-- 위 유형 판단 결과 "오피니언"에 해당하면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 선택한 명의를 반환하십시오. 오피니언이 아니면 이 필드는 생략하십시오.
-- 분량은 판단한 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.
+- 위 유형이 "오피니언"이면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 선택한 명의를 반환하십시오. 오피니언이 아니면 이 필드는 생략하십시오.
+- 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.
 `;
+}
 
 function slugify(text) {
   return (text || '')
@@ -1971,6 +1980,7 @@ async function generateTopicDraft() {
   const providedContent = document.getElementById("ai-topic-content").value.trim();
   const category = document.getElementById("ai-topic-category").value;
   const styleId = document.getElementById("ai-topic-style").value;
+  const articleType = document.getElementById("ai-topic-article-type").value;
 
   if (!topic) throw new Error("기사 주제 키워드를 입력해 주세요.");
 
@@ -1993,7 +2003,7 @@ ${category}
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
-${ARTICLE_TYPE_GUIDANCE}
+${buildArticleTypeGuidance(articleType)}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
@@ -2018,6 +2028,7 @@ async function generateLinkDraft() {
   const url = document.getElementById("ai-link-url").value.trim();
   const rawText = document.getElementById("ai-link-raw-text").value.trim();
   const category = document.getElementById("ai-link-category").value;
+  const articleType = document.getElementById("ai-link-article-type").value;
 
   if (!url && !rawText) {
     throw new Error("출처 링크(URL) 또는 기사 본문 텍스트 중 하나는 반드시 기재해야 합니다.");
@@ -2043,7 +2054,7 @@ async function generateLinkDraft() {
   setAiLoaderText("원문을 분석하고 새로운 관점의 기사로 재구성하는 중...");
 
   const prompt = `
-아래 원천 기사(또는 보도자료)의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다. 원문이 평택시 등 공공기관·기업의 보도자료라면, 아래 [기사 유형별 분량·구조·톤 규정]의 "3. 보도자료" 규정(비판적 시각 포함)을 반드시 따르십시오.
+아래 원천 기사(또는 보도자료)의 핵심 사실관계나 주제를 참고하되, 절대 원문을 그대로 베끼지 말고 지정된 논조 스타일로 완전히 새로 집필하십시오. 다른 각도, 다른 취재원, 다른 구성으로 독창적인 기사를 작성해야 합니다. 원문이 평택시 등 공공기관·기업의 보도자료라면, 아래 유형 규정 중 "보도자료" 규정(비판적 시각 포함)을 반드시 따르십시오.
 
 [원천 기사 본문]
 ${articleText.substring(0, 4000)}
@@ -2054,7 +2065,7 @@ ${category}
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
-${ARTICLE_TYPE_GUIDANCE}
+${buildArticleTypeGuidance(articleType)}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
@@ -2386,6 +2397,227 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
   };
 }
 
+// ---- Mode 5: 심층 기사 (평택 기획) ----
+// 2026-09-30 제공된 "바이칼뉴스 기획기사 편성안 (확장판)" 36~40건을 그대로
+// 입력해 둔 고정 풀 -- 관리자가 포괄적 주제 분야(예: "평택 미군 부대")를
+// 입력하면 이 중 관련 있는 미사용 항목을 우선 추천하고, 이 풀이 소진되면
+// AI가 같은 형식으로 새 주제를 직접 제안한다 (loadDeepTopicSuggestions
+// 참고). id가 있는 항목만 "사용됨" 추적 대상이고, AI가 새로 만든 항목은
+// id가 없어 추적하지 않는다 (매번 새로 생성되므로 중복 추천 걱정이 없음).
+const PLANNED_DEEP_ARTICLES = [
+  { id: '1-1', area: '삼성전자·반도체', title: 'P5 팹 2 착공 이후 — 공정률 점검 (번호 없음, 반복 가능)', category: '취재 또는 보도자료 재구성', angle: '착공 발표 이후 실제 공정이 어디까지 왔는지, 평택시·고용센터 등 공식 자료로 확인', priority: '★★★ (3개월 주기 정기 점검 포맷 추천)' },
+  { id: '1-2', area: '삼성전자·반도체', title: '반도체 배후단지 입주 기업 AI 교육 효과 — 후속 취재 (번호 없음)', category: '취재', angle: '평택산업진흥원 제조 AI 교육 수료생 인터뷰 — 현장 적용 사례 확인. 섭외가 관건', priority: '★★☆ (섭외 성사 시 진행)' },
+  { id: '1-3', area: '삼성전자·반도체', title: '[용인 vs 평택, 경기 남부 반도체 벨트의 진짜 승자는] (번호 매긴 상·하 2부작)', category: '오피니언', angle: '반도체 도시 평택 5편의 결론(소부장·인재·정주 여건)을 1년 뒤 시점에서 재검증', priority: '★★★☆' },
+  { id: '1-4', area: '삼성전자·반도체', title: '[협력사 줌인] 1차 벤더사 한 곳 밀착 취재 (번호 매긴 연작 가능)', category: '취재', angle: '삼성전자·SK하이닉스 협력사 중 평택 소재 기업 한 곳을 선정해 수주·고용 변화를 장기 추적. 매회 다른 기업으로 연작화', priority: '★★★ (섭외 성사 시 간판 연재로 발전 가능)' },
+  { id: '1-5', area: '삼성전자·반도체', title: '반도체 특수가 끝나면 — 건설 특수 이후를 대비하는 평택의 전략 (번호 없음, 오피니언)', category: '오피니언 — 최상락 명의 추천', angle: "3편(지역경제)에서 짚은 '흐르는 돈에서 고이는 구조로' 문제의식을 공정률 60% 시점에서 재점검", priority: '★★★' },
+  { id: '2-1', area: '평택 미군 주둔 (캠프 험프리스·송탄)', title: '[기지와 이웃, 2026년의 안정리] (번호 없음, 단발 심층)', category: '취재', angle: '백린 누출 사고 이후 안정리·팽성 주민 체감 변화. 평택시·국방부 민원 통계 확인 후 주민 인터뷰 시도', priority: '★★★' },
+  { id: '2-2', area: '평택 미군 주둔 (캠프 험프리스·송탄)', title: '[SOFA 환경조항, 10년째 제자리인 이유] (번호 없음, 오피니언)', category: '오피니언 — 장승희 명의 추천', angle: '815기획 10편·백린 조사 기사의 SOFA 공백 문제를 재점검. 독일 라인-마인협정 비교 구체화', priority: '★★☆' },
+  { id: '2-3', area: '평택 미군 주둔 (캠프 험프리스·송탄)', title: '[한미 축제 그 이후 — 통합 개최는 성공했나] (번호 없음)', category: '취재', angle: '9월 한미 한마음×어울림 축제 결과 보고 — 참여 인원·만족도 변화 확인', priority: '★★☆ (축제 종료 후 작성)' },
+  { id: '2-4', area: '평택 미군 주둔 (캠프 험프리스·송탄)', title: '송탄의 기원 다시 보기 — K-55와 도시 형성사 (번호 없음, 단발 역사물)', category: '취재', angle: '송탄 원로 주민 구술 채록 시도. 서정리·신장동 일대 상권 형성 과정을 기지 역사와 교차 서술', priority: '★★★ (구술 채록 가능 시 희소성 높은 기획)' },
+  { id: '2-5', area: '평택 미군 주둔 (캠프 험프리스·송탄)', title: '기지 경제의 두 얼굴 — 안정리 상권 10년 변화 (번호 없음)', category: '취재', angle: '용산기지 이전 이후 안정리 상권의 성장과 공동화를 함께 짚는 현장 르포. 상인회 인터뷰 권장', priority: '★★★☆' },
+  { id: '3-1', area: '환경 (재생에너지와 생태)', title: '[평택호 수상태양광, 그 후] (번호 없음, 분기별 고정 코너 추천)', category: '보도자료 재구성 + 비판적 시각', angle: '경기도의회·평택시의회·농어촌공사 동향을 분기마다 업데이트', priority: '★★★★ (갈등 진행형, 최우선 추적)' },
+  { id: '3-2', area: '환경 (재생에너지와 생태)', title: '[백로도 반딧불이도] 후속 — 세교동 백로 서식지 현재 (번호 없음)', category: '취재', angle: "'번식기 공존 방안' 제언이 실제로 검토됐는지 평택시 환경과 확인, 주민 인터뷰 권장", priority: '★★☆' },
+  { id: '3-3', area: '환경 (재생에너지와 생태)', title: '[항만 준설토 250MW, 허가는 어디까지 왔나] (번호 없음)', category: '취재 (사실 확인형)', angle: '중부발전 발전사업 허가 진행을 공식 공고·전원위원회 자료로 추적', priority: '★★★' },
+  { id: '3-4', area: '환경 (재생에너지와 생태)', title: '안성천·황구지천, 평택을 거쳐가는 하천의 수질 성적표 (번호 없음, 생활정보 겸 취재)', category: '생활정보 + 취재', angle: '환경부·경기도 수질 측정망 공개자료로 평택 주요 하천의 수질 추이를 시각화. 시민 체감도(낚시·산책객) 인터뷰 권장', priority: '★★★' },
+  { id: '3-5', area: '환경 (재생에너지와 생태)', title: '기후대응댐 전국 결정, 평택은 영향권 밖인가 (번호 없음)', category: '생활정보 + 보도자료 재구성', angle: '전국 댐 정책 변화가 평택 수자원·치수 계획에 미치는 영향 여부를 경기도·환경부에 확인', priority: '★★☆' },
+  { id: '4-1', area: '부동산 (생활권별 공급과 가격)', title: '[평택 4대 생활권 집값 비교 리포트] (번호 매긴 4부작 — 원도심/고덕/송탄/서부)', category: '취재 + 생활정보 혼합', angle: "교통난의 뿌리 시리즈의 '네 개의 생활권' 구도를 부동산 가격 비교에 적용. 분기별 반복 가능", priority: '★★★★ (교통 시리즈와 연결되는 간판 기획)' },
+  { id: '4-2', area: '부동산 (생활권별 공급과 가격)', title: '[세제 개편 이후, 평택 거래는 실제로 줄었나] (번호 없음, 추적형)', category: '생활정보', angle: '세제 개편 전 신고가 러시 기사의 후속. 국토부 실거래가 공개시스템으로 거래량·가격 변화 확인', priority: '★★★' },
+  { id: '4-3', area: '부동산 (생활권별 공급과 가격)', title: '지제역 생활권 신축 러시 — 한화포레나 분양 결과는 (번호 없음, 추적형)', category: '취재', angle: '앞서 보도한 지제역 신축 희소성 기사의 후속. 한화포레나 지제역 분양 성적과 시세 영향 확인', priority: '★★★☆' },
+  { id: '4-4', area: '부동산 (생활권별 공급과 가격)', title: '고덕·화양지구 미분양, 숫자로 보는 현재 (번호 없음, 생활정보)', category: '생활정보', angle: '국토부·경기도 미분양 통계로 두 지구의 실제 미분양 추이를 매월 업데이트하는 고정 코너 제안', priority: '★★★ (매월 반복 가능한 데이터 저널리즘 포맷)' },
+  { id: '4-5', area: '부동산 (생활권별 공급과 가격)', title: '전세 낀 매물, 평택 임대차 시장의 조용한 변화 (번호 없음)', category: '생활정보 + 취재', angle: '전세사기 이슈 이후 평택 전세 거래 비중 변화를 확인. 공인중개사 인터뷰 권장', priority: '★★☆' },
+  { id: '5-1', area: '시정 소식 (평택시 행정)', title: '[30분 생활권, 1년 성적표] (번호 없음, 연 1회 반복)', category: '오피니언 — 최상락 명의 추천', angle: '최원용 시장 핵심 공약의 1년 뒤 실제 이행률 점검. 예타 통과 도로·버스 노선 확충 진행 상황 냉정히 평가', priority: '★★★★★ (시정 평가의 간판 기획)' },
+  { id: '5-2', area: '시정 소식 (평택시 행정)', title: '[도시대상 받은 평택, 재생에너지 갈등은 왜 그대로인가] (번호 없음)', category: '오피니언', angle: '대통령상 수상 보도에서 짚은 모순을 독립 오피니언으로 확장', priority: '★★★☆' },
+  { id: '5-3', area: '시정 소식 (평택시 행정)', title: '평택시 예산안, 어디에 얼마나 쓰이나 (번호 없음, 연 1회 — 예산 편성 시즌)', category: '보도자료 재구성 + 비판적 시각', angle: '내년도 예산안 중 시민 체감도가 높은 분야(복지·교통·환경) 배분 비중을 전년 대비 비교·평가', priority: '★★★★ (연 1회 고정 기획, 시정 감시 핵심)' },
+  { id: '5-4', area: '시정 소식 (평택시 행정)', title: '출장소 체제의 비효율 — 1995년 통합의 미완성 과제 (번호 없음, 오피니언)', category: '오피니언 — 장승희 명의 추천', angle: '교통난의 뿌리 1편에서 짚은 송탄·안중 출장소 체제를 행정 효율성 관점에서 재조명', priority: '★★★' },
+  { id: '5-5', area: '시정 소식 (평택시 행정)', title: '아동권리옹호관 위촉 이후, 실제 활동은 (번호 없음, 추적형)', category: '취재', angle: '제4기 아동권리옹호관 위촉 보도 후속 — 실제 상담·자문 실적을 분기 단위로 확인', priority: '★★☆' },
+  { id: '6-1', area: '산업 (반도체 외 기업·고용)', title: '[평택항과 노동] 후속 — 항만안전특별법 2주기 점검 (번호 없음)', category: '취재', angle: '5부작에서 예고한 후속 취재 이행. 최신 산재 통계로 개선 여부 재확인', priority: '★★★★ (예고한 약속의 이행)' },
+  { id: '6-2', area: '산업 (반도체 외 기업·고용)', title: '[평택 중소 제조업의 AI 전환, 1년 뒤] (번호 없음)', category: '취재', angle: '평택산업진흥원 교육 수료 기업의 실제 도입 사례 추적. 성공·실패 사례 균형 있게', priority: '★★☆' },
+  { id: '6-3', area: '산업 (반도체 외 기업·고용)', title: '평택항 물동량, 상반기 성적표 (번호 없음, 반기별 고정 코너)', category: '생활정보 + 보도자료 재구성', angle: '평택항만공사 물동량 통계를 반기마다 정리. 표류하는 평택항 시리즈와 연결해 공간 활용 문제와 함께 짚기', priority: '★★★★ (반기별 반복 가능 데이터 기획)' },
+  { id: '6-4', area: '산업 (반도체 외 기업·고용)', title: '브레인시티 산업단지, 분양은 어디까지 왔나 (번호 없음)', category: '취재', angle: '아주대 평택병원 지연 기사에서 짚은 브레인시티 전체 진행 상황을 산업용지 분양률 중심으로 확인', priority: '★★★' },
+  { id: '6-5', area: '산업 (반도체 외 기업·고용)', title: '평택 소상공인, 폐업률로 본 골목상권 체감경기 (번호 없음, 생활정보)', category: '생활정보', angle: '국세청·소상공인시장진흥공단 자료로 평택 지역 폐업·개업 추이를 분기별로 확인하는 고정 코너 제안', priority: '★★★' },
+  { id: '7-1', area: '사건·사고 (안전과 책임)', title: '[매일유업 사고, 수사는 어디까지] (번호 없음, 추적형)', category: '취재', angle: '국과수 부검 결과와 경찰 수사 진행 상황을 주기적으로 확인, 결과 발표 즉시 후속 보도', priority: '★★★★ (유가족에 대한 예의 차원의 추적 의무)' },
+  { id: '7-2', area: '사건·사고 (안전과 책임)', title: '[위험물창고 화재, 2차전지 연관성 결론] (번호 없음, 추적형)', category: '취재', angle: '합동감식 이후 최종 화재 원인 발표를 기다려 보도', priority: '★★★' },
+  { id: '7-3', area: '사건·사고 (안전과 책임)', title: '평택 교통사고 다발 구간, 경찰청 통계로 본 위험지대 (번호 없음, 생활정보)', category: '생활정보', angle: '도로교통공단 TAAS 통계로 평택 관내 사고 다발 지점을 지도화. 예타 통과 도로 사업과 연결해 개선 기대 지점 짚기', priority: '★★★☆ (실용성 높은 데이터 기획)' },
+  { id: '7-4', area: '사건·사고 (안전과 책임)', title: 'PM(개인형이동장치) 단속 두 달, 효과는 있었나 (번호 없음, 추적형)', category: '취재 — 기존 PM 집중단속 보도자료 기사의 후속', angle: '집중단속 종료 후 실제 견인·이동조치 건수와 민원 변화를 평택시에 확인', priority: '★★★' },
+  { id: '7-5', area: '사건·사고 (안전과 책임)', title: '겨울철 대비, 평택 재난 대응 체계 점검 (번호 없음, 계절 기획)', category: '생활정보 + 취재', angle: '폭설·한파 대비 제설 인력·장비 현황을 재난안전대책본부에 확인. 작년 겨울 민원 사례와 비교', priority: '★★★ (11~12월 발행 적기)' },
+  { id: '8-1', area: '문화·행사 (삶의 활력소)', title: '[평택아트센터 1년, 지역 예술인은 몇 번 무대에 섰나] (번호 없음)', category: '취재 — 기존 오피니언의 사실 확인판', angle: '개관 1년 시점 실제 공연 라인업 전수 집계로 지역 예술인 비중 수치화', priority: '★★★★ (오피니언 주장의 데이터 검증)' },
+  { id: '8-2', area: '문화·행사 (삶의 활력소)', title: '[평택호 물빛축제 2026] (번호 없음, 연례 반복 포맷)', category: '취재 + 생활정보', angle: '작년 지적된 안전·질서 관리 과제의 올해 개선 여부 현장 확인', priority: '★★★ (9월 축제 시즌 종료 후 작성)' },
+  { id: '8-3', area: '문화·행사 (삶의 활력소)', title: '송탄관광특구 축제, 15년째의 변신 (번호 없음, 연례 반복)', category: '취재', angle: '14회(2025년) 변화(야시장→푸드트럭존)에 이어 15회(2026년) 변화를 현장 비교 취재', priority: '★★★' },
+  { id: '8-4', area: '문화·행사 (삶의 활력소)', title: '지역예술인 우선참여제, 문학은 여전히 빠져 있나 (번호 없음, 추적형)', category: '취재 — 기존 보도의 문제 제기에 대한 후속 확인', angle: '평택시문화재단·예총에 문학 분야 참여 통로 신설 여부를 추가 확인해 후속 보도 약속 이행', priority: '★★★☆ (예고한 후속 취재의 이행)' },
+  { id: '8-5', area: '문화·행사 (삶의 활력소)', title: '평택 도서관 네트워크, 고덕 이후의 계획 (번호 없음)', category: '취재 — 고덕 중앙도서관 기사의 후속', angle: '팽성·동삭·화양·포승 특화 도서관 계획의 구체적 진행 상황을 평택시에 확인', priority: '★★☆' }
+];
+
+const DEEP_USED_TOPICS_KEY = "baikal_deep_topics_used";
+
+function getUsedDeepTopicIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DEEP_USED_TOPICS_KEY) || "[]");
+  } catch (err) {
+    return [];
+  }
+}
+
+function markDeepTopicUsed(id) {
+  if (!id) return;
+  const used = getUsedDeepTopicIds();
+  if (!used.includes(id)) {
+    used.push(id);
+    localStorage.setItem(DEEP_USED_TOPICS_KEY, JSON.stringify(used));
+  }
+}
+
+let deepTopicSuggestions = [];
+
+// 미사용 PLANNED_DEEP_ARTICLES 중 입력한 포괄적 분야와 관련 있는 항목을
+// AI가 골라 반환하고, 5개를 못 채우면(관련 항목 부족 또는 풀 소진) 같은
+// 형식으로 새 주제를 추가로 만들어 채운다. id가 있으면 풀에서 고른
+// 것(선택 확정 시 사용 처리 대상), id가 없으면 AI가 새로 만든 것.
+async function loadDeepTopicSuggestions() {
+  const areaInput = document.getElementById("ai-deep-area-input");
+  const area = areaInput ? areaInput.value.trim() : '';
+  const listEl = document.getElementById("deep-topic-list");
+  const btn = document.getElementById("deep-topic-load-btn");
+  if (!area) {
+    alert("포괄적 주제 분야를 입력해 주세요 (예: 평택 미군 부대, 삼성 캠퍼스, 평택 환경).");
+    return;
+  }
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="help-text">편성된 기획 목록과 대조해 관련 주제를 찾는 중...</div>';
+  if (btn) btn.disabled = true;
+
+  try {
+    const usedIds = getUsedDeepTopicIds();
+    const unused = PLANNED_DEEP_ARTICLES.filter(a => !usedIds.includes(a.id));
+    const poolText = unused.length > 0
+      ? unused.map(a => `${a.id} | 분야: ${a.area} | 제목: ${a.title} | 카테고리: ${a.category} | 앵글: ${a.angle} | 우선순위: ${a.priority}`).join('\n')
+      : '(남은 미사용 기획 항목이 없습니다 -- 전부 새로 제안하십시오)';
+
+    const prompt = `
+당신은 바이칼뉴스의 평택 지역 심층 기획기사 편집자입니다. 관리자가 아래 "포괄적 주제 분야"를 입력했습니다. 이어지는 "미사용 기획 목록"에서 이 분야와 실제로 관련 있는 항목을 최대한 우선적으로 골라 추천하고, 관련 항목이 5개보다 적으면(또는 목록이 비어 있으면) 같은 형식으로 새로운 평택 심층기사 주제를 만들어 총 5개가 되도록 채우십시오.
+
+[포괄적 주제 분야]
+${area}
+
+[미사용 기획 목록]
+${poolText}
+
+[작성 지침]
+- 목록에서 고른 항목은 id/title/category/angle/priority를 그 목록에 적힌 그대로(글자 하나도 바꾸지 말고) 반환하십시오.
+- 새로 만든 항목은 "id"를 null로 표시하고, 평택 지역 소식 또는 생활 밀착 정보 범위 안에서(전국 단위 일반 정치·경제·연예 단신 금지) title/category(취재/생활정보/보도자료/오피니언 중 하나)/angle/priority(별표 1~5개)를 목록과 같은 형식으로 작성하십시오.
+- 입력한 분야와 무관한 항목은 절대 섞지 마십시오.
+
+반드시 다음 구조의 JSON 배열로만 답변하십시오. 백틱이나 'json' 마킹 없이 배열만 출력하십시오.
+[
+  { "id": "2-1" 또는 null, "title": "...", "category": "...", "angle": "...", "priority": "★★★" }
+]
+`;
+    const resultText = await callGeminiTextApi(prompt, "당신은 바이칼뉴스의 평택 지역 심층기획 편집자입니다. 반드시 유효한 JSON 배열로만 답하십시오.");
+    deepTopicSuggestions = parseAiJsonResponse(resultText);
+    renderDeepTopicList();
+  } catch (err) {
+    listEl.innerHTML = `<div class="help-text" style="color:#ef4444;">주제 추천을 가져오지 못했습니다: ${err.message}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderDeepTopicList() {
+  const listEl = document.getElementById("deep-topic-list");
+  if (!listEl) return;
+  if (!deepTopicSuggestions || deepTopicSuggestions.length === 0) {
+    listEl.innerHTML = '<div class="help-text">추천 주제가 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = deepTopicSuggestions.map((item, i) => `
+    <label class="trending-item">
+      <input type="radio" name="deep-topic-pick" value="${i}" onchange="selectDeepTopic(${i})">
+      <span>
+        <strong>${item.title}</strong>${item.id ? '' : ' <span class="badge badge-draft">신규 제안</span>'}<br>
+        <span class="help-text">카테고리: ${item.category || '-'} · 우선순위: ${item.priority || '-'}</span><br>
+        <span class="help-text">${item.angle || ''}</span>
+      </span>
+    </label>
+  `).join('');
+}
+
+// check.md v2의 4개 유형(취재/생활정보/보도자료/오피니언) 표기와
+// buildArticleTypeGuidance()가 받는 값을 맞추기 위한 매핑 -- 편성안의
+// "category" 필드는 "오피니언 — 최상락 명의 추천"처럼 부가 설명이 붙어
+// 있을 수 있어, 앞부분만 보고 네 유형 중 하나로 정규화한다.
+function normalizeArticleType(rawCategory) {
+  const text = (rawCategory || '');
+  if (text.includes('오피니언')) return '오피니언';
+  if (text.includes('보도자료')) return '보도자료';
+  if (text.includes('생활정보')) return '생활정보';
+  if (text.includes('취재')) return '취재';
+  return '';
+}
+
+function selectDeepTopic(i) {
+  const item = deepTopicSuggestions[i];
+  if (!item) return;
+  const topicInput = document.getElementById("ai-deep-topic-input");
+  const angleInput = document.getElementById("ai-deep-angle-input");
+  const typeSelect = document.getElementById("ai-deep-article-type");
+  if (topicInput) topicInput.value = item.title;
+  if (angleInput) angleInput.value = item.angle || '';
+  if (typeSelect) typeSelect.value = normalizeArticleType(item.category);
+}
+
+async function generateDeepDraft() {
+  const topic = document.getElementById("ai-deep-topic-input").value.trim();
+  const angle = document.getElementById("ai-deep-angle-input").value.trim();
+  const category = document.getElementById("ai-deep-category").value;
+  const styleId = document.getElementById("ai-deep-style").value;
+  const articleType = document.getElementById("ai-deep-article-type").value;
+
+  if (!topic) throw new Error("기사 주제를 추천받거나 직접 입력해 주세요.");
+
+  const { stylePrompt, fewShotPrompt } = await buildStylePromptFromSelection(styleId);
+  const targetLength = getTargetLength();
+
+  const angleBlock = angle
+    ? `\n[취재 앵글 / 참고 메모]\n${angle}\n`
+    : '';
+
+  const prompt = `
+평택 지역 심층 기획기사를 작성하십시오. 단신이 아니라 배경·맥락·분석을 갖춘 심층 보도여야 합니다.
+
+[작성할 기사 주제]
+${topic}
+${angleBlock}
+[카테고리]
+${category}
+
+${fewShotPrompt}
+${SEO_PROMPT_INSTRUCTIONS}
+${TOPIC_SCOPE_INSTRUCTIONS}
+${buildArticleTypeGuidance(articleType)}
+
+[작성 지침]
+반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
+1. "title": 지정된 논조 스타일을 반영하고 핵심 키워드를 포함한 기사 제목
+2. "lead": 독자의 관심을 끄는 2~3문장의 리드 문단
+3. "body": 2개 이상의 <h2> 소제목을 포함한 본문 HTML (분량은 위 유형 규정의 최소 분량을 반드시 지키되, 그 값과 관리자 설정값인 공백 제외 ${targetLength}자 중 더 큰 쪽을 기준으로 작성)
+${SEO_JSON_FIELDS_INSTRUCTIONS}
+`;
+
+  const resultText = await callClaudeApi(prompt, stylePrompt);
+  const draft = parseAiJsonResponse(resultText);
+
+  // 선택된 항목이 PLANNED_DEEP_ARTICLES에서 온 것이면(제목이 정확히
+  // 일치) 다음부터 추천 목록에서 빠지도록 사용 처리한다. AI가 새로 만든
+  // 항목(id: null)은 애초에 추적 대상이 아니라 해당 없음.
+  const matched = deepTopicSuggestions.find(s => s.id && s.title === topic);
+  if (matched) markDeepTopicUsed(matched.id);
+
+  return {
+    headline: draft.title, lead: draft.lead, body: draft.body, category,
+    seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords,
+    authorStyle: draft.authorStyle || null
+  };
+}
+
 // ---- Self-check: every generated draft is graded against admin/check.md ----
 async function loadChecklistItems() {
   try {
@@ -2509,6 +2741,8 @@ async function generateAiDraft() {
       result = await generateTrendingDraft();
     } else if (activeAiMode === 'info') {
       result = await generateInfoDraft();
+    } else if (activeAiMode === 'deep') {
+      result = await generateDeepDraft();
     }
 
     const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords, authorStyle } = result;
@@ -2569,12 +2803,14 @@ function resetAiWriter() {
   document.getElementById("ai-topic-content").value = "";
   document.getElementById("ai-topic-style").selectedIndex = 0;
   document.getElementById("ai-topic-category").selectedIndex = 0;
+  document.getElementById("ai-topic-article-type").selectedIndex = 0;
 
   // Mode 2: link
   document.getElementById("ai-link-style").selectedIndex = 0;
   document.getElementById("ai-link-url").value = "";
   document.getElementById("ai-link-raw-text").value = "";
   document.getElementById("ai-link-category").selectedIndex = 0;
+  document.getElementById("ai-link-article-type").selectedIndex = 0;
 
   // Mode 3: trending
   trendingArticles = [];
@@ -2591,6 +2827,17 @@ function resetAiWriter() {
   document.getElementById("ai-info-topic-input").value = "";
   document.getElementById("ai-info-style").selectedIndex = 0;
   document.getElementById("ai-info-category").selectedIndex = 0;
+
+  // Mode 5: deep (평택 기획)
+  deepTopicSuggestions = [];
+  const deepListEl = document.getElementById("deep-topic-list");
+  if (deepListEl) deepListEl.innerHTML = '<div class="help-text">위에 분야를 입력하고 "주제 추천받기"를 눌러주세요.</div>';
+  document.getElementById("ai-deep-area-input").value = "";
+  document.getElementById("ai-deep-topic-input").value = "";
+  document.getElementById("ai-deep-angle-input").value = "";
+  document.getElementById("ai-deep-style").selectedIndex = 0;
+  document.getElementById("ai-deep-category").selectedIndex = 0;
+  document.getElementById("ai-deep-article-type").selectedIndex = 0;
 
   // Output panel
   generatedDraftData = null;
@@ -3587,7 +3834,7 @@ ${randomHint}
 - (가장 중요) 이 이미지는 실제 보도 사진을 대신합니다. 다른 모든 지침보다 우선하여, 실제 카메라로 그 자리에서 찍은 것처럼 사실적으로 묘사하십시오. 일러스트, 디지털 아트, 컨셉 아트, 인포그래픽, 아이콘, 은유적 상징물(전구, 톱니바퀴, 그래프 오버레이 등), 매끈하고 대칭적인 'AI 그림체'는 절대 사용하지 마십시오. 실제 인체 비율과 손·얼굴 디테일, 자연스러운 피부 질감, 현실적인 조명과 그림자, 실제 재질감을 갖춘 다큐멘터리 사진(photojournalism) 스타일로만 묘사하십시오.
 - 날씨와 조명: 기사 내용이 비·폭설·재해 등 특정 날씨를 직접 다루는 경우가 아니라면, 반드시 맑고 화창한 날씨와 밝은 빛으로 묘사하십시오. 비, 빗방울, 젖은 표면, 안개, 흐린 하늘, 우중충한 분위기, 어두운 새벽·심야 장면은 기사와 직접 관련이 없는 한 절대 넣지 마십시오.
 - 선명도: 이미지 전체가 흐릿하거나 뿌옇게 보이면 안 됩니다. 주제는 항상 초점이 또렷하고 선명해야 하며, 배경 흐림(아웃포커스)은 주제를 돋보이게 하는 용도로만 은은하게 사용하십시오.
-- 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·생활 기사라면 실제 전시 공간이나 골목 풍경 등 기사 소재에 맞는 구체적 장면).
+- 기사의 실제 배경이 되는 구체적이고 현실적인 장소·사물·계절·시간대를 하나 골라 사실적으로 묘사하십시오 (예: 항만 관련 기사라면 실제 하역 장비나 컨테이너 야드, 문화·행사 기사라면 실제 전시 공간이나 축제 현장 풍경 등 기사 소재에 맞는 구체적 장면).
 - 인물이 등장한다면 얼굴과 표정이 자연스럽게 살아있는 모습을 우선하십시오. 생기 있는 표정(미소, 집중한 눈빛, 대화하는 모습 등)이 담긴 얼굴이 뒷모습이나 실루엣보다 좋습니다. 단, 실존 인물이나 유명인과 닮지 않은 가상의 인물로 묘사하고, 어색하게 카메라를 정면으로 응시하기보다 장면 속에서 자연스럽게 행동하는 모습으로 묘사하십시오. 완벽하게 대칭적이거나 정면을 향한 포즈보다는 실제 스냅 사진처럼 약간 비대칭적인 자연스러운 구도를 지향하십시오. (질감을 위해 이미지를 어둡거나 탁하게 만들지는 마십시오.)
 - 텍스트가 등장하는 요소는 완전히 배제하십시오. AI가 생성하는 한글 텍스트는 작고 흐릿하게 넣어도 철자가 틀린 채로 나오는 경우가 많아, "일부만 보이는 정도"조차 안전하지 않습니다. 문서, 종이, 서류, 손글씨, 화면, 간판, 상점 간판, 현수막, 라벨 등 글자가 보이는 요소는 어떤 형태로든(작게, 흐릿하게, 부분적으로) 절대 등장시키지 마십시오. 간판이 있는 장소라면 간판이 안 보이는 각도·거리로 구도를 잡거나 아예 프레임 밖으로 빼십시오. 정말 불가피하게 텍스트가 필요하다면 반드시 한글로만, 글자로 알아볼 수 없을 만큼 작고 흐릿하게 묘사하고, 영어나 다른 외국어는 절대 사용하지 마십시오.
 - 다른 설명이나 마크다운 없이, 한글로 작성한 한 문단의 프롬프트 본문만 출력하십시오.

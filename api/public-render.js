@@ -21,19 +21,25 @@
 const SUPABASE_URL = "https://iyxzwrsgivvsgeqclchw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHp3cnNnaXZ2c2dlcWNsY2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MzE5NzQsImV4cCI6MjA5OTMwNzk3NH0.PsS7tHy14d22KKWBHOi9TkZLTdVYfqolgMHcYJ2gkow";
 
+// 2026-10-01 개정 (check.md v2 "평택 지역 + 생활 밀착" 정체성에 맞춰 재편):
+// culture/economy/opinion은 키를 유지한 채 레이블만 바꿨고, local ->
+// pyeongtaek으로 키 자체를 바꾸고 tech는 economy로 흡수했다 (Supabase
+// 마이그레이션으로 기존 기사도 일괄 변경). life(생활정보)는 완전히 새
+// 카테고리. js/main.js의 CATEGORY_LABELS와 동일하게 유지할 것 -- 이
+// 서버리스 함수는 그 파일을 import할 수 없어 중복 보관한다.
 const CATEGORY_LABELS = {
-  culture: "문화·생활",
-  economy: "경제·산업",
-  tech: "기술·미디어",
-  local: "지역·평택",
+  pyeongtaek: "평택소식",
+  life: "생활정보",
+  economy: "경제·산업·환경",
+  culture: "문화·행사",
   opinion: "오피니언"
 };
 const CATEGORY_DESCS = {
-  culture: "얼어붙은 표면 아래 살아 숨 쉬는 온기처럼, 일상 속 예술이 지닌 치유의 힘과 문화의 결을 깊이 있게 기록합니다.",
-  local: "바이칼처럼 마르지 않는 공동체의 연대와 상생을 지역 곳곳의 현장에서 길어 올립니다.",
-  economy: "겨울 호수의 두꺼운 얼음처럼 단단한 지역경제의 기반과, 순환·재생 에너지로 나아가는 지속가능한 성장을 취재합니다.",
-  opinion: "속도와 자극의 소음 위에서, 얼음처럼 냉철하고 투명한 시선으로 세상을 응시하는 지성의 목소리를 모읍니다.",
-  tech: "호수 밑바닥까지 닿는 빛처럼, 첨단 기술이 환경과 역사에 새로운 시야를 밝히는 순간들을 보도합니다."
+  pyeongtaek: "바이칼처럼 마르지 않는 공동체의 연대와 상생을 평택 곳곳의 현장에서 길어 올립니다.",
+  life: "하루하루를 지탱하는 잔잔한 물결처럼, 세금·복지·교통·건강 등 독자의 일상에 곧장 닿는 실용 정보를 길어 올립니다.",
+  economy: "겨울 호수의 두꺼운 얼음처럼 단단한 지역경제의 기반과, 첨단 산업과 재생에너지로 나아가는 환경의 변화까지 두루 취재합니다.",
+  culture: "얼어붙은 표면 아래 살아 숨 쉬는 온기처럼, 지역의 축제와 행사, 일상 속 예술이 지닌 치유의 힘을 깊이 있게 기록합니다.",
+  opinion: "속도와 자극의 소음 위에서, 얼음처럼 냉철하고 투명한 시선으로 세상을 응시하는 지성의 목소리를 모읍니다."
 };
 
 function escapeHtml(str) {
@@ -313,13 +319,13 @@ async function renderHome(req, res) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>바이칼 뉴스 - 깊고 투명한 시선으로 세상을 비추다</title>
-<meta name="description" content="문화·생활, 경제·산업, 기술·미디어, 지역·평택, 오피니언을 깊고 투명한 시선으로 보도하는 바이칼 뉴스입니다.">
+<meta name="description" content="평택소식, 생활정보, 경제·산업·환경, 문화·행사, 오피니언을 깊고 투명한 시선으로 보도하는 바이칼 뉴스입니다.">
 <link rel="canonical" href="https://baikalnews.com/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://baikalnews.com/">
 <meta property="og:site_name" content="바이칼 뉴스">
 <meta property="og:title" content="바이칼 뉴스 - 깊고 투명한 시선으로 세상을 비추다">
-<meta property="og:description" content="문화·생활, 경제·산업, 기술·미디어, 지역·평택, 오피니언을 깊고 투명한 시선으로 보도하는 바이칼 뉴스입니다.">
+<meta property="og:description" content="평택소식, 생활정보, 경제·산업·환경, 문화·행사, 오피니언을 깊고 투명한 시선으로 보도하는 바이칼 뉴스입니다.">
 </head>
 <body>
 <header>
@@ -353,10 +359,10 @@ function toIsoDate(dateStr) {
 
 const SITEMAP_STATIC_URLS = [
   { loc: 'https://baikalnews.com/', changefreq: 'hourly', priority: '1.0' },
-  { loc: 'https://baikalnews.com/category.html?cat=culture', changefreq: 'daily', priority: '0.8' },
+  { loc: 'https://baikalnews.com/category.html?cat=pyeongtaek', changefreq: 'daily', priority: '0.8' },
+  { loc: 'https://baikalnews.com/category.html?cat=life', changefreq: 'daily', priority: '0.8' },
   { loc: 'https://baikalnews.com/category.html?cat=economy', changefreq: 'daily', priority: '0.8' },
-  { loc: 'https://baikalnews.com/category.html?cat=tech', changefreq: 'daily', priority: '0.8' },
-  { loc: 'https://baikalnews.com/category.html?cat=local', changefreq: 'daily', priority: '0.8' },
+  { loc: 'https://baikalnews.com/category.html?cat=culture', changefreq: 'daily', priority: '0.8' },
   { loc: 'https://baikalnews.com/category.html?cat=opinion', changefreq: 'daily', priority: '0.8' },
   { loc: 'https://baikalnews.com/about.html', changefreq: 'monthly', priority: '0.5' },
   { loc: 'https://baikalnews.com/contact.html', changefreq: 'monthly', priority: '0.4' },

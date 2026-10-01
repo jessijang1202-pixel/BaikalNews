@@ -4,11 +4,16 @@
 // category names are shown across the site. Rendering always prefers this
 // map over a stored article.categoryLabel so already-saved articles display
 // consistently even if they were created before this naming was unified.
+// 2026-10-01 개정 (check.md v2 "평택 지역 + 생활 밀착" 정체성에 맞춰 재편):
+// culture/economy/opinion은 키를 유지한 채 레이블만 바꿨고(기존 기사
+// 재분류 불필요), local -> pyeongtaek으로 키 자체를 바꾸고 tech는
+// economy로 흡수했다 (Supabase 마이그레이션으로 기존 기사도 일괄 변경).
+// life(생활정보)는 완전히 새 카테고리.
 const CATEGORY_LABELS = {
-  culture: "문화·생활",
-  economy: "경제·산업",
-  tech: "기술·미디어",
-  local: "지역·평택",
+  pyeongtaek: "평택소식",
+  life: "생활정보",
+  economy: "경제·산업·환경",
+  culture: "문화·행사",
   opinion: "오피니언"
 };
 
@@ -614,10 +619,10 @@ function renderHomepage() {
   // A category with no articles yet is hidden entirely rather than shown
   // as an empty section.
   const categoryRows = [
-    { id: "culture-row-container", cat: "culture" },
+    { id: "pyeongtaek-row-container", cat: "pyeongtaek" },
+    { id: "life-row-container", cat: "life" },
     { id: "economy-row-container", cat: "economy" },
-    { id: "tech-row-container", cat: "tech" },
-    { id: "local-row-container", cat: "local" },
+    { id: "culture-row-container", cat: "culture" },
     { id: "opinion-row-container", cat: "opinion" }
   ];
 
