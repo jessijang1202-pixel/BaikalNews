@@ -651,7 +651,7 @@ function renderHomepage() {
   // now that 오피니언 is no longer one of the left column's category rows.
   const opinionOverlayContainer = document.getElementById("opinion-overlay-container");
   if (opinionOverlayContainer) {
-    const opinionItems = getArticlesByCategory("opinion").slice(0, 5);
+    const opinionItems = getArticlesByCategory("opinion").slice(0, 4);
     const opinionSectionEl = opinionOverlayContainer.closest('section') || opinionOverlayContainer.parentElement;
     if (opinionItems.length > 0) {
       opinionOverlayContainer.innerHTML = opinionItems.map(art => createArticleCardHTML(art, 'overlay')).join('');

@@ -157,11 +157,25 @@ nav.nav-bar {
   border-bottom: 2px solid var(--accent-cyan);
 }
 
+/* Category links (left) + utility links (right) sit in a 1fr/320px grid,
+   the same column split used by .hero-grid/.home-split, so the vertical
+   divider before "회사 소개" lines up with that column boundary further
+   down the page instead of floating wherever flex's margin-left:auto
+   happened to land it. */
+.nav-split {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 48px;
+}
+
 .nav-links {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   list-style: none;
+}
+
+.nav-links-main {
   /* Pull back the first link's own left padding so its text lines up
      with the container edge, matching the date/category/headline text
      below it instead of sitting ~22px further right. */
@@ -183,9 +197,8 @@ nav.nav-bar {
   color: var(--accent-cyan);
 }
 
-/* Utility pages (About / Contact) tucked to the far right, de-emphasized */
-.nav-links li#nav-about {
-  margin-left: auto;
+/* Utility pages (About / Contact), de-emphasized */
+.nav-links-utility {
   border-left: 1px solid var(--border-light);
 }
 
@@ -473,13 +486,15 @@ footer {
     border-bottom: 2px solid var(--accent-cyan);
     z-index: 99;
   }
+  nav.nav-bar.active .nav-split {
+    display: block;
+  }
   nav.nav-bar.active .nav-links {
     flex-direction: column;
     margin-left: 0;
     padding: 4px 0;
   }
-  .nav-links li#nav-about {
-    margin-left: 0;
+  .nav-links-utility {
     border-left: none;
     border-top: 1px solid var(--border-light);
   }
