@@ -1797,7 +1797,16 @@ const ARTICLE_TYPE_RULES = {
   '오피니언 장승희': `오피니언 (논설) -- 장승희 명의로 작성
 - 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
 - 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
-- 문체: 장승희 명의 -- 부드러운 문체. 비유와 서사를 활용하고, 독자의 감정에 호소하는 문장을 섞어 쓰되 논지는 분명히 함.`
+- 문체: 장승희 명의 -- 부드러운 문체. 비유와 서사를 활용하고, 독자의 감정에 호소하는 문장을 섞어 쓰되 논지는 분명히 함.`,
+  // 2026-10 추가 -- "⑤ 심층 기사" 모드(평택 기획 36~40건)에서 쓰는 전용
+  // 유형. 다른 유형과 달리 상한선이 있다(3,000~6,000자 범위를 벗어나면
+  // 안 됨) -- buildArticleTypeGuidance의 분량 규칙 문구도 이 유형일 때만
+  // 다르게 나간다.
+  '심층기사': `심층기사 (평택 기획 심층 취재 -- 단일 사건이 아니라 배경·현황·쟁점·전망을 종합한 분석형 기사)
+- 분량: 공백 제외 3,000~6,000자 (이 범위를 반드시 지키고, 6,000자를 넘기지 마십시오).
+- 구조: 소제목 4~6개 이상. 배경(왜 지금 이 주제인가) → 현황(사실관계) → 쟁점(이해관계가 갈리는 지점) → 전망/의미 순서로 다각도 구성.
+- 공식 통계·관계기관 입장·주민 및 전문가 시각 등 복수의 관점을 교차 검증하듯 서술하되, 실제 취재원이 없다면 가상의 발언을 지어내지 마십시오.
+- 문체: 사실 중심을 유지하되 오피니언처럼 단정적 주장을 펴지 않고, 균형 잡힌 분석적 톤을 유지.`
 };
 
 // pinnedType이 주어지면(관리자가 드롭다운에서 유형을 직접 지정) 그 유형
@@ -1806,17 +1815,24 @@ const ARTICLE_TYPE_RULES = {
 function buildArticleTypeGuidance(pinnedType) {
   const body = (pinnedType && ARTICLE_TYPE_RULES[pinnedType])
     ? `[기사 유형 지정 - 반드시 아래 "${pinnedType}" 유형 규정을 그대로 따르십시오 (스스로 다른 유형으로 판단하지 마십시오)]\n\n${ARTICLE_TYPE_RULES[pinnedType]}`
-    : `[기사 유형별 분량·구조·톤 규정 - 아래 다섯 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
+    : `[기사 유형별 분량·구조·톤 규정 - 아래 여섯 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
 
   const authorStyleLine = (pinnedType && pinnedType.startsWith('오피니언'))
     ? `- 이 기사는 "${pinnedType.replace('오피니언 ', '')}" 명의로 지정되어 있습니다. JSON의 "authorStyle" 필드에 그 이름을 그대로 반환하십시오.`
     : `- 위 유형이 "오피니언 최상락" 또는 "오피니언 장승희"면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 해당하는 명의를 반환하십시오. 둘 다 아니면 이 필드는 생략하십시오.`;
 
+  // 심층기사만 상한선(6,000자)이 있는 유형이라, "최소 분량과 관리자 설정값 중
+  // 더 큰 쪽" 규칙을 그대로 적용하면 상한을 넘길 수 있다 -- 그래서 이 유형일
+  // 때만 범위 자체를 우선하도록 별도 문구를 쓴다.
+  const lengthRuleLine = (pinnedType === '심층기사')
+    ? `- 분량은 공백 제외 3,000~6,000자 범위를 반드시 지키십시오 (관리자가 설정한 목표 분량과 무관하게 이 범위가 우선합니다).`
+    : `- 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.`;
+
   return `${body}
 
 [JSON 출력 시 추가 규칙]
 ${authorStyleLine}
-- 분량은 해당 유형의 최소 분량을 반드시 지키되, 그 값과 관리자가 설정한 목표 분량 중 더 큰 쪽을 기준으로 작성하십시오.
+${lengthRuleLine}
 `;
 }
 
@@ -2856,7 +2872,7 @@ function resetAiWriter() {
   document.getElementById("ai-deep-angle-input").value = "";
   document.getElementById("ai-deep-style").selectedIndex = 0;
   document.getElementById("ai-deep-category").selectedIndex = 0;
-  document.getElementById("ai-deep-article-type").selectedIndex = 0;
+  document.getElementById("ai-deep-article-type").value = "심층기사"; // 이 모드의 기본 글 유형
 
   // Output panel
   generatedDraftData = null;
