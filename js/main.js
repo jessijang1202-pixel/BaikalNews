@@ -690,19 +690,19 @@ function renderHomepage() {
     }
   });
 
-  // Feature #6: Force exact divider alignment between the left column's
-  // first two category sections and their right-column counterparts
-  // (평택소식/실시간인기기사, 생활정보/오피니언). CSS alone can't guarantee
-  // this since both sides' heights depend on live article title lengths --
-  // whichever side is shorter gets padded with a min-height to match the
-  // taller one, so the dividers land at exactly the same y position.
+  // Feature #6: Force exact divider alignment between 평택소식 (left) and
+  // 실시간 인기기사 (right) -- CSS alone can't guarantee this since both
+  // sides' heights depend on live article title lengths, so whichever side
+  // is shorter gets padded with a min-height to match the taller one.
+  // 생활정보/오피니언 (the 2nd pair) is deliberately NOT synced -- 오피니언's
+  // item count is meant to be tunable (to help close the overall left/right
+  // column height gap) without dragging 생활정보's height along with it.
   syncHomeSplitRowHeights();
 }
 
 function syncHomeSplitRowHeights() {
   const pairs = [
-    ["pyeongtaek-row-container", "popular-reads-container"],
-    ["life-row-container", "opinion-overlay-container"]
+    ["pyeongtaek-row-container", "popular-reads-container"]
   ];
 
   // Only side-by-side at >=992px (.home-split's own breakpoint) -- below
