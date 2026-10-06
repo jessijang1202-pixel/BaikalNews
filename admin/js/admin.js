@@ -1696,6 +1696,11 @@ async function saveArticle() {
     }
   }
 
+  if (pendingDeepTopicId) {
+    rememberDeepArticle(art.id, pendingDeepTopicId);
+    pendingDeepTopicId = null;
+  }
+
   alert("기사와 편집 설정이 정상적으로 저장되었습니다.");
   hideArticleForm();
 }
@@ -2529,23 +2534,35 @@ const PLANNED_DEEP_ARTICLES = [
   { id: '8-5', area: '문화·행사 (삶의 활력소)', title: '평택 도서관 네트워크, 고덕 이후의 계획 (번호 없음)', category: '취재 — 고덕 중앙도서관 기사의 후속', angle: '팽성·동삭·화양·포승 특화 도서관 계획의 구체적 진행 상황을 평택시에 확인', priority: '★★☆' }
 ];
 
-const DEEP_USED_TOPICS_KEY = "baikal_deep_topics_used";
+// 기획 주제 ↔ 기사 연결 (기사 id -> 기획 주제 id). 초안을 쓰는 것만으로는
+// 사용 처리하지 않고, 그 초안으로 만든 기사가 실제로 "발행" 상태가 됐을 때만
+// 추천 목록에서 뺀다 (getUsedDeepTopicIds 참고).
+const DEEP_ARTICLE_MAP_KEY = "baikal_deep_article_map";
+let pendingDeepTopicId = null;
 
-function getUsedDeepTopicIds() {
+function getDeepArticleMap() {
   try {
-    return JSON.parse(localStorage.getItem(DEEP_USED_TOPICS_KEY) || "[]");
+    return JSON.parse(localStorage.getItem(DEEP_ARTICLE_MAP_KEY) || "{}");
   } catch (err) {
-    return [];
+    return {};
   }
 }
 
-function markDeepTopicUsed(id) {
-  if (!id) return;
-  const used = getUsedDeepTopicIds();
-  if (!used.includes(id)) {
-    used.push(id);
-    localStorage.setItem(DEEP_USED_TOPICS_KEY, JSON.stringify(used));
-  }
+function rememberDeepArticle(articleId, topicId) {
+  if (!articleId || !topicId) return;
+  const map = getDeepArticleMap();
+  map[articleId] = topicId;
+  localStorage.setItem(DEEP_ARTICLE_MAP_KEY, JSON.stringify(map));
+}
+
+async function getUsedDeepTopicIds() {
+  const map = getDeepArticleMap();
+  const articleIds = Object.keys(map);
+  if (articleIds.length === 0 || !window.SupabaseAdapter) return [];
+  const articles = await window.SupabaseAdapter.fetchArticles();
+  return articleIds
+    .filter(id => articles.some(a => String(a.id) === id && a.status === 'published'))
+    .map(id => map[id]);
 }
 
 let deepTopicSuggestions = [];
@@ -2568,7 +2585,7 @@ async function loadDeepTopicSuggestions() {
   if (btn) btn.disabled = true;
 
   try {
-    const usedIds = getUsedDeepTopicIds();
+    const usedIds = await getUsedDeepTopicIds();
     const unused = PLANNED_DEEP_ARTICLES.filter(a => !usedIds.includes(a.id));
     const poolText = unused.length > 0
       ? unused.map(a => `${a.id} | 분야: ${a.area} | 제목: ${a.title} | 카테고리: ${a.category} | 앵글: ${a.angle} | 우선순위: ${a.priority}`).join('\n')
@@ -2688,16 +2705,15 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
   const resultText = await callClaudeApi(prompt, stylePrompt);
   const draft = parseAiJsonResponse(resultText);
 
-  // 선택된 항목이 PLANNED_DEEP_ARTICLES에서 온 것이면(제목이 정확히
-  // 일치) 다음부터 추천 목록에서 빠지도록 사용 처리한다. AI가 새로 만든
-  // 항목(id: null)은 애초에 추적 대상이 아니라 해당 없음.
+  // 선택된 항목이 PLANNED_DEEP_ARTICLES에서 온 것이면(제목이 정확히 일치)
+  // 그 id를 실어 보낸다. 실제 사용 처리는 기사가 발행될 때 saveArticle에서 한다.
   const matched = deepTopicSuggestions.find(s => s.id && s.title === topic);
-  if (matched) markDeepTopicUsed(matched.id);
 
   return {
     headline: draft.title, lead: draft.lead, body: draft.body, category,
     seoTitle: draft.seoTitle, seoMeta: draft.seoMeta, slug: draft.slug, keywords: draft.keywords,
-    authorStyle: draft.authorStyle || null
+    authorStyle: draft.authorStyle || null,
+    deepTopicId: matched ? matched.id : null
   };
 }
 
@@ -2849,7 +2865,8 @@ async function generateAiDraft() {
       seoTitle: seoTitle || `${headline} - 바이칼 뉴스`,
       seoMeta: seoMeta || lead,
       slug: finalSlug,
-      authorStyle: authorStyle || null
+      authorStyle: authorStyle || null,
+      deepTopicId: result.deepTopicId || null
     };
 
     document.getElementById("ai-out-headline").textContent = headline;
@@ -2948,6 +2965,7 @@ function resetAiWriter() {
 async function transferAiDraftToEditor() {
   if (!generatedDraftData) return;
 
+  pendingDeepTopicId = generatedDraftData.deepTopicId || null;
   await showArticleCreateForm();
 
   // Populate editor form with AI draft data
