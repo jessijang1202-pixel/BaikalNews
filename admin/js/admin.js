@@ -1773,6 +1773,33 @@ const TOPIC_SCOPE_INSTRUCTIONS = `
 // 글 유형에 적용하면 스타일의 system 프롬프트(칼럼으로 써라)와 유형 규정
 // (기사체를 지켜라)이 정면 충돌한다. 아래 우선순위 조항으로 이 충돌을
 // 명시적으로 해소한다 -- 기사체가 기본, 오피니언만 예외.
+// 작성 기자(문체) 선택 -- 모든 모드·모든 카테고리에 공통 적용. 기자 명은
+// 발행 byline이 아니라 초안의 문체와 작성 기자 표기에만 쓰인다 (발행 byline은
+// 기존처럼 승인자 필드를 따른다). 성별은 프롬프트에 넣지 않고 문체 특징만 쓴다.
+const REPORTER_VOICE = {
+  '최상락': `[작성 기자 문체 - 최상락 기자]
+- 간결체. 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 짚는다.
+- 불필요한 수식어와 부연 설명을 줄이고, 한 문단에 한 가지 메시지를 담는다.`,
+  '장승희': `[작성 기자 문체 - 장승희 기자]
+- 부드러운 문체. 현장 묘사와 서사를 살려 독자가 장면을 따라가도록 쓴다.
+- 비유와 구체적 장면을 섞되, 감정에 호소하는 표현은 사실과 인용으로 뒷받침하고 논지는 분명히 한다.`
+};
+
+function getSelectedReporter() {
+  const el = document.getElementById("ai-reporter");
+  return el && REPORTER_VOICE[el.value] ? el.value : "";
+}
+
+function buildReporterVoiceGuidance(reporter, articleType) {
+  const scope = articleType === '오피니언'
+    ? `이 글은 오피니언이므로 위 문체의 칼럼풍 특징(1인칭 주장, 독자 호소 등)을 그대로 살려 씁니다.`
+    : `이 문체는 어휘·문장 리듬·문단 호흡에만 적용합니다. 문장 종결·인칭·수사적 질문은 위 [논설체 적용 범위]와 글 유형 규정(기사체)을 따릅니다.`;
+  return `
+${REPORTER_VOICE[reporter]}
+- ${scope}
+`;
+}
+
 const EDITORIAL_TONE_INSTRUCTIONS = `
 [논설체 적용 범위 - 반드시 준수]
 논설체는 오직 "오피니언" 유형에서만 씁니다. 취재·생활정보·보도자료·심층기사는 비판적 분석이 들어가더라도 항상 기사체(-다/-했다/-ㄴ다로 끝나는 사실 서술형 어미)를 유지하십시오.
@@ -1806,20 +1833,12 @@ const ARTICLE_TYPE_RULES = {
 - 비판적 '내용'과 논설조 '어조'는 다릅니다 -- 이 유형은 전자만 요구하고 후자는 금지합니다. "시민은 물어야 한다", "~해야 하지 않을까", "우리는 지켜볼 것이다" 식으로 독자에게 직접 호소하거나 선언하는 칼럼식 문장, 1인칭 복수("우리")나 편집진을 주어로 내세운 촉구형 문장, 답 없는 수사적 질문으로 여운만 남기는 구성을 쓰지 마십시오. "A에 대한 설명은 빠져 있다"(허용)와 "A에 대해 왜 설명하지 않는가"(금지)는 다릅니다. 문장 끝은 항상 사실 서술형 어미(-다/-했다/-ㄴ다)로 맺으십시오.
 - 마지막 소제목 1개 이상은 반드시 비판적·분석적 관점으로 마무리하되 위 어조 원칙을 지키십시오 (홍보성 일변도 금지).
 - 비판 대목을 "첫째·둘째·셋째·넷째" 식으로 번호를 매겨 기계적으로 나열하지 마십시오. 각 비판 지점은 소제목으로 나누거나 자연스러운 문단 전환으로 풀어 쓰고, 중요도가 낮은 지점은 한 문장으로 합치거나 생략하십시오.`,
-  // 오피니언은 필진 명의별로 문체가 완전히 달라, 예전처럼 "AI가 둘 중
-  // 하나를 골라라"가 아니라 관리자가 드롭다운에서 명의 자체를 지정하게
-  // 바꿨다 (2026-10 개정) -- 그래서 유형이 하나가 아니라 "오피니언
-  // 최상락"/"오피니언 장승희" 두 개로 나뉜다.
-  '오피니언 최상락': `오피니언 (논설) -- 최상락 명의로 작성
+  // 오피니언은 하나의 유형이고, 필진 명의별 문체는 작성 기자 선택
+  // (REPORTER_VOICE)이 담당한다 -- 그래서 명의별로 유형을 나누지 않는다.
+  '오피니언': `오피니언 (논설)
 - 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
 - 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
-- 다른 유형(취재·생활정보·보도자료·심층기사)과 달리, 이 유형에서는 독자에게 직접 호소하는 문장("우리는 물어야 한다" 등)과 편집진의 1인칭 주장이 허용됩니다 -- 오피니언만의 고유한 특징입니다.
-- 문체: 최상락 명의 -- 간결체. 짧은 문장, 단정적 어조, 수사를 아끼고 핵심을 직설적으로 찌르는 스타일.`,
-  '오피니언 장승희': `오피니언 (논설) -- 장승희 명의로 작성
-- 분량: 공백 제외 최소 5,000자 이상. 소제목 6~8개 이상.
-- 톤: 오마이뉴스 식 시민언론 논조 -- 권력(중앙정부·지자체 행정 포함)에 대한 비판적 거리, 약자·시민 입장 서술, 단정적이고 뚜렷한 주장. 단, 반대 입장도 제시하고 극단적 비방은 금지.
-- 다른 유형(취재·생활정보·보도자료·심층기사)과 달리, 이 유형에서는 독자에게 직접 호소하는 문장("우리는 물어야 한다" 등)과 편집진의 1인칭 주장이 허용됩니다 -- 오피니언만의 고유한 특징입니다.
-- 문체: 장승희 명의 -- 부드러운 문체. 비유와 서사를 활용하고, 독자의 감정에 호소하는 문장을 섞어 쓰되 논지는 분명히 함.`,
+- 다른 유형(취재·생활정보·보도자료·심층기사)과 달리, 이 유형에서는 독자에게 직접 호소하는 문장("우리는 물어야 한다" 등)과 편집진의 1인칭 주장이 허용됩니다 -- 오피니언만의 고유한 특징입니다.`,
   // 2026-10 추가 -- "⑤ 심층 기사" 모드(평택 기획 36~40건)에서 쓰는 전용
   // 유형. 다른 유형과 달리 상한선이 있다(3,000~6,000자 범위를 벗어나면
   // 안 됨) -- buildArticleTypeGuidance의 분량 규칙 문구도 이 유형일 때만
@@ -1849,10 +1868,6 @@ function buildArticleTypeGuidance(pinnedType, targetLength) {
     ? `[기사 유형 지정 - 반드시 아래 "${pinnedType}" 유형 규정을 그대로 따르십시오 (스스로 다른 유형으로 판단하지 마십시오)]\n\n${ARTICLE_TYPE_RULES[pinnedType]}`
     : `[기사 유형별 분량·구조·톤 규정 - 아래 여섯 유형 중 하나를 스스로 판단해 그 기준을 그대로 따르십시오]\n\n${Object.values(ARTICLE_TYPE_RULES).join('\n\n')}`;
 
-  const authorStyleLine = (pinnedType && pinnedType.startsWith('오피니언'))
-    ? `- 이 기사는 "${pinnedType.replace('오피니언 ', '')}" 명의로 지정되어 있습니다. JSON의 "authorStyle" 필드에 그 이름을 그대로 반환하십시오.`
-    : `- 위 유형이 "오피니언 최상락" 또는 "오피니언 장승희"면, JSON에 "authorStyle" 필드를 추가해 "최상락" 또는 "장승희" 중 해당하는 명의를 반환하십시오. 둘 다 아니면 이 필드는 생략하십시오.`;
-
   // 심층기사만 상한선(6,000자)이 있는 유형이라, "최소 분량과 관리자 설정값 중
   // 더 큰 쪽" 규칙을 그대로 적용하면 상한을 넘길 수 있다 -- 그래서 이 유형일
   // 때만 범위 자체를 우선하도록 별도 문구를 쓴다.
@@ -1863,7 +1878,6 @@ function buildArticleTypeGuidance(pinnedType, targetLength) {
   return `${body}
 
 [JSON 출력 시 추가 규칙]
-${authorStyleLine}
 ${lengthRuleLine}
 `;
 }
@@ -2029,7 +2043,7 @@ ${s.content.substring(0, 800)}
 }
 
 // ---- Mode 1: 주제 입력 ----
-async function generateTopicDraft() {
+async function generateTopicDraft(reporter) {
   const topic = document.getElementById("ai-topic-input").value.trim();
   const providedContent = document.getElementById("ai-topic-content").value.trim();
   const category = document.getElementById("ai-topic-category").value;
@@ -2058,6 +2072,7 @@ ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
 ${EDITORIAL_TONE_INSTRUCTIONS}
+${buildReporterVoiceGuidance(reporter, articleType)}
 ${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
@@ -2084,7 +2099,7 @@ ${SEO_JSON_FIELDS_INSTRUCTIONS}
 // (admin/index.html 참고). 메커니즘 자체는 URL 스크래핑/본문 붙여넣기
 // 그대로라 일반 참고 기사 재구성에도 여전히 쓸 수 있다 -- 그럴 땐 글 유형을
 // 바꾸면 된다.
-async function generateLinkDraft() {
+async function generateLinkDraft(reporter) {
   const styleId = document.getElementById("ai-link-style").value;
   const url = document.getElementById("ai-link-url").value.trim();
   const rawText = document.getElementById("ai-link-raw-text").value.trim();
@@ -2127,6 +2142,7 @@ ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
 ${EDITORIAL_TONE_INSTRUCTIONS}
+${buildReporterVoiceGuidance(reporter, articleType)}
 ${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
@@ -2291,7 +2307,7 @@ function selectTrendingArticle(i) {
   selectedTrendingArticle = trendingArticles[i];
 }
 
-async function generateTrendingDraft() {
+async function generateTrendingDraft(reporter) {
   if (!selectedTrendingArticle) {
     throw new Error("먼저 '네이버 화제 뉴스 불러오기'로 목록을 불러오고 기사를 하나 선택해 주세요.");
   }
@@ -2344,6 +2360,8 @@ ${category}
 
 ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
+${EDITORIAL_TONE_INSTRUCTIONS}
+${buildReporterVoiceGuidance(reporter, '')}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
@@ -2415,7 +2433,7 @@ function selectInfoTopic(i) {
   if (input) input.value = item.title;
 }
 
-async function generateInfoDraft() {
+async function generateInfoDraft(reporter) {
   const topic = document.getElementById("ai-info-topic-input").value.trim();
   const category = document.getElementById("ai-info-category").value;
   const styleId = document.getElementById("ai-info-style").value;
@@ -2443,6 +2461,7 @@ ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
 ${EDITORIAL_TONE_INSTRUCTIONS}
+${buildReporterVoiceGuidance(reporter, '생활정보')}
 
 [작성 지침]
 반드시 다음 구조의 JSON 형식으로만 답변하십시오. 백틱(\`\`\`)이나 'json' 마킹 없이 오직 JSON 오브젝트 자체만 출력해야 합니다.
@@ -2603,20 +2622,12 @@ function renderDeepTopicList() {
   `).join('');
 }
 
-// check.md v2의 5개 유형(취재/생활정보/보도자료/오피니언 최상락/오피니언
-// 장승희) 표기와 buildArticleTypeGuidance()가 받는 값을 맞추기 위한 매핑
-// -- 편성안의 "category" 필드는 "오피니언 — 최상락 명의 추천"처럼 부가
-// 설명이 붙어 있을 수 있어, 그 안에 명의가 언급돼 있으면 해당 명의로
-// 정규화하고, 오피니언인데 명의가 안 적혀 있으면(예: "오피니언 (오마이뉴스
-// 톤)") 둘 중 하나로 임의로 고르지 않고 빈 값(관리자가 직접 선택)으로
-// 둔다.
+// 편성안의 "category" 필드(예: "오피니언 — 최상락 명의 추천")를 글 유형
+// 드롭다운 값으로 맞춘다. 명의는 작성 기자 선택이 따로 담당하므로 여기서는
+// 유형만 본다.
 function normalizeArticleType(rawCategory) {
   const text = (rawCategory || '');
-  if (text.includes('오피니언')) {
-    if (text.includes('최상락')) return '오피니언 최상락';
-    if (text.includes('장승희')) return '오피니언 장승희';
-    return '';
-  }
+  if (text.includes('오피니언')) return '오피니언';
   if (text.includes('보도자료')) return '보도자료';
   if (text.includes('생활정보')) return '생활정보';
   if (text.includes('취재')) return '취재';
@@ -2634,7 +2645,7 @@ function selectDeepTopic(i) {
   if (typeSelect) typeSelect.value = normalizeArticleType(item.category);
 }
 
-async function generateDeepDraft() {
+async function generateDeepDraft(reporter) {
   const topic = document.getElementById("ai-deep-topic-input").value.trim();
   const angle = document.getElementById("ai-deep-angle-input").value.trim();
   const category = document.getElementById("ai-deep-category").value;
@@ -2663,6 +2674,7 @@ ${fewShotPrompt}
 ${SEO_PROMPT_INSTRUCTIONS}
 ${TOPIC_SCOPE_INSTRUCTIONS}
 ${EDITORIAL_TONE_INSTRUCTIONS}
+${buildReporterVoiceGuidance(reporter, articleType)}
 ${buildArticleTypeGuidance(articleType, targetLength)}
 
 [작성 지침]
@@ -2797,6 +2809,12 @@ function renderSelfCheckResults(results) {
 
 // Dispatch + render the draft output (shared by all 4 modes)
 async function generateAiDraft() {
+  const reporter = getSelectedReporter();
+  if (!reporter) {
+    alert("먼저 작성 기자(최상락 또는 장승희)를 선택해 주세요.");
+    return;
+  }
+
   document.getElementById("ai-empty-state").style.display = "none";
   document.getElementById("ai-draft-viewer").style.display = "none";
   document.getElementById("ai-loader").style.display = "flex";
@@ -2805,17 +2823,18 @@ async function generateAiDraft() {
   try {
     let result;
     if (activeAiMode === 'topic') {
-      result = await generateTopicDraft();
+      result = await generateTopicDraft(reporter);
     } else if (activeAiMode === 'link') {
-      result = await generateLinkDraft();
+      result = await generateLinkDraft(reporter);
     } else if (activeAiMode === 'trending') {
-      result = await generateTrendingDraft();
+      result = await generateTrendingDraft(reporter);
     } else if (activeAiMode === 'info') {
-      result = await generateInfoDraft();
+      result = await generateInfoDraft(reporter);
     } else if (activeAiMode === 'deep') {
-      result = await generateDeepDraft();
+      result = await generateDeepDraft(reporter);
     }
 
+    result.authorStyle = reporter;
     const { headline, lead, body, category, seoTitle, seoMeta, slug, keywords, authorStyle } = result;
     const finalSlug = slugify(slug) || `article-${Date.now()}`;
     const finalKeywords = Array.isArray(keywords) ? keywords : [];
@@ -2837,7 +2856,7 @@ async function generateAiDraft() {
     const authorStyleEl = document.getElementById("ai-out-author-style");
     if (authorStyleEl) {
       if (authorStyle) {
-        authorStyleEl.textContent = `오피니언 필진 명의: ${authorStyle} (발행 시 데스크 승인자를 맞추는 것을 권장합니다)`;
+        authorStyleEl.textContent = `작성 기자 문체: ${authorStyle} 기자 (발행 시 데스크 승인자를 맞추는 것을 권장합니다)`;
         authorStyleEl.style.display = "block";
       } else {
         authorStyleEl.style.display = "none";
@@ -2869,6 +2888,8 @@ async function generateAiDraft() {
 // Clears every mode's inputs and the generated draft/output panel so the
 // writer can start over without reloading the page.
 function resetAiWriter() {
+  document.getElementById("ai-reporter").value = "";
+
   // Mode 1: topic
   document.getElementById("ai-topic-input").value = "";
   document.getElementById("ai-topic-content").value = "";
@@ -2946,7 +2967,7 @@ async function transferAiDraftToEditor() {
   updateContentCharCount();
 
   const authorStyleNote = generatedDraftData.authorStyle
-    ? ` AI가 이 글을 "${generatedDraftData.authorStyle}" 명의 문체로 썼습니다 -- 발행 시 데스크 승인자를 맞춰 지정하는 것을 권장합니다.`
+    ? ` 이 글은 "${generatedDraftData.authorStyle}" 기자 문체로 작성되었습니다 -- 발행 시 데스크 승인자를 맞춰 지정하는 것을 권장합니다.`
     : '';
   alert(`인공지능 초안 데이터가 편집기 폼으로 안전하게 전송되었습니다. 오탈자를 다듬고 추가 취재를 반영한 후 검토 요청 및 최종 데스크 서명을 획득하세요.${authorStyleNote}`);
 }
